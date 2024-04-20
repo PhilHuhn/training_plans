@@ -1,14 +1,11 @@
 from .training_plan import TrainingPlan
 from .phase import Phase
-from .week import Week
-from .training_session import TrainingSession
-from .segment import Segment
-
+from .day import Day
+from .training_element import TrainingElement
 
 __all__ = [
     "TrainingPlan",
     "Phase",
-    "Week",
-    "TrainingSession",
-    "Segment",
+    "Day",
+    "TrainingElement"
 ]
