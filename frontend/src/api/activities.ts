@@ -1,5 +1,5 @@
 import apiClient from './client'
-import type { ActivityListResponse, ActivityStats } from '@/lib/types'
+import type { ActivityListResponse, ActivityStats, SportStatsResponse, WeeklyBySportResponse } from '@/lib/types'
 
 export const activitiesApi = {
   list: (params?: {
@@ -14,4 +14,10 @@ export const activitiesApi = {
 
   stats: (params?: { start_date?: string; end_date?: string }) =>
     apiClient.get<ActivityStats>('/activities/stats/summary', { params }),
+
+  statsBySport: (params?: { start_date?: string; end_date?: string }) =>
+    apiClient.get<SportStatsResponse>('/activities/stats/by-sport', { params }),
+
+  weeklyBySport: (weeks?: number) =>
+    apiClient.get<WeeklyBySportResponse>('/activities/stats/weekly-by-sport', { params: { weeks } }),
 }

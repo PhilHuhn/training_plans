@@ -30,22 +30,27 @@ interface SessionModalProps {
   date: string
 }
 
+const sports = ['running', 'cycling', 'swimming', 'strength', 'hiking', 'rowing', 'other']
 const workoutTypes = ['easy', 'tempo', 'interval', 'long_run', 'recovery', 'rest', 'cross_training']
 const intensities = ['low', 'moderate', 'high']
 const hrZones = ['zone1', 'zone2', 'zone3', 'zone4', 'zone5']
 const stepTypes: WorkoutStep['step_type'][] = ['warmup', 'active', 'recovery', 'rest', 'cooldown', 'repeat']
 
 const templates: Record<string, Partial<WorkoutDetails>> = {
-  easy: { type: 'easy', description: 'Easy run', intensity: 'low', hr_zone: 'zone2' },
-  tempo: { type: 'tempo', description: 'Tempo run', intensity: 'moderate', hr_zone: 'zone3' },
+  easy: { type: 'easy', sport: 'running', description: 'Easy run', intensity: 'low', hr_zone: 'zone2' },
+  tempo: { type: 'tempo', sport: 'running', description: 'Tempo run', intensity: 'moderate', hr_zone: 'zone3' },
   intervals: {
     type: 'interval',
+    sport: 'running',
     description: '6x400m intervals with 90s recovery',
     intensity: 'high',
     hr_zone: 'zone4',
     intervals: [{ reps: 6, distance_m: 400, recovery: '90s' }],
   },
-  long: { type: 'long_run', description: 'Long run', intensity: 'low', hr_zone: 'zone2' },
+  long: { type: 'long_run', sport: 'running', description: 'Long run', intensity: 'low', hr_zone: 'zone2' },
+  'easy ride': { type: 'easy', sport: 'cycling', description: 'Easy endurance ride', intensity: 'low', hr_zone: 'zone2' },
+  swim: { type: 'easy', sport: 'swimming', description: 'Swim session', intensity: 'moderate', hr_zone: 'zone2' },
+  strength: { type: 'cross_training', sport: 'strength', description: 'Strength training — core and legs', intensity: 'moderate' },
 }
 
 export default function SessionModal({ open, onClose, session, date }: SessionModalProps) {
@@ -53,6 +58,7 @@ export default function SessionModal({ open, onClose, session, date }: SessionMo
   const updateSession = useUpdateSession()
 
   const existing = session?.planned_workout
+  const [sport, setSport] = useState(existing?.sport || 'running')
   const [type, setType] = useState(existing?.type || 'easy')
   const [description, setDescription] = useState(existing?.description || '')
   const [distanceKm, setDistanceKm] = useState(existing?.distance_km?.toString() || '')
@@ -60,12 +66,14 @@ export default function SessionModal({ open, onClose, session, date }: SessionMo
   const [intensity, setIntensity] = useState(existing?.intensity || '')
   const [hrZone, setHrZone] = useState(existing?.hr_zone || '')
   const [paceRange, setPaceRange] = useState(existing?.pace_range || '')
+  const [powerTarget, setPowerTarget] = useState(existing?.power_target_watts?.toString() || '')
   const [notes, setNotes] = useState(existing?.notes || '')
   const [steps, setSteps] = useState<WorkoutStep[]>(existing?.structured?.steps || [])
 
   useEffect(() => {
     if (open) {
       const w = session?.planned_workout
+      setSport(w?.sport || 'running')
       setType(w?.type || 'easy')
       setDescription(w?.description || '')
       setDistanceKm(w?.distance_km?.toString() || '')
@@ -73,6 +81,7 @@ export default function SessionModal({ open, onClose, session, date }: SessionMo
       setIntensity(w?.intensity || '')
       setHrZone(w?.hr_zone || '')
       setPaceRange(w?.pace_range || '')
+      setPowerTarget(w?.power_target_watts?.toString() || '')
       setNotes(w?.notes || '')
       setSteps(w?.structured?.steps || [])
     }
@@ -81,10 +90,13 @@ export default function SessionModal({ open, onClose, session, date }: SessionMo
   const applyTemplate = (key: string) => {
     const t = templates[key]
     if (t) {
+      setSport(t.sport || 'running')
       setType(t.type || 'easy')
       setDescription(t.description || '')
       setIntensity(t.intensity || '')
       setHrZone(t.hr_zone || '')
+      setPaceRange('')
+      setPowerTarget('')
     }
   }
 
@@ -107,19 +119,26 @@ export default function SessionModal({ open, onClose, session, date }: SessionMo
     setSteps(steps.map((s, i) => (i === index ? { ...s, ...updates } : s)))
   }
 
+  // Determine which fields to show based on sport
+  const showPace = sport === 'running'
+  const showPower = sport === 'cycling'
+  const showDistance = sport !== 'strength'
+
   const handleSave = () => {
     const workout: WorkoutDetails = {
       type,
+      sport,
       description,
       distance_km: distanceKm ? parseFloat(distanceKm) : undefined,
       duration_min: durationMin ? parseInt(durationMin) : undefined,
       intensity: intensity || undefined,
       hr_zone: hrZone || undefined,
-      pace_range: paceRange || undefined,
+      pace_range: showPace && paceRange ? paceRange : undefined,
+      power_target_watts: showPower && powerTarget ? parseInt(powerTarget) : undefined,
       notes: notes || undefined,
       structured:
         steps.length > 0
-          ? { name: `${type} workout`, steps, sport: 'running' }
+          ? { name: `${type} workout`, steps, sport }
           : undefined,
     }
 
@@ -166,7 +185,20 @@ export default function SessionModal({ open, onClose, session, date }: SessionMo
               ))}
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-3 gap-3">
+              <div className="space-y-1.5">
+                <Label>Sport</Label>
+                <Select value={sport} onValueChange={setSport}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {sports.map((s) => (
+                      <SelectItem key={s} value={s}>
+                        {s.charAt(0).toUpperCase() + s.slice(1)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
               <div className="space-y-1.5">
                 <Label>Type</Label>
                 <Select value={type} onValueChange={setType}>
@@ -203,15 +235,17 @@ export default function SessionModal({ open, onClose, session, date }: SessionMo
             </div>
 
             <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label>Distance (km)</Label>
-                <Input
-                  type="number"
-                  step="0.1"
-                  value={distanceKm}
-                  onChange={(e) => setDistanceKm(e.target.value)}
-                />
-              </div>
+              {showDistance && (
+                <div className="space-y-1.5">
+                  <Label>Distance (km)</Label>
+                  <Input
+                    type="number"
+                    step="0.1"
+                    value={distanceKm}
+                    onChange={(e) => setDistanceKm(e.target.value)}
+                  />
+                </div>
+              )}
               <div className="space-y-1.5">
                 <Label>Duration (min)</Label>
                 <Input
@@ -234,14 +268,27 @@ export default function SessionModal({ open, onClose, session, date }: SessionMo
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-1.5">
-                <Label>Pace Range</Label>
-                <Input
-                  placeholder="5:00-5:30"
-                  value={paceRange}
-                  onChange={(e) => setPaceRange(e.target.value)}
-                />
-              </div>
+              {showPace && (
+                <div className="space-y-1.5">
+                  <Label>Pace Range</Label>
+                  <Input
+                    placeholder="5:00-5:30"
+                    value={paceRange}
+                    onChange={(e) => setPaceRange(e.target.value)}
+                  />
+                </div>
+              )}
+              {showPower && (
+                <div className="space-y-1.5">
+                  <Label>Power Target (W)</Label>
+                  <Input
+                    type="number"
+                    placeholder="e.g. 200"
+                    value={powerTarget}
+                    onChange={(e) => setPowerTarget(e.target.value)}
+                  />
+                </div>
+              )}
             </div>
 
             <div className="space-y-1.5">

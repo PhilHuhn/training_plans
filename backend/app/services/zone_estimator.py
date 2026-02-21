@@ -38,6 +38,25 @@ def calculate_hr_zones_from_max(max_hr: int, resting_hr: int = 50) -> dict:
     }
 
 
+def calculate_cycling_power_zones_from_ftp(ftp: int) -> dict:
+    """
+    Calculate 5 cycling power zones based on FTP using Coggan model.
+
+    Zone 1: <55% FTP (Active Recovery)
+    Zone 2: 56-75% FTP (Endurance)
+    Zone 3: 76-90% FTP (Tempo)
+    Zone 4: 91-105% FTP (Threshold)
+    Zone 5: >105% FTP (VO2max)
+    """
+    return {
+        "zone1": {"min": 0, "max": int(ftp * 0.55), "name": "Active Recovery"},
+        "zone2": {"min": int(ftp * 0.56), "max": int(ftp * 0.75), "name": "Endurance"},
+        "zone3": {"min": int(ftp * 0.76), "max": int(ftp * 0.90), "name": "Tempo"},
+        "zone4": {"min": int(ftp * 0.91), "max": int(ftp * 1.05), "name": "Threshold"},
+        "zone5": {"min": int(ftp * 1.06), "max": int(ftp * 1.50), "name": "VO2max"},
+    }
+
+
 def calculate_pace_zones_from_threshold(threshold_pace: float) -> dict:
     """
     Calculate pace zones based on threshold pace (seconds per km).

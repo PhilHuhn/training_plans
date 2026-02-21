@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, desc
-from datetime import datetime, date
+from sqlalchemy import select, func, desc, extract, cast, Date
+from datetime import datetime, date, timedelta
 from typing import Optional
 from app.core.database import get_db
 from app.models.user import User
@@ -50,6 +50,101 @@ async def get_activities(
         page=page,
         per_page=per_page
     )
+
+
+@router.get("/stats/by-sport")
+async def get_stats_by_sport(
+    start_date: Optional[date] = Query(None),
+    end_date: Optional[date] = Query(None),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Get activity stats grouped by sport/activity type"""
+    query = select(
+        Activity.activity_type,
+        func.count(Activity.id).label("count"),
+        func.coalesce(func.sum(Activity.distance), 0).label("total_distance"),
+        func.coalesce(func.sum(Activity.duration), 0).label("total_duration"),
+        func.coalesce(func.sum(Activity.elevation_gain), 0).label("total_elevation"),
+        func.avg(Activity.avg_heart_rate).label("avg_hr"),
+        func.coalesce(func.sum(Activity.calories), 0).label("total_calories"),
+    ).where(Activity.user_id == current_user.id)
+
+    if start_date:
+        query = query.where(Activity.start_date >= datetime.combine(start_date, datetime.min.time()))
+    if end_date:
+        query = query.where(Activity.start_date <= datetime.combine(end_date, datetime.max.time()))
+
+    query = query.group_by(Activity.activity_type)
+    result = await db.execute(query)
+    rows = result.all()
+
+    sports = []
+    for row in rows:
+        sports.append({
+            "sport": row.activity_type or "Unknown",
+            "count": row.count,
+            "distance_km": round((row.total_distance or 0) / 1000, 1),
+            "duration_hours": round((row.total_duration or 0) / 3600, 1),
+            "elevation_m": round(row.total_elevation or 0, 0),
+            "avg_hr": round(row.avg_hr or 0, 0),
+            "calories": round(row.total_calories or 0, 0),
+        })
+
+    # Sort by count descending
+    sports.sort(key=lambda x: x["count"], reverse=True)
+    return {"sports": sports}
+
+
+@router.get("/stats/weekly-by-sport")
+async def get_weekly_stats_by_sport(
+    weeks: int = Query(12, ge=1, le=52),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Get weekly activity stats grouped by sport for chart data"""
+    end = datetime.utcnow()
+    start = end - timedelta(weeks=weeks)
+
+    result = await db.execute(
+        select(Activity)
+        .where(Activity.user_id == current_user.id)
+        .where(Activity.start_date >= start)
+        .order_by(Activity.start_date)
+    )
+    activities = result.scalars().all()
+
+    # Group by ISO week + sport
+    weekly: dict[str, dict[str, dict]] = {}  # week_label -> sport -> stats
+    for a in activities:
+        # Calculate Monday of the week
+        d = a.start_date
+        monday = d - timedelta(days=d.weekday())
+        week_key = monday.strftime("%Y-%m-%d")
+        sport = a.activity_type or "Unknown"
+
+        if week_key not in weekly:
+            weekly[week_key] = {}
+        if sport not in weekly[week_key]:
+            weekly[week_key][sport] = {"distance_km": 0, "duration_hours": 0, "count": 0}
+
+        weekly[week_key][sport]["distance_km"] += (a.distance or 0) / 1000
+        weekly[week_key][sport]["duration_hours"] += (a.duration or 0) / 3600
+        weekly[week_key][sport]["count"] += 1
+
+    # Build ordered list of weeks
+    weeks_data = []
+    for week_key in sorted(weekly.keys()):
+        entry = {"week": week_key, "sports": {}}
+        for sport, stats in weekly[week_key].items():
+            entry["sports"][sport] = {
+                "distance_km": round(stats["distance_km"], 1),
+                "duration_hours": round(stats["duration_hours"], 1),
+                "count": stats["count"],
+            }
+        weeks_data.append(entry)
+
+    return {"weeks": weeks_data}
 
 
 @router.get("/{activity_id}", response_model=ActivityResponse)

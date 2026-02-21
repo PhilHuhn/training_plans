@@ -57,7 +57,7 @@ class WorkoutStep(BaseModel):
 class StructuredWorkout(BaseModel):
     """A fully structured workout with steps for Garmin/Suunto export"""
     name: str
-    sport: Literal["running", "cycling", "swimming"] = "running"
+    sport: Literal["running", "cycling", "swimming", "strength", "hiking", "rowing", "other"] = "running"
     description: Optional[str] = None
     steps: list[WorkoutStep]
 
@@ -68,8 +68,10 @@ class StructuredWorkout(BaseModel):
 
 class WorkoutDetails(BaseModel):
     """Structure for both planned and recommended workouts"""
-    type: str  # easy, tempo, interval, long_run, recovery, rest
+    type: str  # easy, tempo, interval, long_run, recovery, rest, cross_training
+    sport: Optional[str] = "running"  # running, cycling, swimming, strength, hiking, rowing, other
     description: str
+    power_target_watts: Optional[int] = None  # For cycling with FTP
     distance_km: Optional[float] = None
     duration_min: Optional[int] = None
     intensity: Optional[str] = None  # low, moderate, high

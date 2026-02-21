@@ -21,7 +21,8 @@ async def generate_recommendations(
     db: AsyncSession,
     start_date: date,
     end_date: date,
-    consider_fixed_plan: bool = True
+    consider_fixed_plan: bool = True,
+    include_cross_training: bool = True,
 ) -> dict:
     """
     Generate training recommendations for a user for the given date range.
@@ -43,6 +44,13 @@ async def generate_recommendations(
     weekly_distance = sum(a.distance or 0 for a in week_activities) / 1000
     weekly_duration = sum(a.duration or 0 for a in week_activities) / 3600
     weekly_avg_hr = sum(a.avg_heart_rate or 0 for a in week_activities) / max(len(week_activities), 1)
+
+    # Count sessions by sport type
+    run_types = {"run", "running", "trail run", "treadmill"}
+    ride_types = {"ride", "cycling", "virtualride", "virtual ride"}
+    weekly_runs = sum(1 for a in week_activities if (a.activity_type or "").lower() in run_types)
+    weekly_rides = sum(1 for a in week_activities if (a.activity_type or "").lower() in ride_types)
+    weekly_other = len(week_activities) - weekly_runs - weekly_rides
 
     # Get all competitions within the planning period (and slightly beyond for taper planning)
     result = await db.execute(
@@ -74,7 +82,7 @@ async def generate_recommendations(
 
     # Format activities for prompt (show up to 15 activities for better context)
     activities_text = "No recent activities." if not recent_activities else "\n".join([
-        f"- {a.start_date.strftime('%Y-%m-%d')}: {a.name} - "
+        f"- {a.start_date.strftime('%Y-%m-%d')}: [{a.activity_type or 'Run'}] {a.name} - "
         f"{(a.distance or 0)/1000:.1f}km, "
         f"{format_pace(a.avg_pace)}/km, "
         f"HR: {a.avg_heart_rate or 'N/A'}bpm"
@@ -114,6 +122,17 @@ async def generate_recommendations(
         for zone, data in pace_zones.items()
     ]) or "Default zones"
 
+    # Format cycling power zones
+    ftp = preferences.get("ftp")
+    cycling_power_zones = preferences.get("cycling_power_zones", {})
+
+    ftp_text = f"{ftp}W" if ftp else "Not set"
+
+    cycling_power_zones_text = "\n".join([
+        f"- {zone}: {data.get('min', 0)}-{data.get('max', 0)}W ({data.get('name', zone)})"
+        for zone, data in cycling_power_zones.items()
+    ]) or "Not configured (no FTP set)"
+
     # Calculate planning duration
     planning_days = (end_date - start_date).days
     planning_weeks = planning_days // 7
@@ -131,20 +150,31 @@ async def generate_recommendations(
         max_hr=preferences.get("max_hr", 190),
         resting_hr=preferences.get("resting_hr", 50),
         threshold_pace=threshold_pace_text,
+        ftp=ftp_text,
         athlete_profile=athlete_profile,
         hr_zones=hr_zones_text,
         pace_zones=pace_zones_text,
+        cycling_power_zones=cycling_power_zones_text,
         recent_activities=activities_text,
         weekly_distance=f"{weekly_distance:.1f}",
         weekly_duration=f"{weekly_duration:.1f}",
         weekly_avg_hr=f"{weekly_avg_hr:.0f}",
-        weekly_runs=len(week_activities),
+        weekly_runs=weekly_runs,
+        weekly_rides=weekly_rides,
+        weekly_other=weekly_other,
         upcoming_competitions=competitions_text,
         fixed_plan=fixed_plan_text,
         start_date=start_date.isoformat(),
         end_date=end_date.isoformat(),
         planning_weeks=planning_weeks,
     )
+
+    if not include_cross_training:
+        prompt += (
+            "\n\nIMPORTANT: The athlete has requested a RUNNING-ONLY plan. "
+            "Do NOT include cross-training sessions (cycling, swimming, strength, etc.). "
+            "All sessions should have sport='running'. Use rest days instead of cross-training days."
+        )
 
     # Call Claude
     result = await claude_client.generate_training_recommendations(

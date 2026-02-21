@@ -1,7 +1,7 @@
-import { Check, Pencil, Download } from 'lucide-react'
+import { Check, Pencil, Download, Bike, Waves, Dumbbell, Mountain, Ship } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { cn, workoutTypeColor, formatDistanceKm } from '@/lib/utils'
+import { cn, workoutTypeColor, sportColor, formatDistanceKm } from '@/lib/utils'
 import type { WorkoutDetails, TrainingSession } from '@/lib/types'
 import { trainingApi } from '@/api/training'
 
@@ -68,9 +68,21 @@ export default function SessionCard({
       )}
     >
       <div className="mb-2 flex items-start justify-between gap-2">
-        <Badge variant="secondary" className={cn('text-xs', workoutTypeColor(workout.type))}>
-          {workout.type.replace('_', ' ')}
-        </Badge>
+        <div className="flex items-center gap-1.5">
+          <Badge variant="secondary" className={cn('text-xs', workoutTypeColor(workout.type))}>
+            {workout.type.replace('_', ' ')}
+          </Badge>
+          {workout.sport && workout.sport !== 'running' && (
+            <Badge variant="outline" className={cn('text-xs gap-1', sportColor(workout.sport))}>
+              {workout.sport === 'cycling' && <Bike className="h-3 w-3" />}
+              {workout.sport === 'swimming' && <Waves className="h-3 w-3" />}
+              {workout.sport === 'strength' && <Dumbbell className="h-3 w-3" />}
+              {workout.sport === 'hiking' && <Mountain className="h-3 w-3" />}
+              {workout.sport === 'rowing' && <Ship className="h-3 w-3" />}
+              {workout.sport}
+            </Badge>
+          )}
+        </div>
         <div className="flex gap-1">
           {variant === 'planned' && onEdit && (
             <Button variant="ghost" size="icon" className="h-6 w-6" onClick={onEdit}>
@@ -100,6 +112,7 @@ export default function SessionCard({
         )}
         {workout.duration_min && <span>{workout.duration_min} min</span>}
         {workout.pace_range && <span>{workout.pace_range}</span>}
+        {workout.power_target_watts && <span>{workout.power_target_watts}W</span>}
         {workout.hr_zone && <span>{workout.hr_zone}</span>}
         {workout.intensity && (
           <span className="capitalize">{workout.intensity}</span>

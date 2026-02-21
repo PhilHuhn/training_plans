@@ -96,3 +96,106 @@ export function priorityColor(priority: string): string {
   }
   return colors[priority] || 'bg-zinc-100 text-zinc-700'
 }
+
+export function sportColor(sport: string): string {
+  const colors: Record<string, string> = {
+    running: 'bg-green-100 text-green-700',
+    cycling: 'bg-yellow-100 text-yellow-700',
+    swimming: 'bg-blue-100 text-blue-700',
+    strength: 'bg-rose-100 text-rose-700',
+    hiking: 'bg-amber-100 text-amber-700',
+    rowing: 'bg-indigo-100 text-indigo-700',
+  }
+  return colors[sport] || 'bg-zinc-100 text-zinc-700'
+}
+
+export function stravaSportColor(stravaType: string): string {
+  const colors: Record<string, string> = {
+    Run: 'bg-green-100 text-green-700',
+    TrailRun: 'bg-amber-100 text-amber-700',
+    VirtualRun: 'bg-green-100 text-green-700',
+    Ride: 'bg-yellow-100 text-yellow-700',
+    VirtualRide: 'bg-yellow-100 text-yellow-700',
+    MountainBikeRide: 'bg-yellow-100 text-yellow-700',
+    EBikeRide: 'bg-yellow-100 text-yellow-700',
+    Swim: 'bg-blue-100 text-blue-700',
+    WeightTraining: 'bg-rose-100 text-rose-700',
+    Hike: 'bg-emerald-100 text-emerald-700',
+    Walk: 'bg-teal-100 text-teal-700',
+    Rowing: 'bg-indigo-100 text-indigo-700',
+  }
+  return colors[stravaType] || 'bg-zinc-100 text-zinc-700'
+}
+
+export function sportLabel(sport: string): string {
+  const labels: Record<string, string> = {
+    running: 'Running',
+    cycling: 'Cycling',
+    swimming: 'Swimming',
+    strength: 'Strength',
+    hiking: 'Hiking',
+    rowing: 'Rowing',
+    other: 'Other',
+  }
+  return labels[sport] || sport.charAt(0).toUpperCase() + sport.slice(1)
+}
+
+export function stravaSportLabel(stravaType: string): string {
+  const labels: Record<string, string> = {
+    Run: 'Run',
+    TrailRun: 'Trail Run',
+    VirtualRun: 'Virtual Run',
+    Ride: 'Ride',
+    VirtualRide: 'Virtual Ride',
+    MountainBikeRide: 'MTB',
+    EBikeRide: 'E-Bike',
+    Swim: 'Swim',
+    WeightTraining: 'Strength',
+    Hike: 'Hike',
+    Walk: 'Walk',
+    Rowing: 'Rowing',
+    Yoga: 'Yoga',
+    Workout: 'Workout',
+  }
+  return labels[stravaType] || stravaType
+}
+
+/** Color hex for a Strava activity type (for charts) */
+export function stravaSportHex(stravaType: string): string {
+  const colors: Record<string, string> = {
+    Run: '#22c55e',
+    TrailRun: '#f59e0b',
+    VirtualRun: '#86efac',
+    Ride: '#eab308',
+    VirtualRide: '#fde047',
+    MountainBikeRide: '#ca8a04',
+    EBikeRide: '#facc15',
+    Swim: '#3b82f6',
+    WeightTraining: '#f43f5e',
+    Hike: '#10b981',
+    Walk: '#14b8a6',
+    Rowing: '#6366f1',
+    Yoga: '#a855f7',
+    Workout: '#6b7280',
+  }
+  return colors[stravaType] || '#9ca3af'
+}
+
+/** Strava sport icon name for badge display */
+export function stravaSportIcon(stravaType: string): string {
+  const map: Record<string, string> = {
+    Run: 'running',
+    TrailRun: 'running',
+    VirtualRun: 'running',
+    Ride: 'cycling',
+    VirtualRide: 'cycling',
+    MountainBikeRide: 'cycling',
+    EBikeRide: 'cycling',
+    Swim: 'swimming',
+    WeightTraining: 'strength',
+    Hike: 'hiking',
+    Walk: 'hiking',
+    Rowing: 'rowing',
+  }
+  return map[stravaType] || 'other'
+}

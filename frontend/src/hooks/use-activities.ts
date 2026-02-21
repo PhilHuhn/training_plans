@@ -22,6 +22,20 @@ export function useActivityStats(params?: { start_date?: string; end_date?: stri
   })
 }
 
+export function useStatsBySport(params?: { start_date?: string; end_date?: string }) {
+  return useQuery({
+    queryKey: ['statsBySport', params],
+    queryFn: () => activitiesApi.statsBySport(params).then((r) => r.data),
+  })
+}
+
+export function useWeeklyBySport(weeks?: number) {
+  return useQuery({
+    queryKey: ['weeklyBySport', weeks],
+    queryFn: () => activitiesApi.weeklyBySport(weeks).then((r) => r.data),
+  })
+}
+
 export function useStravaSync() {
   const queryClient = useQueryClient()
   return useMutation({
@@ -29,6 +43,8 @@ export function useStravaSync() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['activities'] })
       queryClient.invalidateQueries({ queryKey: ['activityStats'] })
+      queryClient.invalidateQueries({ queryKey: ['statsBySport'] })
+      queryClient.invalidateQueries({ queryKey: ['weeklyBySport'] })
       queryClient.invalidateQueries({ queryKey: ['currentUser'] })
     },
   })

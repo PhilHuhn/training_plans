@@ -13,9 +13,11 @@ export interface UserPreferences {
   units?: string
   hr_zones?: Record<string, ZoneRange>
   pace_zones?: Record<string, ZoneRange>
+  cycling_power_zones?: Record<string, ZoneRange>
   max_hr?: number
   resting_hr?: number
   threshold_pace?: number
+  ftp?: number // Functional Threshold Power in watts
 }
 
 export interface ZoneRange {
@@ -63,6 +65,30 @@ export interface ActivityStats {
   avg_pace_per_km: number
 }
 
+// Sport stats types
+export interface SportStat {
+  sport: string
+  count: number
+  distance_km: number
+  duration_hours: number
+  elevation_m: number
+  avg_hr: number
+  calories: number
+}
+
+export interface SportStatsResponse {
+  sports: SportStat[]
+}
+
+export interface WeeklySportEntry {
+  week: string
+  sports: Record<string, { distance_km: number; duration_hours: number; count: number }>
+}
+
+export interface WeeklyBySportResponse {
+  weeks: WeeklySportEntry[]
+}
+
 // Competition types
 export type RaceType = '5K' | '10K' | 'HM' | 'M' | '50K' | '100K' | '50M' | '100M' | 'OTHER'
 export type RacePriority = 'A' | 'B' | 'C'
@@ -103,7 +129,9 @@ export type SessionStatus = 'planned' | 'completed' | 'skipped' | 'modified'
 
 export interface WorkoutDetails {
   type: string
+  sport?: string // running, cycling, swimming, strength, hiking, rowing, other
   description: string
+  power_target_watts?: number // For cycling with FTP
   distance_km?: number
   duration_min?: number
   intensity?: string

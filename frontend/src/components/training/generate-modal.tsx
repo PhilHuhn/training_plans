@@ -10,9 +10,9 @@ import {
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Sparkles } from 'lucide-react'
+import { Sparkles, Bike } from 'lucide-react'
 import { useGenerateRecommendations } from '@/hooks/use-training'
-import { formatDateISO, addDays } from '@/lib/utils'
+import { addDays } from '@/lib/utils'
 
 interface GenerateModalProps {
   open: boolean
@@ -23,11 +23,16 @@ interface GenerateModalProps {
 export default function GenerateModal({ open, onClose, weekStart }: GenerateModalProps) {
   const [startDate, setStartDate] = useState(weekStart)
   const [endDate, setEndDate] = useState(addDays(weekStart, 6))
+  const [includeCrossTraining, setIncludeCrossTraining] = useState(true)
   const generate = useGenerateRecommendations()
 
   const handleGenerate = () => {
     generate.mutate(
-      { start_date: startDate, end_date: endDate },
+      {
+        start_date: startDate,
+        end_date: endDate,
+        include_cross_training: includeCrossTraining,
+      },
       { onSuccess: onClose },
     )
   }
@@ -62,6 +67,23 @@ export default function GenerateModal({ open, onClose, weekStart }: GenerateModa
               onChange={(e) => setEndDate(e.target.value)}
             />
           </div>
+
+          {/* Cross-training toggle */}
+          <label className="flex cursor-pointer items-center gap-3 rounded-lg border p-3 transition-colors hover:bg-muted/50">
+            <input
+              type="checkbox"
+              checked={includeCrossTraining}
+              onChange={(e) => setIncludeCrossTraining(e.target.checked)}
+              className="h-4 w-4 rounded border-gray-300 accent-violet-600"
+            />
+            <Bike className="h-4 w-4 text-muted-foreground" />
+            <div>
+              <p className="text-sm font-medium">Include cross-training</p>
+              <p className="text-xs text-muted-foreground">
+                Add cycling, swimming, and strength sessions
+              </p>
+            </div>
+          </label>
         </div>
 
         {generate.error && (

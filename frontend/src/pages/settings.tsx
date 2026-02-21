@@ -20,11 +20,15 @@ export default function SettingsPage() {
   const queryClient = useQueryClient()
   const [searchParams] = useSearchParams()
 
-  // Strava success detection
+  // Strava OAuth callback detection
   useEffect(() => {
-    if (searchParams.get('success') === 'strava_connected') {
+    const stravaParam = searchParams.get('strava')
+    if (stravaParam === 'connected') {
       toast.success('Strava connected successfully!')
       queryClient.invalidateQueries({ queryKey: ['currentUser'] })
+    } else if (stravaParam === 'error') {
+      const reason = searchParams.get('reason') || 'unknown'
+      toast.error(`Strava connection failed: ${reason}`)
     }
   }, [searchParams, queryClient])
 
@@ -62,6 +66,10 @@ export default function SettingsPage() {
   const [paceZones, setPaceZones] = useState<Record<string, { min: number; max: number }>>(
     (prefs.pace_zones as Record<string, { min: number; max: number }>) || {},
   )
+  const [ftp, setFtp] = useState(String(prefs.ftp || ''))
+  const [cyclingPowerZones, setCyclingPowerZones] = useState<Record<string, { min: number; max: number }>>(
+    (prefs.cycling_power_zones as Record<string, { min: number; max: number }>) || {},
+  )
   const [zonesLoading, setZonesLoading] = useState(false)
 
   useEffect(() => {
@@ -71,6 +79,8 @@ export default function SettingsPage() {
       setRestingHr(String(p.resting_hr || 50))
       if (p.hr_zones) setHrZones(p.hr_zones as Record<string, { min: number; max: number }>)
       if (p.pace_zones) setPaceZones(p.pace_zones as Record<string, { min: number; max: number }>)
+      setFtp(String(p.ftp || ''))
+      if (p.cycling_power_zones) setCyclingPowerZones(p.cycling_power_zones as Record<string, { min: number; max: number }>)
     }
   }, [user])
 
@@ -95,6 +105,8 @@ export default function SettingsPage() {
         resting_hr: parseInt(restingHr),
         hr_zones: hrZones,
         pace_zones: paceZones,
+        ftp: ftp ? parseInt(ftp) : undefined,
+        cycling_power_zones: Object.keys(cyclingPowerZones).length > 0 ? cyclingPowerZones : undefined,
       })
       queryClient.invalidateQueries({ queryKey: ['currentUser'] })
       toast.success('Zones saved')
@@ -174,6 +186,16 @@ export default function SettingsPage() {
     const m = Math.floor(seconds / 60)
     const s = Math.floor(seconds % 60)
     return `${m}:${String(s).padStart(2, '0')}`
+  }
+
+  const parsePaceZoneValue = (value: string): number => {
+    const parts = value.split(':')
+    if (parts.length === 2) {
+      const m = parseInt(parts[0]) || 0
+      const s = parseInt(parts[1]) || 0
+      return m * 60 + s
+    }
+    return parseInt(value) || 0
   }
 
   return (
@@ -296,12 +318,105 @@ export default function SettingsPage() {
               {['zone1', 'zone2', 'zone3', 'zone4', 'zone5'].map((z) => (
                 <div key={z} className="grid grid-cols-[80px_1fr_1fr] items-center gap-2">
                   <Label className="text-xs capitalize">{z}</Label>
-                  <span className="text-xs text-center text-muted-foreground">
-                    {paceZones[z]?.min ? formatPaceZoneValue(paceZones[z].min) : '-'}
-                  </span>
-                  <span className="text-xs text-center text-muted-foreground">
-                    {paceZones[z]?.max ? formatPaceZoneValue(paceZones[z].max) : '-'}
-                  </span>
+                  <Input
+                    className="h-8 text-xs"
+                    placeholder="Min (m:ss)"
+                    value={paceZones[z]?.min ? formatPaceZoneValue(paceZones[z].min) : ''}
+                    onChange={(e) =>
+                      setPaceZones({
+                        ...paceZones,
+                        [z]: { ...paceZones[z], min: parsePaceZoneValue(e.target.value) },
+                      })
+                    }
+                  />
+                  <Input
+                    className="h-8 text-xs"
+                    placeholder="Max (m:ss)"
+                    value={paceZones[z]?.max ? formatPaceZoneValue(paceZones[z].max) : ''}
+                    onChange={(e) =>
+                      setPaceZones({
+                        ...paceZones,
+                        [z]: { ...paceZones[z], max: parsePaceZoneValue(e.target.value) },
+                      })
+                    }
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <Separator />
+
+          {/* Cycling Power Zones */}
+          <div>
+            <h4 className="mb-2 text-sm font-medium">Cycling Power Zones</h4>
+            <div className="mb-3 grid grid-cols-[1fr_auto] items-end gap-3">
+              <div className="space-y-1.5">
+                <Label>FTP (watts)</Label>
+                <Input
+                  type="number"
+                  placeholder="e.g. 250"
+                  value={ftp}
+                  onChange={(e) => setFtp(e.target.value)}
+                />
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-9"
+                onClick={() => {
+                  const ftpVal = parseInt(ftp)
+                  if (!ftpVal || ftpVal <= 0) {
+                    toast.error('Enter a valid FTP value first')
+                    return
+                  }
+                  setCyclingPowerZones({
+                    zone1: { min: 0, max: Math.round(ftpVal * 0.55) },
+                    zone2: { min: Math.round(ftpVal * 0.56), max: Math.round(ftpVal * 0.75) },
+                    zone3: { min: Math.round(ftpVal * 0.76), max: Math.round(ftpVal * 0.90) },
+                    zone4: { min: Math.round(ftpVal * 0.91), max: Math.round(ftpVal * 1.05) },
+                    zone5: { min: Math.round(ftpVal * 1.06), max: Math.round(ftpVal * 1.50) },
+                  })
+                  toast.success('Power zones calculated from FTP')
+                }}
+              >
+                Calculate from FTP
+              </Button>
+            </div>
+            <div className="space-y-2">
+              {[
+                { key: 'zone1', label: 'Z1 Recovery' },
+                { key: 'zone2', label: 'Z2 Endurance' },
+                { key: 'zone3', label: 'Z3 Tempo' },
+                { key: 'zone4', label: 'Z4 Threshold' },
+                { key: 'zone5', label: 'Z5 VO2max' },
+              ].map(({ key, label }) => (
+                <div key={key} className="grid grid-cols-[100px_1fr_1fr] items-center gap-2">
+                  <Label className="text-xs">{label}</Label>
+                  <Input
+                    type="number"
+                    className="h-8 text-xs"
+                    placeholder="Min W"
+                    value={cyclingPowerZones[key]?.min || ''}
+                    onChange={(e) =>
+                      setCyclingPowerZones({
+                        ...cyclingPowerZones,
+                        [key]: { ...cyclingPowerZones[key], min: parseInt(e.target.value) || 0 },
+                      })
+                    }
+                  />
+                  <Input
+                    type="number"
+                    className="h-8 text-xs"
+                    placeholder="Max W"
+                    value={cyclingPowerZones[key]?.max || ''}
+                    onChange={(e) =>
+                      setCyclingPowerZones({
+                        ...cyclingPowerZones,
+                        [key]: { ...cyclingPowerZones[key], max: parseInt(e.target.value) || 0 },
+                      })
+                    }
+                  />
                 </div>
               ))}
             </div>
