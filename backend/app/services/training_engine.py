@@ -22,7 +22,7 @@ async def generate_recommendations(
     start_date: date,
     end_date: date,
     consider_fixed_plan: bool = True,
-    include_cross_training: bool = True,
+    allowed_sports: list[str] | None = None,
 ) -> dict:
     """
     Generate training recommendations for a user for the given date range.
@@ -169,12 +169,24 @@ async def generate_recommendations(
         planning_weeks=planning_weeks,
     )
 
-    if not include_cross_training:
-        prompt += (
-            "\n\nIMPORTANT: The athlete has requested a RUNNING-ONLY plan. "
-            "Do NOT include cross-training sessions (cycling, swimming, strength, etc.). "
-            "All sessions should have sport='running'. Use rest days instead of cross-training days."
-        )
+    all_sports = {"running", "cycling", "swimming", "strength", "hiking", "rowing"}
+    if allowed_sports is not None:
+        selected = set(allowed_sports)
+        if selected != all_sports:
+            if selected == {"running"}:
+                prompt += (
+                    "\n\nIMPORTANT: The athlete has requested a RUNNING-ONLY plan. "
+                    "Do NOT include cross-training sessions (cycling, swimming, strength, etc.). "
+                    "All sessions should have sport='running'. Use rest days instead of cross-training days."
+                )
+            else:
+                included = ", ".join(sorted(selected))
+                excluded = ", ".join(sorted(all_sports - selected))
+                prompt += (
+                    f"\n\nIMPORTANT: The athlete has selected specific sports for this plan. "
+                    f"Only include sessions with sport set to one of: {included}. "
+                    f"Do NOT include sessions for: {excluded}."
+                )
 
     # Call Claude
     result = await claude_client.generate_training_recommendations(

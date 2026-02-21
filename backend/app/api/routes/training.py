@@ -244,7 +244,7 @@ async def generate_training_recommendations(
     start_date: date = Query(None),
     end_date: date = Query(None),
     consider_uploaded_plan: bool = Query(True),
-    include_cross_training: bool = Query(True),
+    sports: Optional[str] = Query(None),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -275,13 +275,16 @@ async def generate_training_recommendations(
             else:
                 end_date = max_end_date
 
+        # Parse sports param into list
+        allowed_sports = [s.strip() for s in sports.split(",") if s.strip()] if sports else None
+
         result = await generate_recommendations(
             user=current_user,
             db=db,
             start_date=start_date,
             end_date=end_date,
             consider_fixed_plan=consider_uploaded_plan,
-            include_cross_training=include_cross_training,
+            allowed_sports=allowed_sports,
         )
 
         if "error" in result:

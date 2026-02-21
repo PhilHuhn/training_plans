@@ -10,9 +10,18 @@ import {
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Sparkles, Bike } from 'lucide-react'
+import { Sparkles, Footprints, Bike, Waves, Dumbbell, Mountain, Ship } from 'lucide-react'
 import { useGenerateRecommendations } from '@/hooks/use-training'
-import { addDays } from '@/lib/utils'
+import { addDays, cn } from '@/lib/utils'
+
+const ALL_SPORTS = [
+  { id: 'running', label: 'Running', icon: Footprints, locked: true },
+  { id: 'cycling', label: 'Cycling', icon: Bike, locked: false },
+  { id: 'swimming', label: 'Swimming', icon: Waves, locked: false },
+  { id: 'strength', label: 'Strength', icon: Dumbbell, locked: false },
+  { id: 'hiking', label: 'Hiking', icon: Mountain, locked: false },
+  { id: 'rowing', label: 'Rowing', icon: Ship, locked: false },
+] as const
 
 interface GenerateModalProps {
   open: boolean
@@ -23,15 +32,29 @@ interface GenerateModalProps {
 export default function GenerateModal({ open, onClose, weekStart }: GenerateModalProps) {
   const [startDate, setStartDate] = useState(weekStart)
   const [endDate, setEndDate] = useState(addDays(weekStart, 6))
-  const [includeCrossTraining, setIncludeCrossTraining] = useState(true)
+  const [selectedSports, setSelectedSports] = useState<Set<string>>(
+    () => new Set(ALL_SPORTS.map((s) => s.id)),
+  )
   const generate = useGenerateRecommendations()
+
+  const toggleSport = (sportId: string) => {
+    setSelectedSports((prev) => {
+      const next = new Set(prev)
+      if (next.has(sportId)) {
+        next.delete(sportId)
+      } else {
+        next.add(sportId)
+      }
+      return next
+    })
+  }
 
   const handleGenerate = () => {
     generate.mutate(
       {
         start_date: startDate,
         end_date: endDate,
-        include_cross_training: includeCrossTraining,
+        sports: Array.from(selectedSports).join(','),
       },
       { onSuccess: onClose },
     )
@@ -46,7 +69,8 @@ export default function GenerateModal({ open, onClose, weekStart }: GenerateModa
             Generate AI Training Plan
           </DialogTitle>
           <DialogDescription>
-            The AI will analyze your recent activities, upcoming competitions, and training zones to generate personalized recommendations.
+            The AI will analyze your recent activities, upcoming competitions, and training zones to
+            generate personalized recommendations.
           </DialogDescription>
         </DialogHeader>
 
@@ -68,22 +92,34 @@ export default function GenerateModal({ open, onClose, weekStart }: GenerateModa
             />
           </div>
 
-          {/* Cross-training toggle */}
-          <label className="flex cursor-pointer items-center gap-3 rounded-lg border p-3 transition-colors hover:bg-muted/50">
-            <input
-              type="checkbox"
-              checked={includeCrossTraining}
-              onChange={(e) => setIncludeCrossTraining(e.target.checked)}
-              className="h-4 w-4 rounded border-gray-300 accent-violet-600"
-            />
-            <Bike className="h-4 w-4 text-muted-foreground" />
-            <div>
-              <p className="text-sm font-medium">Include cross-training</p>
-              <p className="text-xs text-muted-foreground">
-                Add cycling, swimming, and strength sessions
-              </p>
+          {/* Per-sport selection */}
+          <div className="space-y-1.5">
+            <Label>Sports to include</Label>
+            <div className="flex flex-wrap gap-2">
+              {ALL_SPORTS.map((sport) => {
+                const isSelected = selectedSports.has(sport.id)
+                const Icon = sport.icon
+                return (
+                  <button
+                    key={sport.id}
+                    type="button"
+                    disabled={sport.locked}
+                    onClick={() => !sport.locked && toggleSport(sport.id)}
+                    className={cn(
+                      'flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors',
+                      isSelected
+                        ? 'border-violet-300 bg-violet-50 text-violet-700'
+                        : 'border-gray-200 bg-white text-gray-400 hover:border-gray-300 hover:text-gray-500',
+                      sport.locked && 'cursor-default opacity-80',
+                    )}
+                  >
+                    <Icon className="h-3.5 w-3.5" />
+                    {sport.label}
+                  </button>
+                )
+              })}
             </div>
-          </label>
+          </div>
         </div>
 
         {generate.error && (
