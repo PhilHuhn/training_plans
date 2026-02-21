@@ -1,0 +1,796 @@
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Query, Request, Form
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select, desc
+from datetime import date, timedelta
+from typing import Optional
+from app.core.database import get_db
+from app.models.user import User
+from app.models.training_session import TrainingSession, UploadedPlan, SessionStatus, SessionSource
+from app.schemas.training import (
+    TrainingSessionCreate,
+    TrainingSessionUpdate,
+    TrainingSessionResponse,
+    TrainingWeekResponse,
+    GenerateRecommendationsRequest,
+    ConvertSessionRequest,
+    UploadPlanResponse,
+)
+from app.api.deps import get_current_user
+from app.services.training_engine import (
+    generate_recommendations,
+    convert_session,
+    save_recommendations,
+)
+from app.services.document_parser import process_uploaded_plan
+
+router = APIRouter(prefix="/training", tags=["training"])
+
+
+@router.get("/sessions", response_model=list[TrainingSessionResponse])
+async def get_training_sessions(
+    start_date: Optional[date] = Query(None),
+    end_date: Optional[date] = Query(None),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Get training sessions for a date range"""
+    if start_date is None:
+        start_date = date.today()
+    if end_date is None:
+        end_date = start_date + timedelta(days=14)
+
+    query = (
+        select(TrainingSession)
+        .where(TrainingSession.user_id == current_user.id)
+        .where(TrainingSession.session_date >= start_date)
+        .where(TrainingSession.session_date <= end_date)
+        .order_by(TrainingSession.session_date)
+    )
+
+    result = await db.execute(query)
+    sessions = result.scalars().all()
+
+    return [TrainingSessionResponse.model_validate(s) for s in sessions]
+
+
+@router.get("/sessions/week", response_model=TrainingWeekResponse)
+async def get_training_week(
+    week_start: Optional[date] = Query(None),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Get training sessions for a specific week (Monday-Sunday)"""
+    if week_start is None:
+        # Get current week's Monday
+        today = date.today()
+        week_start = today - timedelta(days=today.weekday())
+
+    week_end = week_start + timedelta(days=6)
+
+    query = (
+        select(TrainingSession)
+        .where(TrainingSession.user_id == current_user.id)
+        .where(TrainingSession.session_date >= week_start)
+        .where(TrainingSession.session_date <= week_end)
+        .order_by(TrainingSession.session_date)
+    )
+
+    result = await db.execute(query)
+    sessions = result.scalars().all()
+
+    # Calculate totals
+    total_planned = sum(
+        (s.planned_workout or {}).get("distance_km", 0) or 0
+        for s in sessions
+    )
+    total_recommended = sum(
+        (s.recommendation_workout or {}).get("distance_km", 0) or 0
+        for s in sessions
+    )
+
+    return TrainingWeekResponse(
+        sessions=[TrainingSessionResponse.model_validate(s) for s in sessions],
+        week_start=week_start,
+        week_end=week_end,
+        total_distance_planned=total_planned,
+        total_distance_recommended=total_recommended,
+    )
+
+
+@router.post("/sessions", status_code=status.HTTP_201_CREATED)
+async def create_training_session(
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+    # Form fields
+    session_date: Optional[str] = Form(None),
+    workout_type: Optional[str] = Form(None),
+    description: Optional[str] = Form(None),
+    distance_km: Optional[float] = Form(None),
+    duration_min: Optional[int] = Form(None),
+    intensity: Optional[str] = Form(None),
+    hr_zone: Optional[str] = Form(None),
+    pace_range: Optional[str] = Form(None),
+    notes: Optional[str] = Form(None),
+    structured_workout: Optional[str] = Form(None),
+    intervals: Optional[str] = Form(None),
+):
+    """Create a new training session (handles both JSON and form data)"""
+    from datetime import datetime
+    from fastapi.responses import JSONResponse
+    import json
+
+    is_htmx = request.headers.get("HX-Request") == "true"
+
+    # Handle form data (from HTMX)
+    if is_htmx or session_date is not None:
+        parsed_date = datetime.strptime(session_date, "%Y-%m-%d").date()
+
+        # Check if session already exists for this date
+        result = await db.execute(
+            select(TrainingSession)
+            .where(TrainingSession.user_id == current_user.id)
+            .where(TrainingSession.session_date == parsed_date)
+        )
+        existing = result.scalar_one_or_none()
+
+        if existing:
+            if is_htmx:
+                return JSONResponse(
+                    {"error": "Session already exists for this date"},
+                    status_code=400
+                )
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Session already exists for this date. Use PUT to update."
+            )
+
+        # Build workout dict
+        planned_workout = {
+            "type": workout_type or "easy",
+            "description": description or "",
+            "distance_km": distance_km,
+            "duration_min": duration_min,
+            "intensity": intensity or None,
+            "hr_zone": hr_zone or None,
+            "pace_range": pace_range or None,
+        }
+
+        # Parse structured workout if provided
+        if structured_workout:
+            try:
+                planned_workout["structured"] = json.loads(structured_workout)
+            except json.JSONDecodeError:
+                pass
+
+        # Parse intervals if provided
+        if intervals:
+            try:
+                planned_workout["intervals"] = json.loads(intervals)
+            except json.JSONDecodeError:
+                pass
+
+        session = TrainingSession(
+            user_id=current_user.id,
+            session_date=parsed_date,
+            source=SessionSource.MANUAL,
+            planned_workout=planned_workout,
+            notes=notes,
+        )
+        db.add(session)
+        await db.commit()
+        await db.refresh(session)
+
+        if is_htmx:
+            return JSONResponse({"success": True, "id": session.id})
+
+        return TrainingSessionResponse.model_validate(session)
+
+    # Handle JSON data (API)
+    body = await request.json()
+    session_data = TrainingSessionCreate(**body)
+
+    result = await db.execute(
+        select(TrainingSession)
+        .where(TrainingSession.user_id == current_user.id)
+        .where(TrainingSession.session_date == session_data.session_date)
+    )
+    existing = result.scalar_one_or_none()
+
+    if existing:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Session already exists for this date. Use PUT to update."
+        )
+
+    session = TrainingSession(
+        user_id=current_user.id,
+        session_date=session_data.session_date,
+        source=session_data.source,
+        planned_workout=session_data.planned_workout.model_dump() if session_data.planned_workout else None,
+        recommendation_workout=session_data.recommendation_workout.model_dump() if session_data.recommendation_workout else None,
+        notes=session_data.notes,
+    )
+    db.add(session)
+    await db.commit()
+    await db.refresh(session)
+
+    return TrainingSessionResponse.model_validate(session)
+
+
+@router.put("/sessions/{session_id}")
+async def update_training_session(
+    session_id: int,
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+    # Form fields
+    workout_type: Optional[str] = Form(None),
+    description: Optional[str] = Form(None),
+    distance_km: Optional[float] = Form(None),
+    duration_min: Optional[int] = Form(None),
+    intensity: Optional[str] = Form(None),
+    hr_zone: Optional[str] = Form(None),
+    pace_range: Optional[str] = Form(None),
+    notes: Optional[str] = Form(None),
+    structured_workout: Optional[str] = Form(None),
+    intervals: Optional[str] = Form(None),
+):
+    """Update a training session (handles both JSON and form data)"""
+    from fastapi.responses import JSONResponse
+    import json
+
+    is_htmx = request.headers.get("HX-Request") == "true"
+
+    result = await db.execute(
+        select(TrainingSession)
+        .where(TrainingSession.id == session_id)
+        .where(TrainingSession.user_id == current_user.id)
+    )
+    session = result.scalar_one_or_none()
+
+    if not session:
+        if is_htmx:
+            return JSONResponse({"error": "Session not found"}, status_code=404)
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Training session not found"
+        )
+
+    # Handle form data (from HTMX)
+    if is_htmx or workout_type is not None:
+        # Build workout dict
+        planned_workout = {
+            "type": workout_type or "easy",
+            "description": description or "",
+            "distance_km": distance_km,
+            "duration_min": duration_min,
+            "intensity": intensity or None,
+            "hr_zone": hr_zone or None,
+            "pace_range": pace_range or None,
+        }
+
+        # Parse structured workout if provided
+        if structured_workout:
+            try:
+                planned_workout["structured"] = json.loads(structured_workout)
+            except json.JSONDecodeError:
+                pass
+
+        # Parse intervals if provided
+        if intervals:
+            try:
+                planned_workout["intervals"] = json.loads(intervals)
+            except json.JSONDecodeError:
+                pass
+
+        session.planned_workout = planned_workout
+        if notes is not None:
+            session.notes = notes
+
+        await db.commit()
+        await db.refresh(session)
+
+        if is_htmx:
+            return JSONResponse({"success": True, "id": session.id})
+
+        return TrainingSessionResponse.model_validate(session)
+
+    # Handle JSON data (API)
+    body = await request.json()
+    update_data = TrainingSessionUpdate(**body)
+
+    if update_data.planned_workout is not None:
+        session.planned_workout = update_data.planned_workout.model_dump()
+    if update_data.recommendation_workout is not None:
+        session.recommendation_workout = update_data.recommendation_workout.model_dump()
+    if update_data.status is not None:
+        session.status = update_data.status
+    if update_data.notes is not None:
+        session.notes = update_data.notes
+
+    await db.commit()
+    await db.refresh(session)
+
+    return TrainingSessionResponse.model_validate(session)
+
+
+@router.delete("/sessions/{session_id}")
+async def delete_training_session(
+    session_id: int,
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Delete a training session"""
+    from fastapi.responses import HTMLResponse, Response
+
+    is_htmx = request.headers.get("HX-Request") == "true"
+
+    result = await db.execute(
+        select(TrainingSession)
+        .where(TrainingSession.id == session_id)
+        .where(TrainingSession.user_id == current_user.id)
+    )
+    session = result.scalar_one_or_none()
+
+    if not session:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Training session not found"
+        )
+
+    # Calculate week start before deleting the session
+    session_week_start = session.session_date - timedelta(days=session.session_date.weekday())
+    await db.delete(session)
+    await db.commit()
+
+    if is_htmx:
+        # Return a redirect to the same week
+        response = HTMLResponse(content="", status_code=200)
+        response.headers["HX-Redirect"] = f"/training?week={session_week_start.isoformat()}"
+        return response
+
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.post("/sessions/{session_id}/accept")
+async def accept_workout(
+    session_id: int,
+    source: str,  # "planned" or "ai"
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Accept a workout from either the planned or AI recommendation"""
+    from fastapi.responses import HTMLResponse, JSONResponse
+
+    is_htmx = request.headers.get("HX-Request") == "true"
+
+    result = await db.execute(
+        select(TrainingSession)
+        .where(TrainingSession.id == session_id)
+        .where(TrainingSession.user_id == current_user.id)
+    )
+    session = result.scalar_one_or_none()
+
+    if not session:
+        if is_htmx:
+            return HTMLResponse('<div class="text-red-600">Session not found</div>', status_code=404)
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Training session not found"
+        )
+
+    # Determine which workout to accept
+    if source == "planned":
+        if not session.planned_workout:
+            if is_htmx:
+                return HTMLResponse('<div class="text-red-600">No planned workout to accept</div>', status_code=400)
+            raise HTTPException(status_code=400, detail="No planned workout to accept")
+        session.final_workout = session.planned_workout
+        session.accepted_source = "planned"
+    elif source == "ai":
+        if not session.recommendation_workout:
+            if is_htmx:
+                return HTMLResponse('<div class="text-red-600">No AI recommendation to accept</div>', status_code=400)
+            raise HTTPException(status_code=400, detail="No AI recommendation to accept")
+        session.final_workout = session.recommendation_workout
+        session.accepted_source = "ai"
+    else:
+        if is_htmx:
+            return HTMLResponse('<div class="text-red-600">Invalid source</div>', status_code=400)
+        raise HTTPException(status_code=400, detail="Invalid source. Use 'planned' or 'ai'")
+
+    await db.commit()
+    await db.refresh(session)
+
+    if is_htmx:
+        # Calculate the week start for the session to preserve navigation
+        session_week_start = session.session_date - timedelta(days=session.session_date.weekday())
+        redirect_url = f"/training?week={session_week_start.isoformat()}"
+        response = HTMLResponse(content="", status_code=200)
+        response.headers["HX-Redirect"] = redirect_url
+        return response
+
+    return JSONResponse({"success": True, "accepted_source": source})
+
+
+@router.post("/generate-recommendations")
+async def generate_training_recommendations(
+    request: Request,
+    start_date: date = Query(None),
+    end_date: date = Query(None),
+    consider_uploaded_plan: bool = Query(True),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Generate AI training recommendations for a date range.
+
+    If end_date is not provided, calculates planning horizon based on:
+    - Last upcoming competition date, OR
+    - Maximum 16 weeks from start_date
+    """
+    from fastapi.responses import HTMLResponse
+    from fastapi.templating import Jinja2Templates
+    from pathlib import Path
+    from app.models.competition import Competition
+    import traceback
+
+    MAX_WEEKS = 16
+
+    try:
+        # Default start_date to today if not provided
+        if start_date is None:
+            start_date = date.today()
+
+        # Calculate end_date based on competitions if not provided
+        if end_date is None:
+            # Get upcoming competitions to determine planning horizon
+            comp_result = await db.execute(
+                select(Competition)
+                .where(Competition.user_id == current_user.id)
+                .where(Competition.race_date >= start_date)
+                .order_by(Competition.race_date.desc())  # Get the latest one
+                .limit(1)
+            )
+            last_competition = comp_result.scalar_one_or_none()
+
+            max_end_date = start_date + timedelta(weeks=MAX_WEEKS)
+
+            if last_competition and last_competition.race_date <= max_end_date:
+                # Plan until the last competition (plus a few days for recovery)
+                end_date = last_competition.race_date + timedelta(days=3)
+            else:
+                # No competition or too far out - use max 16 weeks
+                end_date = max_end_date
+
+        print(f"[DEBUG] Generating recommendations from {start_date} to {end_date}")
+
+        result = await generate_recommendations(
+            user=current_user,
+            db=db,
+            start_date=start_date,
+            end_date=end_date,
+            consider_fixed_plan=consider_uploaded_plan,
+        )
+
+        print(f"[DEBUG] Result keys: {result.keys() if isinstance(result, dict) else 'not a dict'}")
+
+        if "error" in result:
+            print(f"[DEBUG] Error in result: {result['error']}")
+            if request.headers.get("HX-Request") == "true":
+                return HTMLResponse(
+                    f'<div class="p-4 bg-red-50 text-red-700 rounded-md">'
+                    f'Error generating recommendations: {result["error"]}'
+                    f'</div>',
+                    status_code=500
+                )
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=result["error"]
+            )
+
+        # Save recommendations to database
+        print(f"[DEBUG] Saving recommendations to database")
+        await save_recommendations(current_user, db, result)
+
+        # If HTMX request, return HTML partial with updated sessions
+        if request.headers.get("HX-Request") == "true":
+            # Reload sessions from database to get the saved data
+            week_start = start_date - timedelta(days=start_date.weekday())
+            week_end = week_start + timedelta(days=6)
+            week_days = [week_start + timedelta(days=i) for i in range(7)]
+
+            db_result = await db.execute(
+                select(TrainingSession)
+                .where(TrainingSession.user_id == current_user.id)
+                .where(TrainingSession.session_date >= week_start)
+                .where(TrainingSession.session_date <= week_end)
+                .order_by(TrainingSession.session_date)
+            )
+            sessions = db_result.scalars().all()
+            sessions_by_date = {s.session_date.isoformat(): s for s in sessions}
+
+            # Render HTML partial for the training week
+            BASE_DIR = Path(__file__).resolve().parent.parent.parent.parent
+            templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
+
+            return templates.TemplateResponse(
+                "partials/training_week.html",
+                {
+                    "request": request,
+                    "sessions_by_date": sessions_by_date,
+                    "week_days": week_days,
+                    "today": date.today().isoformat(),
+                }
+            )
+
+        return result
+
+    except Exception as e:
+        error_msg = f"Exception in generate-recommendations: {str(e)}\n{traceback.format_exc()}"
+        print(f"[ERROR] {error_msg}")
+        if request.headers.get("HX-Request") == "true":
+            return HTMLResponse(
+                f'<div class="p-4 bg-red-50 text-red-700 rounded-md">'
+                f'Error: {str(e)}'
+                f'</div>',
+                status_code=500
+            )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e)
+        )
+
+
+@router.post("/convert-session")
+async def convert_training_session(
+    request: ConvertSessionRequest,
+    current_user: User = Depends(get_current_user),
+):
+    """Convert a session between pace-based and HR-based formats"""
+    result = await convert_session(
+        user=current_user,
+        workout=request.workout.model_dump(),
+        target_type=request.target_type,
+    )
+
+    if "error" in result:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=result["error"]
+        )
+
+    return result
+
+
+@router.post("/upload-plan")
+async def upload_training_plan(
+    request: Request,
+    file: UploadFile = File(...),
+    start_date: Optional[date] = Query(None),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Upload a training plan document (PDF, Word, or text file)"""
+    from fastapi.responses import HTMLResponse
+
+    is_htmx = request.headers.get("HX-Request") == "true"
+
+    # Validate file type
+    allowed_types = [
+        "application/pdf",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "application/msword",
+        "text/plain",
+        "text/markdown",
+        "text/x-markdown",
+    ]
+
+    if file.content_type not in allowed_types and not file.filename.endswith((".pdf", ".docx", ".doc", ".txt", ".md")):
+        if is_htmx:
+            return HTMLResponse(
+                '<div class="p-4 bg-red-50 text-red-700 rounded-md">'
+                'Unsupported file type. Allowed: PDF, Word, TXT, Markdown'
+                '</div>',
+                status_code=400
+            )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Unsupported file type. Allowed: PDF, Word, TXT, Markdown"
+        )
+
+    # Read file content
+    file_content = await file.read()
+
+    if len(file_content) > 10 * 1024 * 1024:  # 10MB limit
+        if is_htmx:
+            return HTMLResponse(
+                '<div class="p-4 bg-red-50 text-red-700 rounded-md">'
+                'File too large. Maximum size is 10MB.'
+                '</div>',
+                status_code=400
+            )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="File too large. Maximum size is 10MB."
+        )
+
+    try:
+        uploaded_plan = await process_uploaded_plan(
+            user=current_user,
+            db=db,
+            file_content=file_content,
+            content_type=file.content_type or "",
+            filename=file.filename or "unknown",
+            start_date=start_date,
+        )
+    except ValueError as e:
+        if is_htmx:
+            return HTMLResponse(
+                f'<div class="p-4 bg-red-50 text-red-700 rounded-md">'
+                f'Error parsing file: {str(e)}'
+                f'</div>',
+                status_code=400
+            )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+
+    # Return HTML for HTMX requests
+    if is_htmx:
+        sessions_count = len(uploaded_plan.parsed_sessions or [])
+        return HTMLResponse(
+            f'<div class="p-4 bg-green-50 text-green-700 rounded-md">'
+            f'<p class="font-medium">Plan uploaded successfully!</p>'
+            f'<p class="text-sm mt-1">'
+            f'<strong>{uploaded_plan.filename}</strong> - '
+            f'{sessions_count} session{"s" if sessions_count != 1 else ""} parsed'
+            f'</p>'
+            f'<p class="text-sm mt-2">'
+            f'<a href="/training" class="underline hover:text-green-800">Go to Training</a> '
+            f'to see your imported sessions.'
+            f'</p>'
+            f'</div>'
+        )
+
+    return UploadPlanResponse(
+        id=uploaded_plan.id,
+        filename=uploaded_plan.filename,
+        is_active=bool(uploaded_plan.is_active),
+        parsed_sessions_count=len(uploaded_plan.parsed_sessions or []),
+        upload_date=uploaded_plan.upload_date,
+    )
+
+
+@router.get("/uploaded-plans", response_model=list[UploadPlanResponse])
+async def get_uploaded_plans(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Get all uploaded training plans"""
+    result = await db.execute(
+        select(UploadedPlan)
+        .where(UploadedPlan.user_id == current_user.id)
+        .order_by(desc(UploadedPlan.upload_date))
+    )
+    plans = result.scalars().all()
+
+    return [
+        UploadPlanResponse(
+            id=p.id,
+            filename=p.filename,
+            is_active=bool(p.is_active),
+            parsed_sessions_count=len(p.parsed_sessions or []),
+            upload_date=p.upload_date,
+        )
+        for p in plans
+    ]
+
+
+@router.delete("/uploaded-plans/{plan_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_uploaded_plan(
+    plan_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Delete an uploaded plan and its associated sessions"""
+    result = await db.execute(
+        select(UploadedPlan)
+        .where(UploadedPlan.id == plan_id)
+        .where(UploadedPlan.user_id == current_user.id)
+    )
+    plan = result.scalar_one_or_none()
+
+    if not plan:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Uploaded plan not found"
+        )
+
+    # Delete associated sessions
+    await db.execute(
+        select(TrainingSession)
+        .where(TrainingSession.uploaded_plan_id == plan_id)
+    )
+
+    await db.delete(plan)
+    await db.commit()
+
+
+@router.get("/sessions/{session_id}/export/garmin")
+async def export_session_to_garmin(
+    session_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Export a training session as a Garmin FIT workout file."""
+    from fastapi.responses import Response
+    from app.services.garmin_export import (
+        create_fit_workout,
+        workout_details_to_structured,
+        FIT_AVAILABLE,
+    )
+    from app.schemas.training import WorkoutDetails
+
+    if not FIT_AVAILABLE:
+        raise HTTPException(
+            status_code=status.HTTP_501_NOT_IMPLEMENTED,
+            detail="FIT file export not available. Install fit-tool library."
+        )
+
+    # Get the session
+    result = await db.execute(
+        select(TrainingSession)
+        .where(TrainingSession.id == session_id)
+        .where(TrainingSession.user_id == current_user.id)
+    )
+    session = result.scalar_one_or_none()
+
+    if not session:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Training session not found"
+        )
+
+    # Determine which workout to export (prefer final, then planned, then AI)
+    workout_data = session.final_workout or session.planned_workout or session.recommendation_workout
+    if not workout_data:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No workout data available for export"
+        )
+
+    # Convert to WorkoutDetails
+    workout = WorkoutDetails(**workout_data)
+
+    # Convert to structured workout
+    structured = workout_details_to_structured(workout, session.session_date)
+
+    # Get user preferences for HR zones
+    user_prefs = current_user.preferences or {}
+
+    try:
+        # Create FIT file
+        fit_bytes = create_fit_workout(structured, user_prefs)
+
+        # Generate filename
+        date_str = session.session_date.strftime("%Y%m%d")
+        workout_type = workout.type.replace("_", "-")
+        filename = f"{date_str}_{workout_type}.fit"
+
+        return Response(
+            content=fit_bytes,
+            media_type="application/octet-stream",
+            headers={
+                "Content-Disposition": f'attachment; filename="{filename}"',
+                "Content-Length": str(len(fit_bytes)),
+            }
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to create FIT file: {str(e)}"
+        )

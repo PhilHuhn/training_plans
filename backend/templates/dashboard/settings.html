@@ -1,0 +1,570 @@
+{% extends "dashboard/base.html" %}
+
+{% block title %}Settings - Turbine Turmweg{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Header -->
+    <div>
+        <h1 class="text-2xl font-bold text-gray-900">Settings</h1>
+        <p class="text-gray-600">Manage your account and preferences</p>
+    </div>
+
+    <!-- Strava Connection -->
+    <div class="bg-white rounded-lg shadow p-6">
+        <h2 class="text-lg font-semibold text-gray-900 mb-4">Strava Connection</h2>
+        {% if user.strava_athlete_id %}
+        <div class="flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="h-10 w-10 rounded-full bg-orange-100 flex items-center justify-center">
+                    <svg class="h-6 w-6 text-orange-600" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.598h4.172L10.463 0l-7 13.828h4.169"/>
+                    </svg>
+                </div>
+                <div>
+                    <p class="font-medium text-gray-900">Connected to Strava</p>
+                    <p class="text-sm text-gray-500">Athlete ID: {{ user.strava_athlete_id }}</p>
+                </div>
+            </div>
+            <button
+                hx-post="/api/strava/disconnect"
+                hx-swap="none"
+                hx-on::after-request="window.location.reload()"
+                class="px-4 py-2 text-sm border border-red-300 text-red-600 rounded-md hover:bg-red-50"
+            >
+                Disconnect
+            </button>
+        </div>
+        {% else %}
+        <div class="flex items-center justify-between">
+            <p class="text-gray-600">Connect your Strava account to sync activities</p>
+            <a
+                href="/api/strava/auth"
+                class="inline-flex items-center gap-2 px-4 py-2 bg-orange-500 text-white rounded-md hover:bg-orange-600"
+            >
+                <svg class="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.598h4.172L10.463 0l-7 13.828h4.169"/>
+                </svg>
+                Connect Strava
+            </a>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Runner Profile Summary -->
+    {% if user.profile_summary %}
+    <div class="bg-white rounded-lg shadow p-6">
+        <h2 class="text-lg font-semibold text-gray-900 mb-3">Your Runner Profile</h2>
+        <div class="bg-blue-50 rounded-lg p-4 text-gray-700 text-sm leading-relaxed">
+            {{ user.profile_summary }}
+        </div>
+        <p class="text-xs text-gray-500 mt-2">This profile is automatically generated from your Strava activity data and is used to personalize training recommendations.</p>
+    </div>
+    {% endif %}
+
+    <!-- Training Zones -->
+    <div class="bg-white rounded-lg shadow p-6">
+        <div class="flex items-center justify-between mb-4">
+            <h2 class="text-lg font-semibold text-gray-900">Training Zones</h2>
+            {% if user.strava_athlete_id %}
+            <button
+                hx-post="/api/settings/zones/apply-estimate"
+                hx-target="#zone-estimate-result"
+                hx-swap="innerHTML"
+                class="inline-flex items-center gap-2 px-3 py-1.5 text-sm bg-primary-100 text-primary-700 rounded-md hover:bg-primary-200"
+            >
+                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                </svg>
+                Estimate All from Strava
+                <span class="htmx-indicator">
+                    <svg class="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                    </svg>
+                </span>
+            </button>
+            {% endif %}
+        </div>
+        <div id="zone-estimate-result" class="mb-4"></div>
+
+        <form
+            hx-put="/api/settings/zones"
+            hx-target="#zone-save-result"
+            hx-swap="innerHTML"
+            class="space-y-6"
+        >
+            <!-- Max/Resting HR Section -->
+            <div class="border rounded-lg p-4 bg-gray-50">
+                <div class="flex items-center justify-between mb-3">
+                    <h3 class="text-sm font-medium text-gray-700">Heart Rate Parameters</h3>
+                    <div class="flex gap-2">
+                        {% if user.strava_athlete_id %}
+                        <button
+                            type="button"
+                            hx-post="/api/settings/zones/estimate-hr"
+                            hx-target="#hr-estimate-result"
+                            hx-swap="innerHTML"
+                            class="inline-flex items-center gap-1 px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
+                        >
+                            <svg class="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                            </svg>
+                            Estimate Max/Resting HR
+                            <span class="htmx-indicator">
+                                <svg class="animate-spin h-3 w-3" fill="none" viewBox="0 0 24 24">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                                </svg>
+                            </span>
+                        </button>
+                        {% endif %}
+                        <button
+                            type="button"
+                            onclick="calculateHRZones()"
+                            class="inline-flex items-center gap-1 px-2 py-1 text-xs bg-green-100 text-green-700 rounded hover:bg-green-200"
+                        >
+                            <svg class="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"/>
+                            </svg>
+                            Calculate HR Zones
+                        </button>
+                    </div>
+                </div>
+                <div id="hr-estimate-result" class="mb-2"></div>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div>
+                        <label class="block text-xs text-gray-500">Max HR</label>
+                        <input type="number" name="max_hr" id="max_hr" placeholder="190"
+                               value="{{ (user.preferences or {}).get('max_hr', '') }}"
+                               class="mt-1 w-full px-2 py-1 text-sm border border-gray-300 rounded">
+                    </div>
+                    <div>
+                        <label class="block text-xs text-gray-500">Resting HR</label>
+                        <input type="number" name="resting_hr" id="resting_hr" placeholder="50"
+                               value="{{ (user.preferences or {}).get('resting_hr', '') }}"
+                               class="mt-1 w-full px-2 py-1 text-sm border border-gray-300 rounded">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Heart Rate Zones -->
+            <div>
+                <h3 class="text-sm font-medium text-gray-700 mb-3">Heart Rate Zones (bpm)</h3>
+                <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
+                    {% set hr_zones = (user.preferences or {}).get('hr_zones', {}) %}
+                    <div>
+                        <label class="block text-xs text-gray-500">Zone 1 (Recovery)</label>
+                        <div class="flex gap-1 mt-1">
+                            <input type="number" name="hr_zone_1_min" id="hr_zone_1_min" placeholder="Min"
+                                   value="{{ hr_zones.get('zone1', {}).get('min', '') }}"
+                                   class="w-full px-2 py-1 text-sm border border-gray-300 rounded">
+                            <span class="text-gray-400">-</span>
+                            <input type="number" name="hr_zone_1_max" id="hr_zone_1_max" placeholder="Max"
+                                   value="{{ hr_zones.get('zone1', {}).get('max', '') }}"
+                                   class="w-full px-2 py-1 text-sm border border-gray-300 rounded">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-xs text-gray-500">Zone 2 (Aerobic)</label>
+                        <div class="flex gap-1 mt-1">
+                            <input type="number" name="hr_zone_2_min" id="hr_zone_2_min" placeholder="Min"
+                                   value="{{ hr_zones.get('zone2', {}).get('min', '') }}"
+                                   class="w-full px-2 py-1 text-sm border border-gray-300 rounded">
+                            <span class="text-gray-400">-</span>
+                            <input type="number" name="hr_zone_2_max" id="hr_zone_2_max" placeholder="Max"
+                                   value="{{ hr_zones.get('zone2', {}).get('max', '') }}"
+                                   class="w-full px-2 py-1 text-sm border border-gray-300 rounded">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-xs text-gray-500">Zone 3 (Tempo)</label>
+                        <div class="flex gap-1 mt-1">
+                            <input type="number" name="hr_zone_3_min" id="hr_zone_3_min" placeholder="Min"
+                                   value="{{ hr_zones.get('zone3', {}).get('min', '') }}"
+                                   class="w-full px-2 py-1 text-sm border border-gray-300 rounded">
+                            <span class="text-gray-400">-</span>
+                            <input type="number" name="hr_zone_3_max" id="hr_zone_3_max" placeholder="Max"
+                                   value="{{ hr_zones.get('zone3', {}).get('max', '') }}"
+                                   class="w-full px-2 py-1 text-sm border border-gray-300 rounded">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-xs text-gray-500">Zone 4 (Threshold)</label>
+                        <div class="flex gap-1 mt-1">
+                            <input type="number" name="hr_zone_4_min" id="hr_zone_4_min" placeholder="Min"
+                                   value="{{ hr_zones.get('zone4', {}).get('min', '') }}"
+                                   class="w-full px-2 py-1 text-sm border border-gray-300 rounded">
+                            <span class="text-gray-400">-</span>
+                            <input type="number" name="hr_zone_4_max" id="hr_zone_4_max" placeholder="Max"
+                                   value="{{ hr_zones.get('zone4', {}).get('max', '') }}"
+                                   class="w-full px-2 py-1 text-sm border border-gray-300 rounded">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-xs text-gray-500">Zone 5 (VO2max)</label>
+                        <div class="flex gap-1 mt-1">
+                            <input type="number" name="hr_zone_5_min" id="hr_zone_5_min" placeholder="Min"
+                                   value="{{ hr_zones.get('zone5', {}).get('min', '') }}"
+                                   class="w-full px-2 py-1 text-sm border border-gray-300 rounded">
+                            <span class="text-gray-400">-</span>
+                            <input type="number" name="hr_zone_5_max" id="hr_zone_5_max" placeholder="Max"
+                                   value="{{ hr_zones.get('zone5', {}).get('max', '') }}"
+                                   class="w-full px-2 py-1 text-sm border border-gray-300 rounded">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Threshold Pace Section -->
+            <div class="border rounded-lg p-4 bg-gray-50">
+                <div class="flex items-center justify-between mb-3">
+                    <h3 class="text-sm font-medium text-gray-700">Pace Parameters</h3>
+                    <div class="flex gap-2">
+                        {% if user.strava_athlete_id %}
+                        <button
+                            type="button"
+                            hx-post="/api/settings/zones/estimate-pace"
+                            hx-target="#pace-estimate-result"
+                            hx-swap="innerHTML"
+                            class="inline-flex items-center gap-1 px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
+                        >
+                            <svg class="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                            </svg>
+                            Estimate Threshold Pace
+                            <span class="htmx-indicator">
+                                <svg class="animate-spin h-3 w-3" fill="none" viewBox="0 0 24 24">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                                </svg>
+                            </span>
+                        </button>
+                        {% endif %}
+                        <button
+                            type="button"
+                            onclick="calculatePaceZones()"
+                            class="inline-flex items-center gap-1 px-2 py-1 text-xs bg-green-100 text-green-700 rounded hover:bg-green-200"
+                        >
+                            <svg class="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"/>
+                            </svg>
+                            Calculate Pace Zones
+                        </button>
+                    </div>
+                </div>
+                <div id="pace-estimate-result" class="mb-2"></div>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div>
+                        <label class="block text-xs text-gray-500">Threshold Pace (min:sec/km)</label>
+                        <input type="text" name="threshold_pace" id="threshold_pace" placeholder="5:00"
+                               value="{{ formatPace((user.preferences or {}).get('threshold_pace', '')) }}"
+                               class="mt-1 w-full px-2 py-1 text-sm border border-gray-300 rounded">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Pace Zones -->
+            <div>
+                <h3 class="text-sm font-medium text-gray-700 mb-3">Pace Zones (min:sec per km)</h3>
+                <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
+                    {% set pace_zones = (user.preferences or {}).get('pace_zones', {}) %}
+                    <div>
+                        <label class="block text-xs text-gray-500">Zone 1 (Easy)</label>
+                        <div class="flex gap-1 mt-1">
+                            <input type="text" name="pace_zone_1_min" id="pace_zone_1_min" placeholder="6:30"
+                                   value="{{ formatPace(pace_zones.get('zone1', {}).get('min', '')) }}"
+                                   class="w-full px-2 py-1 text-sm border border-gray-300 rounded">
+                            <span class="text-gray-400">-</span>
+                            <input type="text" name="pace_zone_1_max" id="pace_zone_1_max" placeholder="7:00"
+                                   value="{{ formatPace(pace_zones.get('zone1', {}).get('max', '')) }}"
+                                   class="w-full px-2 py-1 text-sm border border-gray-300 rounded">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-xs text-gray-500">Zone 2 (Moderate)</label>
+                        <div class="flex gap-1 mt-1">
+                            <input type="text" name="pace_zone_2_min" id="pace_zone_2_min" placeholder="5:30"
+                                   value="{{ formatPace(pace_zones.get('zone2', {}).get('min', '')) }}"
+                                   class="w-full px-2 py-1 text-sm border border-gray-300 rounded">
+                            <span class="text-gray-400">-</span>
+                            <input type="text" name="pace_zone_2_max" id="pace_zone_2_max" placeholder="6:00"
+                                   value="{{ formatPace(pace_zones.get('zone2', {}).get('max', '')) }}"
+                                   class="w-full px-2 py-1 text-sm border border-gray-300 rounded">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-xs text-gray-500">Zone 3 (Tempo)</label>
+                        <div class="flex gap-1 mt-1">
+                            <input type="text" name="pace_zone_3_min" id="pace_zone_3_min" placeholder="5:00"
+                                   value="{{ formatPace(pace_zones.get('zone3', {}).get('min', '')) }}"
+                                   class="w-full px-2 py-1 text-sm border border-gray-300 rounded">
+                            <span class="text-gray-400">-</span>
+                            <input type="text" name="pace_zone_3_max" id="pace_zone_3_max" placeholder="5:30"
+                                   value="{{ formatPace(pace_zones.get('zone3', {}).get('max', '')) }}"
+                                   class="w-full px-2 py-1 text-sm border border-gray-300 rounded">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-xs text-gray-500">Zone 4 (Threshold)</label>
+                        <div class="flex gap-1 mt-1">
+                            <input type="text" name="pace_zone_4_min" id="pace_zone_4_min" placeholder="4:30"
+                                   value="{{ formatPace(pace_zones.get('zone4', {}).get('min', '')) }}"
+                                   class="w-full px-2 py-1 text-sm border border-gray-300 rounded">
+                            <span class="text-gray-400">-</span>
+                            <input type="text" name="pace_zone_4_max" id="pace_zone_4_max" placeholder="5:00"
+                                   value="{{ formatPace(pace_zones.get('zone4', {}).get('max', '')) }}"
+                                   class="w-full px-2 py-1 text-sm border border-gray-300 rounded">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-xs text-gray-500">Zone 5 (Interval)</label>
+                        <div class="flex gap-1 mt-1">
+                            <input type="text" name="pace_zone_5_min" id="pace_zone_5_min" placeholder="4:00"
+                                   value="{{ formatPace(pace_zones.get('zone5', {}).get('min', '')) }}"
+                                   class="w-full px-2 py-1 text-sm border border-gray-300 rounded">
+                            <span class="text-gray-400">-</span>
+                            <input type="text" name="pace_zone_5_max" id="pace_zone_5_max" placeholder="4:30"
+                                   value="{{ formatPace(pace_zones.get('zone5', {}).get('max', '')) }}"
+                                   class="w-full px-2 py-1 text-sm border border-gray-300 rounded">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-4">
+                <button type="submit" class="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700">
+                    Save Zones
+                </button>
+                <div id="zone-save-result"></div>
+            </div>
+        </form>
+    </div>
+
+    <!-- Upload Training Plan -->
+    <div class="bg-white rounded-lg shadow p-6" id="upload">
+        <h2 class="text-lg font-semibold text-gray-900 mb-4">Upload Training Plan</h2>
+        <p class="text-sm text-gray-600 mb-4">Upload a training plan document (PDF, Word, or text file) to parse and import sessions.</p>
+
+        <form
+            hx-post="/api/training/upload-plan"
+            hx-encoding="multipart/form-data"
+            hx-target="#upload-result"
+            hx-swap="innerHTML"
+            class="space-y-4"
+        >
+            <div class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
+                <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+                </svg>
+                <div class="mt-4">
+                    <label class="cursor-pointer">
+                        <span class="text-primary-600 hover:text-primary-500">Upload a file</span>
+                        <input type="file" name="file" accept=".pdf,.docx,.doc,.txt,.md" class="hidden" onchange="this.form.querySelector('#file-name').textContent = this.files[0]?.name || 'No file selected'">
+                    </label>
+                    <span class="text-gray-500"> or drag and drop</span>
+                </div>
+                <p class="text-xs text-gray-500 mt-2">PDF, Word, TXT, or Markdown up to 10MB</p>
+                <p id="file-name" class="text-sm text-gray-700 mt-2"></p>
+            </div>
+            <button type="submit" class="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700" hx-indicator="#upload-indicator">
+                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
+                </svg>
+                Upload & Parse
+                <span id="upload-indicator" class="htmx-indicator">
+                    <svg class="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                    </svg>
+                </span>
+            </button>
+        </form>
+        <div id="upload-result" class="mt-4"></div>
+    </div>
+
+    <!-- Account Settings -->
+    <div class="bg-white rounded-lg shadow p-6">
+        <h2 class="text-lg font-semibold text-gray-900 mb-4">Account</h2>
+        <form
+            hx-put="/api/settings/account"
+            hx-target="#account-result"
+            hx-swap="innerHTML"
+            class="space-y-4"
+        >
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Name</label>
+                    <input
+                        type="text"
+                        name="name"
+                        value="{{ user.name }}"
+                        class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+                    >
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Email</label>
+                    <input
+                        type="email"
+                        name="email"
+                        value="{{ user.email }}"
+                        class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+                    >
+                </div>
+            </div>
+            <div class="flex items-center gap-4">
+                <button type="submit" class="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700">
+                    Update Account
+                </button>
+                <div id="account-result"></div>
+            </div>
+        </form>
+    </div>
+
+    <!-- Change Password -->
+    <div class="bg-white rounded-lg shadow p-6">
+        <h2 class="text-lg font-semibold text-gray-900 mb-4">Change Password</h2>
+        <form
+            hx-put="/api/settings/password"
+            hx-target="#password-result"
+            hx-swap="innerHTML"
+            class="space-y-4"
+        >
+            <div>
+                <label class="block text-sm font-medium text-gray-700">Current Password</label>
+                <input
+                    type="password"
+                    name="current_password"
+                    required
+                    class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+                >
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700">New Password</label>
+                <input
+                    type="password"
+                    name="new_password"
+                    required
+                    minlength="8"
+                    class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+                >
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700">Confirm New Password</label>
+                <input
+                    type="password"
+                    name="confirm_password"
+                    required
+                    minlength="8"
+                    class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+                >
+            </div>
+            <div class="flex items-center gap-4">
+                <button type="submit" class="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700">
+                    Change Password
+                </button>
+                <div id="password-result"></div>
+            </div>
+        </form>
+    </div>
+
+    <!-- Logout -->
+    <div class="bg-white rounded-lg shadow p-6">
+        <div class="flex items-center justify-between">
+            <div>
+                <h2 class="text-lg font-semibold text-gray-900">Sign Out</h2>
+                <p class="text-sm text-gray-600">Sign out of your account on this device</p>
+            </div>
+            <a href="/logout" class="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50">
+                Sign Out
+            </a>
+        </div>
+    </div>
+</div>
+
+<script>
+// Calculate HR zones using Karvonen formula
+function calculateHRZones() {
+    const maxHR = parseInt(document.getElementById('max_hr').value) || 190;
+    const restingHR = parseInt(document.getElementById('resting_hr').value) || 50;
+    const hrr = maxHR - restingHR; // Heart Rate Reserve
+
+    function hrAtPercent(percent) {
+        return Math.round(restingHR + (hrr * percent / 100));
+    }
+
+    // Zone 1: 50-60% HRR (Recovery)
+    document.getElementById('hr_zone_1_min').value = hrAtPercent(50);
+    document.getElementById('hr_zone_1_max').value = hrAtPercent(60);
+
+    // Zone 2: 60-70% HRR (Aerobic)
+    document.getElementById('hr_zone_2_min').value = hrAtPercent(60);
+    document.getElementById('hr_zone_2_max').value = hrAtPercent(70);
+
+    // Zone 3: 70-80% HRR (Tempo)
+    document.getElementById('hr_zone_3_min').value = hrAtPercent(70);
+    document.getElementById('hr_zone_3_max').value = hrAtPercent(80);
+
+    // Zone 4: 80-90% HRR (Threshold)
+    document.getElementById('hr_zone_4_min').value = hrAtPercent(80);
+    document.getElementById('hr_zone_4_max').value = hrAtPercent(90);
+
+    // Zone 5: 90-100% HRR (VO2max)
+    document.getElementById('hr_zone_5_min').value = hrAtPercent(90);
+    document.getElementById('hr_zone_5_max').value = maxHR;
+}
+
+// Parse pace string to seconds
+function parsePace(paceStr) {
+    if (!paceStr) return null;
+    const parts = paceStr.trim().split(':');
+    if (parts.length === 2) {
+        return parseInt(parts[0]) * 60 + parseInt(parts[1]);
+    }
+    return parseInt(paceStr);
+}
+
+// Format seconds to pace string
+function formatPace(seconds) {
+    if (!seconds) return '';
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+}
+
+// Calculate pace zones from threshold pace
+function calculatePaceZones() {
+    const thresholdPaceStr = document.getElementById('threshold_pace').value;
+    const thresholdPace = parsePace(thresholdPaceStr);
+
+    if (!thresholdPace) {
+        alert('Please enter a valid threshold pace (e.g., 5:00)');
+        return;
+    }
+
+    function paceAtPercent(percent) {
+        return Math.round(thresholdPace * percent / 100);
+    }
+
+    // Zone 1 (Easy): 130-115% of threshold (slower)
+    document.getElementById('pace_zone_1_min').value = formatPace(paceAtPercent(130));
+    document.getElementById('pace_zone_1_max').value = formatPace(paceAtPercent(115));
+
+    // Zone 2 (Moderate): 115-105% of threshold
+    document.getElementById('pace_zone_2_min').value = formatPace(paceAtPercent(115));
+    document.getElementById('pace_zone_2_max').value = formatPace(paceAtPercent(105));
+
+    // Zone 3 (Tempo): 105-100% of threshold
+    document.getElementById('pace_zone_3_min').value = formatPace(paceAtPercent(105));
+    document.getElementById('pace_zone_3_max').value = formatPace(paceAtPercent(100));
+
+    // Zone 4 (Threshold): 100-95% of threshold
+    document.getElementById('pace_zone_4_min').value = formatPace(paceAtPercent(100));
+    document.getElementById('pace_zone_4_max').value = formatPace(paceAtPercent(95));
+
+    // Zone 5 (Interval): 95-85% of threshold (faster)
+    document.getElementById('pace_zone_5_min').value = formatPace(paceAtPercent(95));
+    document.getElementById('pace_zone_5_max').value = formatPace(paceAtPercent(85));
+}
+</script>
+{% endblock %}

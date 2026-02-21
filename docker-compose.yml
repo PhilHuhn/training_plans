@@ -1,0 +1,54 @@
+version: '3.8'
+
+# Turbine Turmweg Training - Docker Compose
+#
+# Database only:  docker-compose up db
+# Full stack:     docker-compose up
+
+services:
+  db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: turbine
+      POSTGRES_PASSWORD: turbine_dev
+      POSTGRES_DB: turbine_turmweg
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U turbine -d turbine_turmweg"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build: ./backend
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql+asyncpg://turbine:turbine_dev@db:5432/turbine_turmweg
+      SECRET_KEY: ${SECRET_KEY:-dev-secret-key-change-in-production}
+      STRAVA_CLIENT_ID: ${STRAVA_CLIENT_ID:-}
+      STRAVA_CLIENT_SECRET: ${STRAVA_CLIENT_SECRET:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app
+
+  frontend:
+    image: node:20-alpine
+    working_dir: /app
+    command: sh -c "npm install && npm run dev -- --host 0.0.0.0"
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:

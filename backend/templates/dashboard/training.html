@@ -1,0 +1,1028 @@
+{% extends "dashboard/base.html" %}
+
+{% block title %}Training - Turbine Turmweg{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Header -->
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-900">Training Plan</h1>
+            <p class="text-gray-600">Week of {{ week_start.strftime('%B %d, %Y') }}</p>
+        </div>
+        <div class="flex items-center gap-2">
+            <a href="/training?week={{ prev_week }}" class="p-2 border rounded-md hover:bg-gray-50">
+                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+                </svg>
+            </a>
+            <a href="/training" class="px-3 py-2 border rounded-md hover:bg-gray-50 text-sm">Today</a>
+            <a href="/training?week={{ next_week }}" class="p-2 border rounded-md hover:bg-gray-50">
+                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                </svg>
+            </a>
+        </div>
+    </div>
+
+    <!-- Action buttons -->
+    <div class="flex flex-wrap gap-2">
+        <button
+            onclick="openGenerateModal()"
+            class="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700"
+            title="Generate AI training recommendations"
+        >
+            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"/>
+            </svg>
+            Generate AI Training Plan
+        </button>
+        <a href="/settings#upload" class="inline-flex items-center gap-2 px-4 py-2 border rounded-md hover:bg-gray-50">
+            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
+            </svg>
+            Upload Plan
+        </a>
+    </div>
+
+    <!-- Week totals -->
+    <div class="grid grid-cols-3 gap-4">
+        <div class="bg-white rounded-lg shadow p-4">
+            <p class="text-sm font-medium text-gray-500">Planned</p>
+            <p class="text-2xl font-bold text-gray-900">{{ "%.1f"|format(total_planned) }} km</p>
+            <p class="text-sm text-gray-500">{{ total_planned_time|int }} min</p>
+        </div>
+        <div class="bg-white rounded-lg shadow p-4">
+            <p class="text-sm font-medium text-gray-500">AI Recommended</p>
+            <p class="text-2xl font-bold text-gray-900">{{ "%.1f"|format(total_recommended) }} km</p>
+            <p class="text-sm text-gray-500">{{ total_recommended_time|int }} min</p>
+        </div>
+        <div class="bg-white rounded-lg shadow p-4">
+            <p class="text-sm font-medium text-gray-500">Final Plan</p>
+            <p class="text-2xl font-bold text-primary-600">{{ "%.1f"|format(total_final) }} km</p>
+            <p class="text-sm text-primary-500">{{ total_final_time|int }} min</p>
+        </div>
+    </div>
+
+    <!-- Column headers -->
+    <div class="hidden md:grid grid-cols-3 gap-4 px-4">
+        <div class="text-center">
+            <p class="text-xs font-semibold text-blue-600 uppercase tracking-wide">Manual / Uploaded Plan</p>
+            <p class="text-xs text-gray-500">Editable</p>
+        </div>
+        <div class="text-center">
+            <p class="text-xs font-semibold text-purple-600 uppercase tracking-wide">AI Recommendation</p>
+            <p class="text-xs text-gray-500">Auto-generated</p>
+        </div>
+        <div class="text-center">
+            <p class="text-xs font-semibold text-primary-600 uppercase tracking-wide">Final Plan</p>
+            <p class="text-xs text-gray-500">Your accepted workout</p>
+        </div>
+    </div>
+
+    <!-- Training week -->
+    <div id="training-week" class="space-y-4">
+        {% for day in week_days %}
+        {% set session = sessions_by_date.get(day.strftime('%Y-%m-%d')) %}
+        {% set is_today = day.strftime('%Y-%m-%d') == today %}
+        <div class="bg-white rounded-lg shadow {% if is_today %}ring-2 ring-primary-500{% endif %}">
+            <div class="px-4 py-3 border-b flex items-center justify-between">
+                <h3 class="font-medium text-gray-900">
+                    {{ day.strftime('%A, %b %d') }}
+                    {% if is_today %}
+                    <span class="ml-2 text-xs bg-primary-100 text-primary-700 px-2 py-0.5 rounded">Today</span>
+                    {% endif %}
+                </h3>
+                <div class="flex items-center gap-2">
+                    {% if session and session.status.value == 'completed' %}
+                    <span class="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded">Completed</span>
+                    {% endif %}
+                    {% if session %}
+                    <button
+                        hx-delete="/api/training/sessions/{{ session.id }}"
+                        hx-confirm="Delete this session?"
+                        class="p-1 text-gray-400 hover:text-red-500"
+                        title="Delete session"
+                    >
+                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                        </svg>
+                    </button>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="p-4 grid md:grid-cols-3 gap-4">
+                <!-- Column 1: Manual/Planned workout -->
+                <div>
+                    <p class="text-xs font-medium text-blue-600 uppercase tracking-wide mb-2 md:hidden">Manual Plan</p>
+                    {% if session and session.planned_workout %}
+                    <div class="border border-blue-200 rounded-md p-3 space-y-2 bg-blue-50 relative workout-card" data-workout='{{ session.planned_workout|tojson|e }}' data-session-id="{{ session.id }}" data-date="{{ day.strftime('%Y-%m-%d') }}">
+                        <!-- Top row with edit button, type badge, and accept button -->
+                        <div class="flex items-center gap-2">
+                            <button
+                                onclick="openSessionModalFromCard(this)"
+                                class="p-1 text-blue-400 hover:text-blue-600 hover:bg-blue-100 rounded flex-shrink-0"
+                                title="Edit planned session"
+                            >
+                                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                                </svg>
+                            </button>
+                            <span class="text-xs px-2 py-0.5 rounded bg-blue-100 text-blue-700">{{ session.planned_workout.type|replace('_', ' ')|title }}</span>
+                            {% if session.planned_workout.intensity %}
+                            <span class="text-xs text-gray-500">{{ session.planned_workout.intensity }}</span>
+                            {% endif %}
+                            <div class="ml-auto flex-shrink-0">
+                                {% if session.accepted_source is none or session.accepted_source != 'planned' %}
+                                <button
+                                    hx-post="/api/training/sessions/{{ session.id }}/accept?source=planned"
+                                    class="p-1 text-blue-600 hover:bg-blue-100 rounded"
+                                    title="Accept this workout"
+                                >
+                                    <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                    </svg>
+                                </button>
+                                {% else %}
+                                <span class="text-xs bg-blue-600 text-white px-2 py-0.5 rounded">Accepted</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <p class="text-sm text-gray-700">{{ session.planned_workout.description }}</p>
+                        <div class="flex flex-wrap gap-2 text-xs text-gray-500">
+                            {% if session.planned_workout.distance_km %}
+                            <span>{{ session.planned_workout.distance_km }} km</span>
+                            {% endif %}
+                            {% if session.planned_workout.duration_min %}
+                            <span>{{ session.planned_workout.duration_min }} min</span>
+                            {% endif %}
+                            {% if session.planned_workout.pace_range %}
+                            <span>{{ session.planned_workout.pace_range }}/km</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% else %}
+                    <button
+                        onclick="openSessionModal('{{ day.strftime('%Y-%m-%d') }}', {{ session.id if session else 'null' }}, null)"
+                        class="w-full border border-dashed border-gray-300 rounded-md p-4 text-center text-sm text-gray-400 h-24 flex items-center justify-center hover:border-blue-400 hover:text-blue-500 hover:bg-blue-50 transition-colors"
+                        title="Add planned session"
+                    >
+                        <span class="flex items-center gap-1">
+                            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                            </svg>
+                            Add workout
+                        </span>
+                    </button>
+                    {% endif %}
+                </div>
+
+                <!-- Column 2: AI Recommendation -->
+                <div>
+                    <p class="text-xs font-medium text-purple-600 uppercase tracking-wide mb-2 flex items-center gap-1 md:hidden">
+                        <svg class="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"/>
+                        </svg>
+                        AI Recommendation
+                    </p>
+                    {% if session and session.recommendation_workout %}
+                    <div class="border border-purple-200 rounded-md p-3 space-y-2 bg-purple-50 relative">
+                        <div class="flex items-center gap-2">
+                            <span class="text-xs px-2 py-0.5 rounded bg-purple-100 text-purple-700">{{ session.recommendation_workout.type|replace('_', ' ')|title }}</span>
+                            {% if session.recommendation_workout.intensity %}
+                            <span class="text-xs text-gray-500">{{ session.recommendation_workout.intensity }}</span>
+                            {% endif %}
+                        </div>
+                        <p class="text-sm text-gray-700">{{ session.recommendation_workout.description }}</p>
+                        <div class="flex flex-wrap gap-2 text-xs text-gray-500">
+                            {% if session.recommendation_workout.distance_km %}
+                            <span>{{ session.recommendation_workout.distance_km }} km</span>
+                            {% endif %}
+                            {% if session.recommendation_workout.duration_min %}
+                            <span>{{ session.recommendation_workout.duration_min }} min</span>
+                            {% endif %}
+                            {% if session.recommendation_workout.pace_range %}
+                            <span>{{ session.recommendation_workout.pace_range }}/km</span>
+                            {% endif %}
+                        </div>
+                        <!-- Accept button -->
+                        {% if session and (session.accepted_source is none or session.accepted_source != 'ai') %}
+                        <button
+                            hx-post="/api/training/sessions/{{ session.id }}/accept?source=ai"
+                            class="absolute top-2 right-2 p-1 text-purple-600 hover:bg-purple-100 rounded"
+                            title="Accept this workout"
+                        >
+                            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                            </svg>
+                        </button>
+                        {% endif %}
+                        {% if session and session.accepted_source and session.accepted_source == 'ai' %}
+                        <div class="absolute top-2 right-2">
+                            <span class="text-xs bg-purple-600 text-white px-2 py-0.5 rounded">Accepted</span>
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% else %}
+                    <div class="border border-dashed border-gray-300 rounded-md p-4 text-center text-sm text-gray-400 h-24 flex items-center justify-center">
+                        No recommendation yet
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- Column 3: Final Plan -->
+                <div>
+                    <p class="text-xs font-medium text-primary-600 uppercase tracking-wide mb-2 md:hidden">Final Plan</p>
+                    {% if session and session.final_workout %}
+                    <div class="border-2 border-primary-500 rounded-md p-3 space-y-2 bg-primary-50 relative">
+                        <div class="flex items-center gap-2">
+                            <span class="text-xs px-2 py-0.5 rounded bg-primary-100 text-primary-700">{{ session.final_workout.type|replace('_', ' ')|title }}</span>
+                            {% if session.final_workout.intensity %}
+                            <span class="text-xs text-gray-500">{{ session.final_workout.intensity }}</span>
+                            {% endif %}
+                            <span class="text-xs text-primary-600 ml-auto">
+                                {% if session.accepted_source and session.accepted_source == 'planned' %}
+                                from Manual
+                                {% elif session.accepted_source and session.accepted_source == 'ai' %}
+                                from AI
+                                {% endif %}
+                            </span>
+                            <!-- Export to Garmin button -->
+                            <a href="/api/training/sessions/{{ session.id }}/export/garmin"
+                               class="p-1 text-primary-600 hover:bg-primary-100 rounded"
+                               title="Export to Garmin (.fit file)"
+                               download>
+                                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                                </svg>
+                            </a>
+                        </div>
+                        <p class="text-sm text-gray-700">{{ session.final_workout.description }}</p>
+                        <div class="flex flex-wrap gap-2 text-xs text-gray-500">
+                            {% if session.final_workout.distance_km %}
+                            <span class="font-medium">{{ session.final_workout.distance_km }} km</span>
+                            {% endif %}
+                            {% if session.final_workout.duration_min %}
+                            <span>{{ session.final_workout.duration_min }} min</span>
+                            {% endif %}
+                            {% if session.final_workout.hr_zone %}
+                            <span>HR: {{ session.final_workout.hr_zone }}</span>
+                            {% endif %}
+                            {% if session.final_workout.pace_range %}
+                            <span>{{ session.final_workout.pace_range }}/km</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="border border-dashed border-gray-300 rounded-md p-4 text-center text-sm text-gray-400 h-24 flex items-center justify-center">
+                        <span>Accept a workout<br>from Manual or AI</span>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- Session Modal - Structured Workout Builder -->
+<div id="session-modal" class="hidden fixed inset-0 z-50 overflow-y-auto" x-data="workoutBuilder()" x-cloak>
+    <div class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:p-0">
+        <div class="fixed inset-0 transition-opacity" @click="closeModal()">
+            <div class="absolute inset-0 bg-gray-500 opacity-75"></div>
+        </div>
+        <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-2xl sm:w-full max-h-[90vh] overflow-y-auto">
+            <div class="bg-white px-4 pt-5 pb-4 sm:p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-lg font-medium text-gray-900" x-text="sessionId ? 'Edit Training Session' : 'Add Training Session'"></h3>
+                    <button @click="closeModal()" class="text-gray-400 hover:text-gray-500">
+                        <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                        </svg>
+                    </button>
+                </div>
+
+                <!-- Tab Navigation -->
+                <div class="flex border-b mb-4">
+                    <button type="button" @click="activeTab = 'basic'"
+                        :class="activeTab === 'basic' ? 'border-primary-500 text-primary-600' : 'border-transparent text-gray-500 hover:text-gray-700'"
+                        class="px-4 py-2 text-sm font-medium border-b-2 -mb-px">
+                        Basic
+                    </button>
+                    <button type="button" @click="activeTab = 'structured'"
+                        :class="activeTab === 'structured' ? 'border-primary-500 text-primary-600' : 'border-transparent text-gray-500 hover:text-gray-700'"
+                        class="px-4 py-2 text-sm font-medium border-b-2 -mb-px">
+                        Structured Workout
+                    </button>
+                </div>
+
+                <!-- Basic Tab -->
+                <div x-show="activeTab === 'basic'" class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Workout Type</label>
+                        <select x-model="workout.type" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500">
+                            <option value="easy">Easy Run</option>
+                            <option value="tempo">Tempo</option>
+                            <option value="interval">Intervals</option>
+                            <option value="long_run">Long Run</option>
+                            <option value="recovery">Recovery</option>
+                            <option value="cross_training">Cross Training</option>
+                            <option value="rest">Rest Day</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Description</label>
+                        <textarea x-model="workout.description" rows="2" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500" placeholder="e.g., Easy run with 4x100m strides"></textarea>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Distance (km)</label>
+                            <input type="number" x-model.number="workout.distance_km" step="0.1" min="0" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Duration (min)</label>
+                            <input type="number" x-model.number="workout.duration_min" min="0" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500">
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Intensity</label>
+                            <select x-model="workout.intensity" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500">
+                                <option value="">--</option>
+                                <option value="low">Low</option>
+                                <option value="moderate">Moderate</option>
+                                <option value="high">High</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">HR Zone</label>
+                            <select x-model="workout.hr_zone" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500">
+                                <option value="">--</option>
+                                <option value="zone1">Zone 1 (Recovery)</option>
+                                <option value="zone2">Zone 2 (Aerobic)</option>
+                                <option value="zone3">Zone 3 (Tempo)</option>
+                                <option value="zone4">Zone 4 (Threshold)</option>
+                                <option value="zone5">Zone 5 (VO2max)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Pace Range (e.g., 5:00-5:30)</label>
+                        <input type="text" x-model="workout.pace_range" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500" placeholder="5:00-5:30">
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Notes</label>
+                        <textarea x-model="workout.notes" rows="2" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500"></textarea>
+                    </div>
+                </div>
+
+                <!-- Structured Workout Tab -->
+                <div x-show="activeTab === 'structured'" class="space-y-4">
+                    <p class="text-sm text-gray-500">Build a structured workout with steps for Garmin export.</p>
+
+                    <!-- Workout Steps List -->
+                    <div class="space-y-2">
+                        <template x-for="(step, index) in steps" :key="index">
+                            <div class="border rounded-md p-3 bg-gray-50">
+                                <div class="flex items-center justify-between mb-2">
+                                    <span class="text-xs font-medium uppercase"
+                                        :class="{
+                                            'text-yellow-600': step.step_type === 'warmup',
+                                            'text-red-600': step.step_type === 'active',
+                                            'text-blue-600': step.step_type === 'recovery',
+                                            'text-green-600': step.step_type === 'cooldown',
+                                            'text-purple-600': step.step_type === 'repeat'
+                                        }"
+                                        x-text="step.step_type"></span>
+                                    <button type="button" @click="removeStep(index)" class="text-gray-400 hover:text-red-500">
+                                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                                        </svg>
+                                    </button>
+                                </div>
+
+                                <div class="grid grid-cols-2 gap-2 text-sm">
+                                    <!-- Step Type -->
+                                    <div>
+                                        <label class="block text-xs text-gray-500">Type</label>
+                                        <select x-model="step.step_type" class="mt-1 block w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-primary-500">
+                                            <option value="warmup">Warm Up</option>
+                                            <option value="active">Active</option>
+                                            <option value="recovery">Recovery</option>
+                                            <option value="cooldown">Cool Down</option>
+                                            <option value="repeat">Repeat</option>
+                                        </select>
+                                    </div>
+
+                                    <!-- Name -->
+                                    <div>
+                                        <label class="block text-xs text-gray-500">Name</label>
+                                        <input type="text" x-model="step.name" placeholder="e.g., 400m repeats" class="mt-1 block w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-primary-500">
+                                    </div>
+
+                                    <!-- Duration Type & Value -->
+                                    <div>
+                                        <label class="block text-xs text-gray-500">Duration Type</label>
+                                        <select x-model="step.duration_type" class="mt-1 block w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-primary-500">
+                                            <option value="time">Time</option>
+                                            <option value="distance">Distance</option>
+                                            <option value="open">Open (Lap Button)</option>
+                                        </select>
+                                    </div>
+
+                                    <div>
+                                        <label class="block text-xs text-gray-500" x-text="step.duration_type === 'time' ? 'Duration (sec)' : step.duration_type === 'distance' ? 'Distance (m)' : 'N/A'"></label>
+                                        <input type="number" x-model.number="step.duration_value"
+                                            :disabled="step.duration_type === 'open'"
+                                            :placeholder="step.duration_type === 'time' ? '600' : '1000'"
+                                            class="mt-1 block w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-primary-500 disabled:bg-gray-100">
+                                    </div>
+
+                                    <!-- Target Type -->
+                                    <div>
+                                        <label class="block text-xs text-gray-500">Target</label>
+                                        <select x-model="step.target_type" class="mt-1 block w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-primary-500">
+                                            <option value="open">Open (No Target)</option>
+                                            <option value="pace">Pace</option>
+                                            <option value="heart_rate_zone">HR Zone</option>
+                                        </select>
+                                    </div>
+
+                                    <!-- Target Values -->
+                                    <div x-show="step.target_type === 'pace'">
+                                        <label class="block text-xs text-gray-500">Pace Range (sec/km)</label>
+                                        <div class="flex gap-1 mt-1">
+                                            <input type="number" x-model.number="step.target_value_low" placeholder="270" class="w-1/2 px-2 py-1 text-sm border border-gray-300 rounded focus:ring-primary-500">
+                                            <input type="number" x-model.number="step.target_value_high" placeholder="300" class="w-1/2 px-2 py-1 text-sm border border-gray-300 rounded focus:ring-primary-500">
+                                        </div>
+                                    </div>
+                                    <div x-show="step.target_type === 'heart_rate_zone'">
+                                        <label class="block text-xs text-gray-500">HR Zone</label>
+                                        <select x-model.number="step.target_zone" class="mt-1 block w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-primary-500">
+                                            <option value="1">Zone 1</option>
+                                            <option value="2">Zone 2</option>
+                                            <option value="3">Zone 3</option>
+                                            <option value="4">Zone 4</option>
+                                            <option value="5">Zone 5</option>
+                                        </select>
+                                    </div>
+
+                                    <!-- Repeat-specific fields -->
+                                    <template x-if="step.step_type === 'repeat'">
+                                        <div class="col-span-2 mt-2 pt-2 border-t">
+                                            <div class="flex items-center gap-4">
+                                                <div>
+                                                    <label class="block text-xs text-gray-500">Repetitions</label>
+                                                    <input type="number" x-model.number="step.repeat_count" min="1" class="mt-1 w-20 px-2 py-1 text-sm border border-gray-300 rounded focus:ring-primary-500">
+                                                </div>
+                                                <div class="flex-1">
+                                                    <label class="block text-xs text-gray-500">Work: Distance (m) / Recovery (sec)</label>
+                                                    <div class="flex gap-1 mt-1">
+                                                        <input type="number" x-model.number="step.work_distance" placeholder="400" class="w-1/2 px-2 py-1 text-sm border border-gray-300 rounded focus:ring-primary-500">
+                                                        <input type="number" x-model.number="step.recovery_time" placeholder="90" class="w-1/2 px-2 py-1 text-sm border border-gray-300 rounded focus:ring-primary-500">
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </template>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+
+                    <!-- Quick Add Buttons -->
+                    <div class="flex flex-wrap gap-2">
+                        <button type="button" @click="addStep('warmup')" class="px-3 py-1 text-xs font-medium text-yellow-700 bg-yellow-100 rounded-full hover:bg-yellow-200">
+                            + Warm Up
+                        </button>
+                        <button type="button" @click="addStep('active')" class="px-3 py-1 text-xs font-medium text-red-700 bg-red-100 rounded-full hover:bg-red-200">
+                            + Active
+                        </button>
+                        <button type="button" @click="addStep('recovery')" class="px-3 py-1 text-xs font-medium text-blue-700 bg-blue-100 rounded-full hover:bg-blue-200">
+                            + Recovery
+                        </button>
+                        <button type="button" @click="addStep('repeat')" class="px-3 py-1 text-xs font-medium text-purple-700 bg-purple-100 rounded-full hover:bg-purple-200">
+                            + Interval Set
+                        </button>
+                        <button type="button" @click="addStep('cooldown')" class="px-3 py-1 text-xs font-medium text-green-700 bg-green-100 rounded-full hover:bg-green-200">
+                            + Cool Down
+                        </button>
+                    </div>
+
+                    <!-- Preset Templates -->
+                    <div class="pt-2 border-t">
+                        <label class="block text-xs font-medium text-gray-500 mb-2">Quick Templates</label>
+                        <div class="flex flex-wrap gap-2">
+                            <button type="button" @click="applyTemplate('easy')" class="px-3 py-1 text-xs border rounded hover:bg-gray-50">Easy Run</button>
+                            <button type="button" @click="applyTemplate('tempo')" class="px-3 py-1 text-xs border rounded hover:bg-gray-50">Tempo Run</button>
+                            <button type="button" @click="applyTemplate('intervals')" class="px-3 py-1 text-xs border rounded hover:bg-gray-50">Intervals (6x400m)</button>
+                            <button type="button" @click="applyTemplate('long')" class="px-3 py-1 text-xs border rounded hover:bg-gray-50">Long Run</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <div class="bg-gray-50 px-4 py-3 sm:px-6 flex justify-end gap-2">
+                <button type="button" @click="closeModal()" class="px-4 py-2 border border-gray-300 rounded-md bg-white text-gray-700 hover:bg-gray-50">
+                    Cancel
+                </button>
+                <button type="button" @click="saveWorkout()" class="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700">
+                    Save
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Alpine.js component for the workout builder
+function workoutBuilder() {
+    return {
+        isOpen: false,
+        activeTab: 'basic',
+        sessionDate: '',
+        sessionId: null,
+        workout: {
+            type: 'easy',
+            description: '',
+            distance_km: null,
+            duration_min: null,
+            intensity: '',
+            hr_zone: '',
+            pace_range: '',
+            notes: ''
+        },
+        steps: [],
+
+        init() {
+            // Listen for open events
+            window.openSessionModal = (date, sessionId, existingWorkout) => {
+                this.sessionDate = date;
+                this.sessionId = sessionId;
+                this.activeTab = 'basic';
+
+                if (existingWorkout) {
+                    this.workout = {
+                        type: existingWorkout.type || 'easy',
+                        description: existingWorkout.description || '',
+                        distance_km: existingWorkout.distance_km || null,
+                        duration_min: existingWorkout.duration_min || null,
+                        intensity: existingWorkout.intensity || '',
+                        hr_zone: existingWorkout.hr_zone || '',
+                        pace_range: existingWorkout.pace_range || '',
+                        notes: existingWorkout.notes || ''
+                    };
+                    // Load structured steps if available
+                    if (existingWorkout.structured && existingWorkout.structured.steps) {
+                        this.steps = existingWorkout.structured.steps.map(s => ({...s}));
+                        this.activeTab = 'structured';
+                    } else if (existingWorkout.intervals && existingWorkout.intervals.length > 0) {
+                        // Convert old interval format to steps
+                        this.steps = this.convertIntervalsToSteps(existingWorkout.intervals);
+                        this.activeTab = 'structured';
+                    } else {
+                        this.steps = [];
+                    }
+                } else {
+                    this.resetForm();
+                }
+
+                document.getElementById('session-modal').classList.remove('hidden');
+            };
+
+            window.openSessionModalFromCard = (button) => {
+                const card = button.closest('.workout-card');
+                const date = card.dataset.date;
+                const sessionId = card.dataset.sessionId;
+                let workout = null;
+                try {
+                    workout = JSON.parse(card.dataset.workout);
+                } catch (e) {
+                    console.error('Failed to parse workout data:', e);
+                }
+                window.openSessionModal(date, sessionId, workout);
+            };
+        },
+
+        resetForm() {
+            this.workout = {
+                type: 'easy',
+                description: '',
+                distance_km: null,
+                duration_min: null,
+                intensity: '',
+                hr_zone: '',
+                pace_range: '',
+                notes: ''
+            };
+            this.steps = [];
+        },
+
+        closeModal() {
+            document.getElementById('session-modal').classList.add('hidden');
+        },
+
+        addStep(type) {
+            const step = {
+                step_type: type,
+                name: '',
+                duration_type: type === 'repeat' ? 'open' : 'time',
+                duration_value: type === 'warmup' || type === 'cooldown' ? 600 : 300,
+                target_type: 'open',
+                target_value_low: null,
+                target_value_high: null,
+                target_zone: 2
+            };
+
+            if (type === 'repeat') {
+                step.repeat_count = 6;
+                step.work_distance = 400;
+                step.recovery_time = 90;
+            }
+
+            this.steps.push(step);
+        },
+
+        removeStep(index) {
+            this.steps.splice(index, 1);
+        },
+
+        applyTemplate(template) {
+            switch (template) {
+                case 'easy':
+                    this.steps = [
+                        { step_type: 'warmup', name: 'Warm Up', duration_type: 'time', duration_value: 600, target_type: 'open' },
+                        { step_type: 'active', name: 'Easy Run', duration_type: 'time', duration_value: 2400, target_type: 'heart_rate_zone', target_zone: 2 },
+                        { step_type: 'cooldown', name: 'Cool Down', duration_type: 'time', duration_value: 300, target_type: 'open' }
+                    ];
+                    this.workout.type = 'easy';
+                    this.workout.description = 'Easy aerobic run';
+                    this.workout.duration_min = 55;
+                    break;
+                case 'tempo':
+                    this.steps = [
+                        { step_type: 'warmup', name: 'Warm Up', duration_type: 'time', duration_value: 900, target_type: 'open' },
+                        { step_type: 'active', name: 'Tempo', duration_type: 'time', duration_value: 1200, target_type: 'heart_rate_zone', target_zone: 3 },
+                        { step_type: 'cooldown', name: 'Cool Down', duration_type: 'time', duration_value: 600, target_type: 'open' }
+                    ];
+                    this.workout.type = 'tempo';
+                    this.workout.description = 'Tempo run at threshold pace';
+                    this.workout.duration_min = 45;
+                    break;
+                case 'intervals':
+                    this.steps = [
+                        { step_type: 'warmup', name: 'Warm Up', duration_type: 'time', duration_value: 900, target_type: 'open' },
+                        { step_type: 'repeat', name: '6x400m', repeat_count: 6, work_distance: 400, recovery_time: 90, duration_type: 'open', target_type: 'open' },
+                        { step_type: 'cooldown', name: 'Cool Down', duration_type: 'time', duration_value: 600, target_type: 'open' }
+                    ];
+                    this.workout.type = 'interval';
+                    this.workout.description = '6x400m intervals with 90s recovery';
+                    this.workout.duration_min = 45;
+                    break;
+                case 'long':
+                    this.steps = [
+                        { step_type: 'warmup', name: 'Warm Up', duration_type: 'time', duration_value: 600, target_type: 'open' },
+                        { step_type: 'active', name: 'Long Run', duration_type: 'distance', duration_value: 18000, target_type: 'heart_rate_zone', target_zone: 2 },
+                        { step_type: 'cooldown', name: 'Cool Down', duration_type: 'time', duration_value: 300, target_type: 'open' }
+                    ];
+                    this.workout.type = 'long_run';
+                    this.workout.description = 'Long aerobic run';
+                    this.workout.distance_km = 20;
+                    this.workout.duration_min = 120;
+                    break;
+            }
+        },
+
+        convertIntervalsToSteps(intervals) {
+            const steps = [
+                { step_type: 'warmup', name: 'Warm Up', duration_type: 'time', duration_value: 600, target_type: 'open' }
+            ];
+
+            for (const interval of intervals) {
+                steps.push({
+                    step_type: 'repeat',
+                    name: `${interval.reps || 1}x${interval.distance_m || 400}m`,
+                    repeat_count: interval.reps || 1,
+                    work_distance: interval.distance_m || 400,
+                    recovery_time: this.parseRecovery(interval.recovery) || 90,
+                    duration_type: 'open',
+                    target_type: 'open'
+                });
+            }
+
+            steps.push({ step_type: 'cooldown', name: 'Cool Down', duration_type: 'time', duration_value: 600, target_type: 'open' });
+            return steps;
+        },
+
+        parseRecovery(rec) {
+            if (!rec) return 90;
+            const lower = rec.toLowerCase();
+            if (lower.includes('min')) {
+                return parseInt(lower) * 60;
+            }
+            return parseInt(lower) || 90;
+        },
+
+        buildStructuredWorkout() {
+            if (this.steps.length === 0) return null;
+
+            const structuredSteps = this.steps.map(step => {
+                const s = {
+                    step_type: step.step_type,
+                    name: step.name || step.step_type,
+                    duration_type: step.duration_type,
+                    duration_value: step.duration_value,
+                    target_type: step.target_type
+                };
+
+                if (step.target_type === 'pace' && step.target_value_low && step.target_value_high) {
+                    s.target_value_low = step.target_value_low;
+                    s.target_value_high = step.target_value_high;
+                }
+                if (step.target_type === 'heart_rate_zone' && step.target_zone) {
+                    s.target_zone = step.target_zone;
+                }
+                if (step.step_type === 'repeat') {
+                    s.repeat_count = step.repeat_count || 1;
+                    // Build repeat_steps from work_distance and recovery_time
+                    s.repeat_steps = [
+                        {
+                            step_type: 'active',
+                            name: 'Work',
+                            duration_type: 'distance',
+                            duration_value: step.work_distance || 400,
+                            target_type: 'open'
+                        },
+                        {
+                            step_type: 'recovery',
+                            name: 'Recovery',
+                            duration_type: 'time',
+                            duration_value: step.recovery_time || 90,
+                            target_type: 'open'
+                        }
+                    ];
+                }
+                return s;
+            });
+
+            // Also build intervals array for backward compatibility
+            const intervals = this.steps
+                .filter(s => s.step_type === 'repeat')
+                .map(s => ({
+                    reps: s.repeat_count || 1,
+                    distance_m: s.work_distance || 400,
+                    recovery: `${s.recovery_time || 90}s`
+                }));
+
+            return {
+                name: this.workout.description ? this.workout.description.substring(0, 20) : 'Workout',
+                sport: 'running',
+                description: this.workout.description,
+                steps: structuredSteps,
+                estimated_duration_min: this.workout.duration_min,
+                estimated_distance_km: this.workout.distance_km,
+                intervals: intervals.length > 0 ? intervals : null
+            };
+        },
+
+        async saveWorkout() {
+            // Build the workout data
+            const workoutData = {
+                type: this.workout.type,
+                description: this.workout.description,
+                distance_km: this.workout.distance_km,
+                duration_min: this.workout.duration_min,
+                intensity: this.workout.intensity || null,
+                hr_zone: this.workout.hr_zone || null,
+                pace_range: this.workout.pace_range || null,
+                notes: this.workout.notes || null
+            };
+
+            // Add structured workout if steps exist
+            if (this.steps.length > 0) {
+                const structured = this.buildStructuredWorkout();
+                workoutData.structured = structured;
+                // Also add intervals for backward compatibility
+                if (structured.intervals) {
+                    workoutData.intervals = structured.intervals;
+                }
+            }
+
+            // Prepare form data
+            const formData = new FormData();
+            formData.append('session_date', this.sessionDate);
+            formData.append('workout_type', workoutData.type);
+            formData.append('description', workoutData.description || '');
+            if (workoutData.distance_km) formData.append('distance_km', workoutData.distance_km);
+            if (workoutData.duration_min) formData.append('duration_min', workoutData.duration_min);
+            if (workoutData.intensity) formData.append('intensity', workoutData.intensity);
+            if (workoutData.hr_zone) formData.append('hr_zone', workoutData.hr_zone);
+            if (workoutData.pace_range) formData.append('pace_range', workoutData.pace_range);
+            if (workoutData.notes) formData.append('notes', workoutData.notes);
+
+            // Add structured workout as JSON
+            if (workoutData.structured) {
+                formData.append('structured_workout', JSON.stringify(workoutData.structured));
+            }
+            if (workoutData.intervals) {
+                formData.append('intervals', JSON.stringify(workoutData.intervals));
+            }
+
+            const url = this.sessionId
+                ? `/api/training/sessions/${this.sessionId}`
+                : '/api/training/sessions';
+            const method = this.sessionId ? 'PUT' : 'POST';
+
+            try {
+                const response = await fetch(url, {
+                    method: method,
+                    headers: {
+                        'HX-Request': 'true'
+                    },
+                    body: formData
+                });
+
+                if (response.ok) {
+                    this.closeModal();
+                    window.location.reload();
+                } else {
+                    alert('Failed to save session. Please try again.');
+                }
+            } catch (error) {
+                console.error('Error saving workout:', error);
+                alert('Failed to save session. Please try again.');
+            }
+        }
+    };
+}
+
+function closeSessionModal() {
+    document.getElementById('session-modal').classList.add('hidden');
+}
+
+// Close modal on escape key
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        closeSessionModal();
+        closeGenerateModal();
+    }
+});
+
+// Generate AI modal functions
+function openGenerateModal() {
+    const modal = document.getElementById('generate-modal');
+    const startDateInput = document.getElementById('gen-start-date');
+    const endDateInput = document.getElementById('gen-end-date');
+
+    // Load saved preferences from localStorage
+    const savedEndDate = localStorage.getItem('ai_gen_end_date');
+    const today = new Date().toISOString().split('T')[0];
+
+    // Start date is max(today, previous end date + 1)
+    let startDate = today;
+    if (savedEndDate && savedEndDate >= today) {
+        // Use day after saved end date, but not before today
+        const nextDay = new Date(savedEndDate);
+        nextDay.setDate(nextDay.getDate() + 1);
+        const nextDayStr = nextDay.toISOString().split('T')[0];
+        if (nextDayStr > today) {
+            startDate = nextDayStr;
+        }
+    }
+
+    startDateInput.value = startDate;
+    startDateInput.min = today;
+
+    // Default end date: 8 weeks from start
+    const defaultEnd = new Date(startDate);
+    defaultEnd.setDate(defaultEnd.getDate() + 56);
+    endDateInput.value = savedEndDate && savedEndDate > startDate ? savedEndDate : defaultEnd.toISOString().split('T')[0];
+    endDateInput.min = startDate;
+
+    modal.classList.remove('hidden');
+}
+
+function closeGenerateModal() {
+    document.getElementById('generate-modal').classList.add('hidden');
+}
+
+async function submitGenerateRecommendations() {
+    const startDate = document.getElementById('gen-start-date').value;
+    const endDate = document.getElementById('gen-end-date').value;
+    const submitBtn = document.getElementById('gen-submit-btn');
+    const indicator = document.getElementById('gen-loading-indicator');
+    const errorDiv = document.getElementById('gen-error');
+
+    if (!startDate || !endDate) {
+        errorDiv.textContent = 'Please select both dates';
+        errorDiv.classList.remove('hidden');
+        return;
+    }
+
+    if (endDate < startDate) {
+        errorDiv.textContent = 'End date must be after start date';
+        errorDiv.classList.remove('hidden');
+        return;
+    }
+
+    // Save end date to localStorage for next time
+    localStorage.setItem('ai_gen_end_date', endDate);
+
+    // Show loading state
+    submitBtn.disabled = true;
+    indicator.classList.remove('hidden');
+    errorDiv.classList.add('hidden');
+
+    try {
+        const response = await fetch(`/api/training/generate-recommendations?start_date=${startDate}&end_date=${endDate}`, {
+            method: 'POST',
+            headers: {
+                'HX-Request': 'true'
+            }
+        });
+
+        if (response.ok) {
+            closeGenerateModal();
+            window.location.reload();
+        } else {
+            const text = await response.text();
+            errorDiv.innerHTML = text || 'Failed to generate recommendations';
+            errorDiv.classList.remove('hidden');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        errorDiv.textContent = 'Network error. Please try again.';
+        errorDiv.classList.remove('hidden');
+    } finally {
+        submitBtn.disabled = false;
+        indicator.classList.add('hidden');
+    }
+}
+</script>
+
+<!-- Generate AI Recommendations Modal -->
+<div id="generate-modal" class="hidden fixed inset-0 z-50 overflow-y-auto">
+    <div class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:p-0">
+        <div class="fixed inset-0 transition-opacity" onclick="closeGenerateModal()">
+            <div class="absolute inset-0 bg-gray-500 opacity-75"></div>
+        </div>
+        <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+            <div class="bg-white px-4 pt-5 pb-4 sm:p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-lg font-medium text-gray-900 flex items-center gap-2">
+                        <svg class="h-5 w-5 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"/>
+                        </svg>
+                        Generate AI Training Plan
+                    </h3>
+                    <button onclick="closeGenerateModal()" class="text-gray-400 hover:text-gray-500">
+                        <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                        </svg>
+                    </button>
+                </div>
+
+                <p class="text-sm text-gray-500 mb-4">
+                    Select the date range for AI-generated training recommendations. The AI will analyze your recent activities, competitions, and fitness level.
+                </p>
+
+                <div class="space-y-4">
+                    <div>
+                        <label for="gen-start-date" class="block text-sm font-medium text-gray-700">Start Date</label>
+                        <input type="date" id="gen-start-date" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500">
+                    </div>
+
+                    <div>
+                        <label for="gen-end-date" class="block text-sm font-medium text-gray-700">End Date</label>
+                        <input type="date" id="gen-end-date" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500">
+                        <p class="mt-1 text-xs text-gray-500">Tip: Set this to your target race date for best results</p>
+                    </div>
+
+                    <div id="gen-error" class="hidden p-3 bg-red-50 text-red-700 rounded-md text-sm"></div>
+                </div>
+            </div>
+
+            <div class="bg-gray-50 px-4 py-3 sm:px-6 flex justify-end gap-2">
+                <button type="button" onclick="closeGenerateModal()" class="px-4 py-2 border border-gray-300 rounded-md bg-white text-gray-700 hover:bg-gray-50">
+                    Cancel
+                </button>
+                <button type="button" id="gen-submit-btn" onclick="submitGenerateRecommendations()" class="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed">
+                    <span id="gen-loading-indicator" class="hidden">
+                        <svg class="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                        </svg>
+                    </span>
+                    Generate Plan
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
