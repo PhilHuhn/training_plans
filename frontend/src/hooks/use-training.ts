@@ -62,6 +62,7 @@ export function useGenerateRecommendations() {
       end_date?: string
       consider_uploaded_plan?: boolean
       sports?: string
+      sport_availability?: string
     }) => trainingApi.generateRecommendations(params),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['trainingWeek'] }),
   })

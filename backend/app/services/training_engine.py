@@ -23,6 +23,7 @@ async def generate_recommendations(
     end_date: date,
     consider_fixed_plan: bool = True,
     allowed_sports: list[str] | None = None,
+    sport_availability: dict | None = None,
 ) -> dict:
     """
     Generate training recommendations for a user for the given date range.
@@ -170,7 +171,37 @@ async def generate_recommendations(
     )
 
     all_sports = {"running", "cycling", "swimming", "strength", "hiking", "rowing"}
-    if allowed_sports is not None:
+
+    if sport_availability is not None:
+        # Per-sport availability windows (new Gantt-style)
+        selected = set(sport_availability.keys())
+        excluded = all_sports - selected
+
+        availability_lines = []
+        for sport, config in sport_availability.items():
+            sport_start = config.get("start_date", start_date.isoformat())
+            if sport_start <= start_date.isoformat():
+                availability_lines.append(f"- {sport}: available for the entire plan")
+            else:
+                availability_lines.append(
+                    f"- {sport}: available from {sport_start} onwards "
+                    f"(do NOT schedule any {sport} sessions before this date)"
+                )
+
+        availability_text = "\n".join(availability_lines)
+        prompt += (
+            f"\n\nIMPORTANT - Sport Availability Windows:\n"
+            f"The athlete has specific availability dates for each sport. "
+            f"You MUST respect these windows:\n{availability_text}\n"
+            f"Before a sport becomes available, use other available sports or rest days instead."
+        )
+
+        if excluded:
+            prompt += (
+                f"\nDo NOT include sessions for: {', '.join(sorted(excluded))}."
+            )
+    elif allowed_sports is not None:
+        # Legacy flat sports list
         selected = set(allowed_sports)
         if selected != all_sports:
             if selected == {"running"}:

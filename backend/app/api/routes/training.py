@@ -245,12 +245,14 @@ async def generate_training_recommendations(
     end_date: date = Query(None),
     consider_uploaded_plan: bool = Query(True),
     sports: Optional[str] = Query(None),
+    sport_availability: Optional[str] = Query(None),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Generate AI training recommendations for a date range."""
     from app.models.competition import Competition
     import traceback
+    import json as json_lib
 
     MAX_WEEKS = 16
 
@@ -275,8 +277,18 @@ async def generate_training_recommendations(
             else:
                 end_date = max_end_date
 
-        # Parse sports param into list
-        allowed_sports = [s.strip() for s in sports.split(",") if s.strip()] if sports else None
+        # Parse sport availability (new per-sport windows) or legacy sports param
+        parsed_sport_availability = None
+        if sport_availability:
+            try:
+                parsed_sport_availability = json_lib.loads(sport_availability)
+                allowed_sports = list(parsed_sport_availability.keys())
+            except (json_lib.JSONDecodeError, AttributeError):
+                allowed_sports = None
+        elif sports:
+            allowed_sports = [s.strip() for s in sports.split(",") if s.strip()]
+        else:
+            allowed_sports = None
 
         result = await generate_recommendations(
             user=current_user,
@@ -285,6 +297,7 @@ async def generate_training_recommendations(
             end_date=end_date,
             consider_fixed_plan=consider_uploaded_plan,
             allowed_sports=allowed_sports,
+            sport_availability=parsed_sport_availability,
         )
 
         if "error" in result:

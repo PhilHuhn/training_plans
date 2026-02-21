@@ -177,6 +177,8 @@ async def update_zones(
             "threshold_pace": prefs.get("threshold_pace"),
             "hr_zones": prefs.get("hr_zones"),
             "pace_zones": prefs.get("pace_zones"),
+            "ftp": prefs.get("ftp"),
+            "cycling_power_zones": prefs.get("cycling_power_zones"),
         },
         source="manual",
     )
@@ -201,11 +203,80 @@ async def get_zones_history(
             "activities_analyzed": h.activities_analyzed,
             "max_hr": h.max_hr,
             "resting_hr": h.resting_hr,
+            "threshold_pace": h.threshold_pace,
             "hr_zones": h.hr_zones,
             "pace_zones": h.pace_zones,
+            "ftp": h.ftp,
+            "cycling_power_zones": h.cycling_power_zones,
         }
         for h in history
     ]
+
+
+@router.post("/zones/revert/{history_id}")
+async def revert_zones(
+    history_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Revert user zones to a historical snapshot"""
+    from sqlalchemy.orm.attributes import flag_modified
+    from app.models.zone_history import ZoneHistory
+
+    result = await db.execute(
+        select(ZoneHistory)
+        .where(ZoneHistory.id == history_id)
+        .where(ZoneHistory.user_id == current_user.id)
+    )
+    entry = result.scalar_one_or_none()
+
+    if not entry:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Zone history entry not found",
+        )
+
+    # Apply the historical snapshot to current preferences
+    prefs = dict(current_user.preferences) if current_user.preferences else {}
+
+    if entry.max_hr is not None:
+        prefs["max_hr"] = entry.max_hr
+    if entry.resting_hr is not None:
+        prefs["resting_hr"] = entry.resting_hr
+    if entry.threshold_pace is not None:
+        prefs["threshold_pace"] = entry.threshold_pace
+    if entry.hr_zones is not None:
+        prefs["hr_zones"] = entry.hr_zones
+    if entry.pace_zones is not None:
+        prefs["pace_zones"] = entry.pace_zones
+    if entry.ftp is not None:
+        prefs["ftp"] = entry.ftp
+    if entry.cycling_power_zones is not None:
+        prefs["cycling_power_zones"] = entry.cycling_power_zones
+
+    current_user.preferences = prefs
+    flag_modified(current_user, "preferences")
+    await db.commit()
+    await db.refresh(current_user)
+
+    # Record the revert as a new history entry
+    await save_zones_to_history(
+        current_user,
+        db,
+        {
+            "max_hr": prefs.get("max_hr"),
+            "resting_hr": prefs.get("resting_hr"),
+            "threshold_pace": prefs.get("threshold_pace"),
+            "hr_zones": prefs.get("hr_zones"),
+            "pace_zones": prefs.get("pace_zones"),
+            "ftp": prefs.get("ftp"),
+            "cycling_power_zones": prefs.get("cycling_power_zones"),
+            "notes": f"Reverted to snapshot #{history_id}",
+        },
+        source="reverted",
+    )
+
+    return {"message": "Zones reverted", "preferences": prefs}
 
 
 @router.put("/account")

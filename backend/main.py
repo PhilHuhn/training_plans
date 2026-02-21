@@ -1,3 +1,6 @@
+import logging
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -7,14 +10,35 @@ from pathlib import Path
 from app.core.config import settings
 from app.api.routes import auth, strava, activities, competitions, training, settings as settings_routes, chat, changelog
 
+BASE_DIR = Path(__file__).resolve().parent
+logger = logging.getLogger(__name__)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Startup/shutdown lifecycle. Ensures DB schema is up to date."""
+    if settings.is_sqlite:
+        try:
+            from alembic.config import Config
+            from alembic import command
+            alembic_cfg = Config(str(BASE_DIR / "alembic.ini"))
+            alembic_cfg.set_main_option("script_location", str(BASE_DIR / "alembic"))
+            command.upgrade(alembic_cfg, "head")
+            logger.info("Alembic migrations applied successfully")
+        except Exception as e:
+            logger.warning(f"Alembic migration failed, falling back to create_all: {e}")
+            from app.core.database import init_db
+            await init_db()
+    yield
+
+
 # App setup
 app = FastAPI(
     title=settings.APP_NAME,
     description="Training plan management for runners with AI-powered recommendations",
     version="1.0.0",
+    lifespan=lifespan,
 )
-
-BASE_DIR = Path(__file__).resolve().parent
 
 # Static files (if directory exists)
 static_dir = BASE_DIR / "static"

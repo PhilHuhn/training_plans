@@ -71,6 +71,12 @@ export function addDays(dateStr: string, days: number): string {
   return formatDateISO(d)
 }
 
+export function daysBetween(dateStrA: string, dateStrB: string): number {
+  const a = new Date(dateStrA + 'T00:00:00')
+  const b = new Date(dateStrB + 'T00:00:00')
+  return Math.round((b.getTime() - a.getTime()) / (1000 * 60 * 60 * 24))
+}
+
 export function isToday(dateStr: string): boolean {
   return dateStr === formatDateISO(new Date())
 }

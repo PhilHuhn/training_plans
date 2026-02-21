@@ -1,13 +1,15 @@
 import { useState, useEffect, useRef } from 'react'
 import { useSearchParams } from 'react-router'
-import { Link2, Unlink, RefreshCw, Upload, Save, User as UserIcon } from 'lucide-react'
+import { Link2, Unlink, RefreshCw, Upload, Save, User as UserIcon, History, RotateCcw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Separator } from '@/components/ui/separator'
 import { Badge } from '@/components/ui/badge'
+import { Skeleton } from '@/components/ui/skeleton'
 import { useCurrentUser, useLogout } from '@/hooks/use-auth'
+import { useZoneHistory, useRevertZones } from '@/hooks/use-settings'
 import { stravaApi } from '@/api/strava'
 import { settingsApi } from '@/api/settings'
 import { trainingApi } from '@/api/training'
@@ -19,6 +21,8 @@ export default function SettingsPage() {
   const logout = useLogout()
   const queryClient = useQueryClient()
   const [searchParams] = useSearchParams()
+  const { data: zoneHistory, isLoading: historyLoading } = useZoneHistory(20)
+  const revertZones = useRevertZones()
 
   // Strava OAuth callback detection
   useEffect(() => {
@@ -89,6 +93,7 @@ export default function SettingsPage() {
     try {
       await settingsApi.applyEstimatedZones()
       queryClient.invalidateQueries({ queryKey: ['currentUser'] })
+      queryClient.invalidateQueries({ queryKey: ['zoneHistory'] })
       toast.success('Zones estimated from Strava data')
     } catch {
       toast.error('Failed to estimate zones')
@@ -109,6 +114,7 @@ export default function SettingsPage() {
         cycling_power_zones: Object.keys(cyclingPowerZones).length > 0 ? cyclingPowerZones : undefined,
       })
       queryClient.invalidateQueries({ queryKey: ['currentUser'] })
+      queryClient.invalidateQueries({ queryKey: ['zoneHistory'] })
       toast.success('Zones saved')
     } catch {
       toast.error('Failed to save zones')
@@ -426,6 +432,127 @@ export default function SettingsPage() {
             <Save className="mr-1.5 h-3.5 w-3.5" />
             Save Zones
           </Button>
+        </CardContent>
+      </Card>
+
+      {/* Zone History */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <History className="h-4 w-4" />
+            Zone History
+          </CardTitle>
+          <CardDescription>See how your training zones evolved over time</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {historyLoading ? (
+            <div className="space-y-3">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <Skeleton key={i} className="h-16 w-full rounded-lg" />
+              ))}
+            </div>
+          ) : !zoneHistory || zoneHistory.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              No zone history yet. Save or estimate your zones to start tracking changes.
+            </p>
+          ) : (
+            <div className="space-y-2">
+              {zoneHistory.map((entry, index) => {
+                const isLatest = index === 0
+                const date = entry.calculated_at
+                  ? new Date(entry.calculated_at).toLocaleDateString('en-US', {
+                      month: 'short',
+                      day: 'numeric',
+                      year: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })
+                  : 'Unknown date'
+
+                const sourceLabel =
+                  entry.source === 'strava_estimate'
+                    ? 'Strava Estimate'
+                    : entry.source === 'reverted'
+                      ? 'Reverted'
+                      : 'Manual'
+
+                const sourceColor =
+                  entry.source === 'strava_estimate'
+                    ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400'
+                    : entry.source === 'reverted'
+                      ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
+                      : 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+
+                // Build compact summary
+                const parts: string[] = []
+                if (entry.max_hr) parts.push(`Max HR: ${entry.max_hr}`)
+                if (entry.hr_zones?.zone1 && entry.hr_zones?.zone5) {
+                  parts.push(`HR: ${entry.hr_zones.zone1.min}–${entry.hr_zones.zone5.max}`)
+                }
+                if (entry.threshold_pace) {
+                  const mins = Math.floor(entry.threshold_pace / 60)
+                  const secs = Math.floor(entry.threshold_pace % 60)
+                  parts.push(`Threshold: ${mins}:${String(secs).padStart(2, '0')}/km`)
+                }
+                if (entry.ftp) parts.push(`FTP: ${entry.ftp}W`)
+
+                return (
+                  <div
+                    key={entry.id}
+                    className={`flex items-start justify-between rounded-lg border p-3 ${
+                      isLatest ? 'border-primary/30 bg-primary/5' : ''
+                    }`}
+                  >
+                    <div className="min-w-0 flex-1 space-y-1">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-muted-foreground">{date}</span>
+                        <Badge
+                          variant="secondary"
+                          className={`text-[10px] px-1.5 py-0 ${sourceColor}`}
+                        >
+                          {sourceLabel}
+                        </Badge>
+                        {entry.source === 'strava_estimate' && entry.activities_analyzed && (
+                          <span className="text-[10px] text-muted-foreground">
+                            ({entry.activities_analyzed} activities)
+                          </span>
+                        )}
+                        {isLatest && (
+                          <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+                            Current
+                          </Badge>
+                        )}
+                      </div>
+                      <p className="text-xs text-muted-foreground truncate">
+                        {parts.length > 0 ? parts.join(' · ') : 'No zone data'}
+                      </p>
+                    </div>
+                    {!isLatest && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="ml-2 h-7 shrink-0 text-xs"
+                        disabled={revertZones.isPending}
+                        onClick={() => {
+                          revertZones.mutate(entry.id, {
+                            onSuccess: () => {
+                              toast.success('Zones reverted successfully')
+                            },
+                            onError: () => {
+                              toast.error('Failed to revert zones')
+                            },
+                          })
+                        }}
+                      >
+                        <RotateCcw className="mr-1 h-3 w-3" />
+                        Revert
+                      </Button>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          )}
         </CardContent>
       </Card>
 

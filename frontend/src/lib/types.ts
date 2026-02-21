@@ -227,6 +227,21 @@ export interface ChangelogCommit {
   date: string
 }
 
+// Zone history
+export interface ZoneHistoryEntry {
+  id: number
+  calculated_at: string | null
+  source: string // 'manual' | 'strava_estimate' | 'reverted'
+  activities_analyzed?: number
+  max_hr?: number
+  resting_hr?: number
+  threshold_pace?: number
+  hr_zones?: Record<string, ZoneRange>
+  pace_zones?: Record<string, ZoneRange>
+  ftp?: number
+  cycling_power_zones?: Record<string, ZoneRange>
+}
+
 // Zone estimate
 export interface ZoneEstimate {
   success: boolean

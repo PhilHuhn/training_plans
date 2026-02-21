@@ -1,5 +1,5 @@
 import apiClient from './client'
-import type { ZoneEstimate } from '@/lib/types'
+import type { ZoneEstimate, ZoneHistoryEntry } from '@/lib/types'
 
 export const settingsApi = {
   estimateZones: (days_back = 90) =>
@@ -14,7 +14,10 @@ export const settingsApi = {
     apiClient.put('/settings/zones', data),
 
   zoneHistory: (limit = 10) =>
-    apiClient.get('/settings/zones/history', { params: { limit } }),
+    apiClient.get<ZoneHistoryEntry[]>('/settings/zones/history', { params: { limit } }),
+
+  revertZones: (historyId: number) =>
+    apiClient.post('/settings/zones/revert/' + historyId),
 
   updateAccount: (data: { name?: string; email?: string }) =>
     apiClient.put('/settings/account', data),

@@ -39,6 +39,7 @@ export const trainingApi = {
     end_date?: string
     consider_uploaded_plan?: boolean
     sports?: string
+    sport_availability?: string
   }) => apiClient.post('/training/generate-recommendations', null, { params }),
 
   uploadPlan: (file: File, start_date?: string) => {

@@ -28,8 +28,13 @@ class ZoneHistory(Base):
     # Example: {"zone1": {"min": 100, "max": 130}, "zone2": {...}, ...}
 
     # Pace data (seconds per km)
+    threshold_pace = Column(Float, nullable=True)  # seconds per km
     pace_zones = Column(JSON, nullable=True)
     # Example: {"zone1": {"min": 360, "max": 420}, "zone2": {...}, ...}
+
+    # Cycling power data
+    ftp = Column(Integer, nullable=True)
+    cycling_power_zones = Column(JSON, nullable=True)
 
     # Additional metrics from analysis
     avg_hr_easy_runs = Column(Float, nullable=True)
