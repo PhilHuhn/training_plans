@@ -1,11 +1,13 @@
+from datetime import datetime, timedelta
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, desc
 from typing import Optional
 from pydantic import BaseModel
 
 from app.core.database import get_db
 from app.models.user import User
+from app.models.activity import Activity
 from app.api.deps import get_current_user
 from app.services.zone_estimator import (
     estimate_zones_from_strava,
@@ -99,7 +101,9 @@ async def estimate_hr_only(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Estimate max and resting HR from Strava data (doesn't save automatically)"""
+    """Estimate HR zones from Strava data (doesn't save automatically)"""
+    from app.services.zone_estimator import calculate_hr_zones_from_max
+
     result = await estimate_zones_from_strava(current_user, db, days_back)
 
     if not result.get("success"):
@@ -111,6 +115,7 @@ async def estimate_hr_only(
     return {
         "max_hr": result["max_hr"],
         "resting_hr": result["resting_hr"],
+        "hr_zones": result["hr_zones"],
         "activities_analyzed": result["activities_analyzed"],
     }
 
@@ -121,7 +126,7 @@ async def estimate_pace_only(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Estimate threshold pace from Strava data (doesn't save automatically)"""
+    """Estimate pace zones from Strava data (doesn't save automatically)"""
     result = await estimate_zones_from_strava(current_user, db, days_back)
 
     if not result.get("success"):
@@ -130,15 +135,89 @@ async def estimate_pace_only(
             detail=result.get("error", "Failed to estimate pace"),
         )
 
-    threshold_pace = result["threshold_pace"]
-    mins = int(threshold_pace // 60)
-    secs = int(threshold_pace % 60)
-    pace_str = f"{mins}:{secs:02d}"
+    return {
+        "threshold_pace": result["threshold_pace"],
+        "pace_zones": result["pace_zones"],
+        "activities_analyzed": result["activities_analyzed"],
+    }
+
+
+@router.post("/zones/estimate-power")
+async def estimate_power_only(
+    days_back: int = 90,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Estimate cycling power zones from Strava data (doesn't save automatically).
+
+    Estimates FTP from cycling activities using 95% of best 20-min avg power.
+    Falls back to weighted avg power from longer rides if available.
+    """
+    from app.services.zone_estimator import calculate_cycling_power_zones_from_ftp
+
+    cutoff_date = datetime.utcnow() - timedelta(days=days_back)
+
+    result = await db.execute(
+        select(Activity)
+        .where(Activity.user_id == current_user.id)
+        .where(Activity.activity_type.in_(["Ride", "VirtualRide", "MountainBikeRide"]))
+        .where(Activity.start_date >= cutoff_date)
+        .order_by(desc(Activity.start_date))
+    )
+    rides = result.scalars().all()
+
+    if not rides:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"No cycling activities found in the last {days_back} days",
+        )
+
+    # Look for power data in raw_data (Strava includes weighted_average_watts, average_watts)
+    best_avg_power = 0
+    rides_with_power = 0
+    for ride in rides:
+        raw = ride.raw_data or {}
+        weighted = raw.get("weighted_average_watts") or raw.get("average_watts")
+        if weighted and weighted > 0:
+            rides_with_power += 1
+            duration_mins = (ride.duration or 0) / 60
+            # Prefer rides >= 20 min for FTP estimation
+            if duration_mins >= 20 and weighted > best_avg_power:
+                best_avg_power = weighted
+
+    if best_avg_power <= 0:
+        # Fallback: use highest average_watts from any ride
+        for ride in rides:
+            raw = ride.raw_data or {}
+            avg_w = raw.get("average_watts", 0) or 0
+            if avg_w > best_avg_power:
+                best_avg_power = avg_w
+
+    if best_avg_power <= 0:
+        # Check existing user FTP as last resort
+        prefs = current_user.preferences or {}
+        existing_ftp = prefs.get("ftp")
+        if existing_ftp:
+            return {
+                "ftp": existing_ftp,
+                "cycling_power_zones": calculate_cycling_power_zones_from_ftp(existing_ftp),
+                "activities_analyzed": len(rides),
+                "note": "No power data found in rides. Using existing FTP value.",
+            }
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No power data found in cycling activities. Enter FTP manually.",
+        )
+
+    # Estimate FTP as 95% of best sustained power
+    estimated_ftp = int(best_avg_power * 0.95)
+    power_zones = calculate_cycling_power_zones_from_ftp(estimated_ftp)
 
     return {
-        "threshold_pace": threshold_pace,
-        "threshold_pace_str": pace_str,
-        "activities_analyzed": result["activities_analyzed"],
+        "ftp": estimated_ftp,
+        "cycling_power_zones": power_zones,
+        "activities_analyzed": len(rides),
+        "rides_with_power": rides_with_power,
     }
 
 

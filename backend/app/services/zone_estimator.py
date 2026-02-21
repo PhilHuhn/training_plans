@@ -17,69 +17,55 @@ from app.models.zone_history import ZoneHistory
 def calculate_hr_zones_from_max(max_hr: int, resting_hr: int = 50) -> dict:
     """
     Calculate 5 HR zones using the Karvonen formula (heart rate reserve).
-
-    Zone 1: 50-60% HRR (Recovery)
-    Zone 2: 60-70% HRR (Aerobic/Easy)
-    Zone 3: 70-80% HRR (Tempo)
-    Zone 4: 80-90% HRR (Threshold)
-    Zone 5: 90-100% HRR (VO2max)
+    Zone names match Strava's standard HR zones.
     """
-    hrr = max_hr - resting_hr  # Heart rate reserve
+    hrr = max_hr - resting_hr
 
     def hr_at_percent(percent: float) -> int:
         return int(resting_hr + (hrr * percent / 100))
 
     return {
-        "zone1": {"min": hr_at_percent(50), "max": hr_at_percent(60), "name": "Recovery"},
-        "zone2": {"min": hr_at_percent(60), "max": hr_at_percent(70), "name": "Aerobic"},
-        "zone3": {"min": hr_at_percent(70), "max": hr_at_percent(80), "name": "Tempo"},
-        "zone4": {"min": hr_at_percent(80), "max": hr_at_percent(90), "name": "Threshold"},
-        "zone5": {"min": hr_at_percent(90), "max": max_hr, "name": "VO2max"},
+        "zone1": {"min": hr_at_percent(50), "max": hr_at_percent(60), "name": "Active Recovery"},
+        "zone2": {"min": hr_at_percent(60) + 1, "max": hr_at_percent(70), "name": "Endurance"},
+        "zone3": {"min": hr_at_percent(70) + 1, "max": hr_at_percent(80), "name": "Tempo"},
+        "zone4": {"min": hr_at_percent(80) + 1, "max": hr_at_percent(90), "name": "Threshold"},
+        "zone5": {"min": hr_at_percent(90) + 1, "max": max_hr, "name": "Anaerobic"},
     }
 
 
 def calculate_cycling_power_zones_from_ftp(ftp: int) -> dict:
     """
-    Calculate 5 cycling power zones based on FTP using Coggan model.
-
-    Zone 1: <55% FTP (Active Recovery)
-    Zone 2: 56-75% FTP (Endurance)
-    Zone 3: 76-90% FTP (Tempo)
-    Zone 4: 91-105% FTP (Threshold)
-    Zone 5: >105% FTP (VO2max)
+    Calculate 7 cycling power zones based on FTP using Coggan model.
+    Zone names and count match Strava's standard power zones.
     """
     return {
         "zone1": {"min": 0, "max": int(ftp * 0.55), "name": "Active Recovery"},
-        "zone2": {"min": int(ftp * 0.56), "max": int(ftp * 0.75), "name": "Endurance"},
-        "zone3": {"min": int(ftp * 0.76), "max": int(ftp * 0.90), "name": "Tempo"},
-        "zone4": {"min": int(ftp * 0.91), "max": int(ftp * 1.05), "name": "Threshold"},
-        "zone5": {"min": int(ftp * 1.06), "max": int(ftp * 1.50), "name": "VO2max"},
+        "zone2": {"min": int(ftp * 0.55) + 1, "max": int(ftp * 0.75), "name": "Endurance"},
+        "zone3": {"min": int(ftp * 0.75) + 1, "max": int(ftp * 0.90), "name": "Tempo"},
+        "zone4": {"min": int(ftp * 0.90) + 1, "max": int(ftp * 1.05), "name": "Threshold"},
+        "zone5": {"min": int(ftp * 1.05) + 1, "max": int(ftp * 1.20), "name": "VO2 Max"},
+        "zone6": {"min": int(ftp * 1.20) + 1, "max": int(ftp * 1.50), "name": "Anaerobic"},
+        "zone7": {"min": int(ftp * 1.50) + 1, "max": int(ftp * 2.00), "name": "Neuromuscular"},
     }
 
 
 def calculate_pace_zones_from_threshold(threshold_pace: float) -> dict:
     """
-    Calculate pace zones based on threshold pace (seconds per km).
+    Calculate 6 pace zones based on threshold pace (seconds per km).
+    Zone names and count match Strava's standard running pace zones.
 
-    Using Jack Daniels' VDOT-based approach:
-    - Easy: 65-75% of threshold pace (slower)
-    - Moderate: 75-85% of threshold pace
-    - Tempo: 85-90% of threshold pace
-    - Threshold: 95-100% of threshold pace
-    - Interval: 105-115% of threshold pace (faster)
-
-    Note: Faster pace = lower seconds per km
+    Note: For pace, min = slower (higher seconds), max = faster (lower seconds).
     """
     def pace_at_percent(percent: float) -> int:
-        # Higher percent = slower pace for easy/moderate zones
         return int(threshold_pace * percent / 100)
 
     return {
-        "zone1": {"min": pace_at_percent(130), "max": pace_at_percent(115), "name": "Easy"},
-        "zone2": {"min": pace_at_percent(115), "max": pace_at_percent(105), "name": "Moderate"},
+        "zone1": {"min": pace_at_percent(135), "max": pace_at_percent(115), "name": "Active Recovery"},
+        "zone2": {"min": pace_at_percent(115), "max": pace_at_percent(105), "name": "Endurance"},
         "zone3": {"min": pace_at_percent(105), "max": pace_at_percent(100), "name": "Tempo"},
         "zone4": {"min": pace_at_percent(100), "max": pace_at_percent(95), "name": "Threshold"},
-        "zone5": {"min": pace_at_percent(95), "max": pace_at_percent(85), "name": "Interval"},
+        "zone5": {"min": pace_at_percent(95), "max": pace_at_percent(85), "name": "VO2 Max"},
+        "zone6": {"min": pace_at_percent(85), "max": pace_at_percent(75), "name": "Anaerobic"},
     }
 
 

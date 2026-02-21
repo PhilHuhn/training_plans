@@ -24,7 +24,7 @@ Key principles you follow:
 9. Strength training for injury prevention and running economy, especially in marathon prep
 10. When an athlete cross-trains regularly, integrate those activities into the plan rather than ignoring them
 
-Always output valid JSON matching the requested schema."""
+Always output valid JSON matching the requested schema. Do NOT wrap the JSON in markdown code fences (no ```json blocks). Output raw JSON only."""
 
 TRAINING_RECOMMENDATION_PROMPT = """Based on the following athlete data, generate training recommendations
 for the specified date range.
@@ -90,36 +90,43 @@ Consider:
 - Use power zones for cycling if FTP is available, otherwise use HR zones
 - For strength sessions, describe exercises/focus areas rather than distance/pace
 
+Use SHORT keys to save tokens. The key mapping is:
+  a=analysis, wf=weekly_focus, ss=sessions, w=warnings
+  Per session: d=date, t=type, s=sport, desc=description, km=distance_km,
+  min=duration_min, int=intensity, hr=hr_zone, pace=pace_range,
+  pw=power_target_watts, ivl=intervals, n=notes
+  Per interval: r=reps, dm=distance_m, tp=target_pace, rec=recovery
+
 Output as JSON with this structure:
 {{
-  "analysis": "Brief analysis of current training state and recommendations rationale",
-  "weekly_focus": "Main training focus for this period",
-  "sessions": [
+  "a": "Brief analysis of current training state and recommendations rationale",
+  "wf": "Main training focus for this period",
+  "ss": [
     {{
-      "date": "YYYY-MM-DD",
-      "type": "easy|tempo|interval|long_run|recovery|rest|cross_training",
-      "sport": "running|cycling|swimming|strength|hiking|rowing",
-      "description": "Detailed workout description",
-      "distance_km": 10.0,
-      "duration_min": 60,
-      "intensity": "low|moderate|high",
-      "hr_zone": "zone1|zone2|zone3|zone4|zone5",
-      "pace_range": "5:00-5:30",
-      "power_target_watts": null,
-      "intervals": null,
-      "notes": "Additional coaching notes"
+      "d": "YYYY-MM-DD",
+      "t": "easy|tempo|interval|long_run|recovery|rest|cross_training",
+      "s": "running|cycling|swimming|strength|hiking|rowing",
+      "desc": "Detailed workout description",
+      "km": 10.0,
+      "min": 60,
+      "int": "low|moderate|high",
+      "hr": "zone1|zone2|zone3|zone4|zone5",
+      "pace": "5:00-5:30",
+      "pw": null,
+      "ivl": null,
+      "n": "Additional coaching notes"
     }}
   ],
-  "warnings": ["Any concerns or warnings about overtraining, injury risk, etc."]
+  "w": ["Any concerns or warnings about overtraining, injury risk, etc."]
 }}
 
-For running interval sessions, include the intervals array:
-"intervals": [
-  {{"reps": 6, "distance_m": 800, "target_pace": "3:30", "recovery": "90s jog"}}
+For running interval sessions, include the ivl array:
+"ivl": [
+  {{"r": 6, "dm": 800, "tp": "3:30", "rec": "90s jog"}}
 ]
 
-For cycling sessions with FTP, include power_target_watts (a single target value or zone midpoint).
-For strength sessions, set distance_km to null and describe the workout in description."""
+For cycling sessions with FTP, include pw (a single target value or zone midpoint).
+For strength sessions, set km to null and describe the workout in desc."""
 
 
 PLAN_CONVERSION_SYSTEM = """You are an expert running coach specializing in converting training plans
@@ -130,7 +137,7 @@ You understand that:
 - Zone conversions should preserve training intent
 - Easy runs should stay easy, hard efforts should maintain stimulus
 
-Always output valid JSON matching the requested schema."""
+Always output valid JSON matching the requested schema. Do NOT wrap the JSON in markdown code fences (no ```json blocks). Output raw JSON only."""
 
 
 PLAN_CONVERSION_PROMPT = """Convert the following training session from {source_type} to {target_type}.
@@ -180,7 +187,7 @@ Common formats you handle:
 IMPORTANT: You must extract EVERY training session from the document, even if the plan spans many weeks.
 Markdown tables often contain multiple sessions per week - extract each row as a separate session.
 
-Always output valid JSON matching the requested schema."""
+Always output valid JSON matching the requested schema. Do NOT wrap the JSON in markdown code fences (no ```json blocks). Output raw JSON only."""
 
 
 DOCUMENT_PARSING_PROMPT = """Parse the following training plan document text and extract ALL individual training sessions.

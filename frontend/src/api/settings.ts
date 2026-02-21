@@ -1,5 +1,26 @@
 import apiClient from './client'
-import type { ZoneEstimate, ZoneHistoryEntry } from '@/lib/types'
+import type { ZoneEstimate, ZoneHistoryEntry, ZoneRange } from '@/lib/types'
+
+export interface HrEstimateResponse {
+  max_hr: number
+  resting_hr: number
+  hr_zones: Record<string, ZoneRange>
+  activities_analyzed: number
+}
+
+export interface PaceEstimateResponse {
+  threshold_pace: number
+  pace_zones: Record<string, ZoneRange>
+  activities_analyzed: number
+}
+
+export interface PowerEstimateResponse {
+  ftp: number
+  cycling_power_zones: Record<string, ZoneRange>
+  activities_analyzed: number
+  rides_with_power?: number
+  note?: string
+}
 
 export const settingsApi = {
   estimateZones: (days_back = 90) =>
@@ -7,6 +28,21 @@ export const settingsApi = {
 
   applyEstimatedZones: (days_back = 90) =>
     apiClient.post<ZoneEstimate>('/settings/zones/apply-estimate', null, {
+      params: { days_back },
+    }),
+
+  estimateHrZones: (days_back = 90) =>
+    apiClient.post<HrEstimateResponse>('/settings/zones/estimate-hr', null, {
+      params: { days_back },
+    }),
+
+  estimatePaceZones: (days_back = 90) =>
+    apiClient.post<PaceEstimateResponse>('/settings/zones/estimate-pace', null, {
+      params: { days_back },
+    }),
+
+  estimatePowerZones: (days_back = 90) =>
+    apiClient.post<PowerEstimateResponse>('/settings/zones/estimate-power', null, {
       params: { days_back },
     }),
 
