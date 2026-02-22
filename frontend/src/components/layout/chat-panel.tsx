@@ -5,7 +5,6 @@ import remarkGfm from 'remark-gfm'
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
-import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
 import { useChatStore } from '@/stores/chat-store'
 import { useChat } from '@/hooks/use-chat'
@@ -55,7 +54,7 @@ export default function ChatPanel() {
           </div>
         </SheetHeader>
 
-        <ScrollArea className="flex-1 p-4" ref={scrollRef}>
+        <div className="min-h-0 flex-1 overflow-y-auto p-4" ref={scrollRef}>
           {messages.length === 0 && (
             <div className="flex h-full items-center justify-center text-center text-sm text-muted-foreground">
               <div>
@@ -108,11 +107,11 @@ export default function ChatPanel() {
               </div>
             )}
           </div>
-        </ScrollArea>
+        </div>
 
         <Separator />
 
-        <div className="p-4">
+        <div className="shrink-0 p-4">
           <div className="flex gap-2">
             <Textarea
               value={input}

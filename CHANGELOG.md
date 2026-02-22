@@ -4,6 +4,7 @@ Auto-generated from git history.
 
 ## 2026-02-22
 
+- Add `final_workout` and `accepted_source` fields to `Session` schema (PhilHuhn)
 - Apply neo-brutalist UI design system across entire frontend (PhilHuhn)
 
 ## 2026-02-21

@@ -33,8 +33,7 @@ export default function TrainingWeek({ data, onEditSession, onAddSession }: Trai
   return (
     <div className="space-y-2">
       {/* Column headers */}
-      <div className="hidden grid-cols-[200px_1fr_1fr_1fr] gap-3 px-2 lg:grid">
-        <div />
+      <div className="hidden grid-cols-3 gap-3 px-2 lg:grid">
         <p className="text-center text-xs font-medium uppercase tracking-wider text-blue-600">
           Manual / Uploaded
         </p>
