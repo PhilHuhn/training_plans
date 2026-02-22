@@ -4,6 +4,7 @@ Auto-generated from git history.
 
 ## 2026-02-22
 
+- Replace `ScrollArea` with simple `div` for improved layout and remove unused import (PhilHuhn)
 - Add `final_workout` and `accepted_source` fields to `Session` schema (PhilHuhn)
 - Apply neo-brutalist UI design system across entire frontend (PhilHuhn)
 

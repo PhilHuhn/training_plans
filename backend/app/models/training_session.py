@@ -59,6 +59,9 @@ class TrainingSession(Base):
 
     notes = Column(String(2000), nullable=True)
 
+    # Post-workout RPE feedback (1-10)
+    rpe_actual = Column(Integer, nullable=True)
+
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
 

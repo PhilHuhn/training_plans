@@ -34,6 +34,7 @@ const sports = ['running', 'cycling', 'swimming', 'strength', 'hiking', 'rowing'
 const workoutTypes = ['easy', 'tempo', 'interval', 'long_run', 'recovery', 'rest', 'cross_training']
 const intensities = ['low', 'moderate', 'high']
 const hrZones = ['zone1', 'zone2', 'zone3', 'zone4', 'zone5']
+const terrainOptions = ['flat', 'hilly', 'trail', 'track', 'mixed']
 const stepTypes: WorkoutStep['step_type'][] = ['warmup', 'active', 'recovery', 'rest', 'cooldown', 'repeat']
 
 const templates: Record<string, Partial<WorkoutDetails>> = {
@@ -68,6 +69,8 @@ export default function SessionModal({ open, onClose, session, date }: SessionMo
   const [paceRange, setPaceRange] = useState(existing?.pace_range || '')
   const [powerTarget, setPowerTarget] = useState(existing?.power_target_watts?.toString() || '')
   const [notes, setNotes] = useState(existing?.notes || '')
+  const [terrain, setTerrain] = useState(existing?.terrain || '')
+  const [elevationTarget, setElevationTarget] = useState(existing?.elevation_target_m?.toString() || '')
   const [steps, setSteps] = useState<WorkoutStep[]>(existing?.structured?.steps || [])
 
   useEffect(() => {
@@ -83,6 +86,8 @@ export default function SessionModal({ open, onClose, session, date }: SessionMo
       setPaceRange(w?.pace_range || '')
       setPowerTarget(w?.power_target_watts?.toString() || '')
       setNotes(w?.notes || '')
+      setTerrain(w?.terrain || '')
+      setElevationTarget(w?.elevation_target_m?.toString() || '')
       setSteps(w?.structured?.steps || [])
     }
   }, [open, session])
@@ -136,6 +141,8 @@ export default function SessionModal({ open, onClose, session, date }: SessionMo
       pace_range: showPace && paceRange ? paceRange : undefined,
       power_target_watts: showPower && powerTarget ? parseInt(powerTarget) : undefined,
       notes: notes || undefined,
+      terrain: terrain || undefined,
+      elevation_target_m: elevationTarget ? parseInt(elevationTarget) : undefined,
       structured:
         steps.length > 0
           ? { name: `${type} workout`, steps, sport }
@@ -289,6 +296,31 @@ export default function SessionModal({ open, onClose, session, date }: SessionMo
                   />
                 </div>
               )}
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label>Terrain</Label>
+                <Select value={terrain} onValueChange={setTerrain}>
+                  <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                  <SelectContent>
+                    {terrainOptions.map((t) => (
+                      <SelectItem key={t} value={t}>
+                        {t.charAt(0).toUpperCase() + t.slice(1)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Elevation (m)</Label>
+                <Input
+                  type="number"
+                  placeholder="e.g. 500"
+                  value={elevationTarget}
+                  onChange={(e) => setElevationTarget(e.target.value)}
+                />
+              </div>
             </div>
 
             <div className="space-y-1.5">

@@ -23,6 +23,11 @@ Key principles you follow:
 8. Strategic cross-training for injury prevention, active recovery, and aerobic supplementation
 9. Strength training for injury prevention and running economy, especially in marathon prep
 10. When an athlete cross-trains regularly, integrate those activities into the plan rather than ignoring them
+11. Assign a training_phase to each session reflecting the current periodization block relative to upcoming A-races
+12. Include terrain type and elevation targets when recommending hilly, trail, or track sessions
+13. Estimate training load (TRIMP) for each session to manage weekly stress progression
+14. Set target RPE (1-10) for each session to guide athlete effort
+15. For quality sessions (tempo, interval, long_run), include an alternative_workout with reduced intensity/volume as a fatigue fallback
 
 Always output valid JSON matching the requested schema. Do NOT wrap the JSON in markdown code fences (no ```json blocks). Output raw JSON only."""
 
@@ -65,6 +70,12 @@ for the specified date range.
 ## Current Fixed Training Plan (if any)
 {fixed_plan}
 
+## Weekly Training Load (TRIMP, last 4 weeks)
+{weekly_trimp}
+
+## Recent RPE Feedback (last 14 days)
+{recent_rpe}
+
 ## Request
 Generate a complete training plan from {start_date} to {end_date} (approximately {planning_weeks} weeks).
 
@@ -94,7 +105,9 @@ Use SHORT keys to save tokens. The key mapping is:
   a=analysis, wf=weekly_focus, ss=sessions, w=warnings
   Per session: d=date, t=type, s=sport, desc=description, km=distance_km,
   min=duration_min, int=intensity, hr=hr_zone, pace=pace_range,
-  pw=power_target_watts, ivl=intervals, n=notes
+  pw=power_target_watts, ivl=intervals, n=notes,
+  ph=training_phase, tr=terrain, el=elevation_target_m,
+  load=estimated_load, rpe=rpe_target, alt=alternative_workout
   Per interval: r=reps, dm=distance_m, tp=target_pace, rec=recovery
 
 Output as JSON with this structure:
@@ -114,7 +127,13 @@ Output as JSON with this structure:
       "pace": "5:00-5:30",
       "pw": null,
       "ivl": null,
-      "n": "Additional coaching notes"
+      "n": "Additional coaching notes",
+      "ph": "base|build|peak|taper|recovery|race",
+      "tr": "flat|hilly|trail|track|mixed",
+      "el": null,
+      "load": 80.0,
+      "rpe": 5,
+      "alt": null
     }}
   ],
   "w": ["Any concerns or warnings about overtraining, injury risk, etc."]
@@ -125,8 +144,16 @@ For running interval sessions, include the ivl array:
   {{"r": 6, "dm": 800, "tp": "3:30", "rec": "90s jog"}}
 ]
 
+For quality sessions (tempo, interval, long_run), include alt with a simpler fallback:
+"alt": {{"t": "easy", "s": "running", "desc": "Easy 30min run", "min": 30, "int": "low", "hr": "zone2", "rpe": 3}}
+For easy/recovery/rest days, omit alt (set to null).
+
 For cycling sessions with FTP, include pw (a single target value or zone midpoint).
-For strength sessions, set km to null and describe the workout in desc."""
+For strength sessions, set km to null and describe the workout in desc.
+Set load to the estimated TRIMP (training impulse) value for each session.
+Set rpe to the target perceived exertion (1-10 scale) for each session.
+Set ph to the periodization phase based on competition proximity and training block.
+Set tr to terrain type when relevant (especially for trail/hilly/track sessions)."""
 
 
 PLAN_CONVERSION_SYSTEM = """You are an expert running coach specializing in converting training plans

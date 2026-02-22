@@ -103,6 +103,25 @@ export function priorityColor(priority: string): string {
   return colors[priority] || 'bg-[#F5F0EB] text-[#092B37] border-2 border-[#092B37]'
 }
 
+export function phaseColor(phase: string): string {
+  const colors: Record<string, string> = {
+    base: 'bg-[#93C5FD] text-[#092B37] border-2 border-[#092B37]',
+    build: 'bg-[#FDBA74] text-[#092B37] border-2 border-[#092B37]',
+    peak: 'bg-[#FCA5A5] text-[#092B37] border-2 border-[#092B37]',
+    taper: 'bg-[#C4B5FD] text-[#092B37] border-2 border-[#092B37]',
+    recovery: 'bg-[#6EE7B7] text-[#092B37] border-2 border-[#092B37]',
+    race: 'bg-[#FBBF24] text-[#092B37] border-2 border-[#092B37]',
+  }
+  return colors[phase] || 'bg-[#F5F0EB] text-[#092B37] border-2 border-[#092B37]'
+}
+
+export function rpeColor(rpe: number): string {
+  if (rpe <= 3) return 'bg-[#6EE7B7] text-[#092B37]'
+  if (rpe <= 6) return 'bg-[#FCD34D] text-[#092B37]'
+  if (rpe <= 8) return 'bg-[#FDBA74] text-[#092B37]'
+  return 'bg-[#FCA5A5] text-[#092B37]'
+}
+
 export function sportColor(sport: string): string {
   const colors: Record<string, string> = {
     running: 'bg-[#6EE7B7] text-[#092B37]',

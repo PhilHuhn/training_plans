@@ -83,6 +83,25 @@ class WorkoutDetails(BaseModel):
     # Enhanced structured workout for Garmin/Suunto export
     structured: Optional[StructuredWorkout] = None
 
+    # Phase A: Training phase label
+    training_phase: Optional[str] = None  # base, build, peak, taper, recovery, race
+
+    # Phase B: Terrain & environment
+    terrain: Optional[str] = None  # flat, hilly, trail, track, mixed
+    elevation_target_m: Optional[int] = None
+
+    # Phase C: Training load
+    estimated_load: Optional[float] = None  # Estimated TRIMP for planned workout
+
+    # Phase D: RPE target
+    rpe_target: Optional[int] = None  # 1-10 intended RPE
+
+    # Phase F: Fatigue fallback
+    alternative_workout: Optional["WorkoutDetails"] = None
+
+
+WorkoutDetails.model_rebuild()
+
 
 class TrainingSessionBase(BaseModel):
     session_date: date
@@ -100,6 +119,7 @@ class TrainingSessionUpdate(BaseModel):
     recommendation_workout: Optional[WorkoutDetails] = None
     status: Optional[SessionStatus] = None
     notes: Optional[str] = None
+    rpe_actual: Optional[int] = None  # 1-10 post-workout RPE
 
 
 class TrainingSessionResponse(TrainingSessionBase):
@@ -109,6 +129,9 @@ class TrainingSessionResponse(TrainingSessionBase):
     final_workout: Optional[WorkoutDetails] = None
     accepted_source: Optional[str] = None
     completed_activity_id: Optional[int] = None
+    rpe_actual: Optional[int] = None  # 1-10 post-workout RPE
+    actual_load: Optional[float] = None  # Calculated TRIMP from completed activity
+    completed_activity_summary: Optional[dict] = None  # {distance_km, duration_min, avg_hr, avg_pace}
     created_at: datetime
     updated_at: datetime
 
@@ -123,6 +146,9 @@ class TrainingWeekResponse(BaseModel):
     week_end: date
     total_distance_planned: float
     total_distance_recommended: float
+    training_phase: Optional[str] = None  # Dominant phase for the week
+    total_load_planned: Optional[float] = None  # Sum of estimated TRIMP
+    total_load_actual: Optional[float] = None  # Sum of actual TRIMP
 
 
 class GenerateRecommendationsRequest(BaseModel):

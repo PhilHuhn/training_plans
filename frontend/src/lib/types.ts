@@ -140,6 +140,12 @@ export interface WorkoutDetails {
   intervals?: IntervalSet[]
   notes?: string
   structured?: StructuredWorkout
+  training_phase?: 'base' | 'build' | 'peak' | 'taper' | 'recovery' | 'race'
+  terrain?: 'flat' | 'hilly' | 'trail' | 'track' | 'mixed'
+  elevation_target_m?: number
+  estimated_load?: number
+  rpe_target?: number // 1-10
+  alternative_workout?: WorkoutDetails
 }
 
 export interface StructuredWorkout {
@@ -182,6 +188,14 @@ export interface TrainingSession {
   final_workout?: WorkoutDetails
   accepted_source?: string
   completed_activity_id?: number
+  rpe_actual?: number // 1-10 post-workout RPE
+  actual_load?: number // Calculated TRIMP
+  completed_activity_summary?: {
+    distance_km: number
+    duration_min: number
+    avg_hr?: number
+    avg_pace?: number
+  }
   notes?: string
   created_at: string
   updated_at: string
@@ -193,6 +207,9 @@ export interface TrainingWeekResponse {
   week_end: string
   total_distance_planned: number
   total_distance_recommended: number
+  training_phase?: string
+  total_load_planned?: number
+  total_load_actual?: number
 }
 
 export interface UploadedPlan {

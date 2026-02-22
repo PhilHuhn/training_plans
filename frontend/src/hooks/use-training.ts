@@ -31,6 +31,7 @@ export function useUpdateSession() {
         final_workout?: WorkoutDetails
         status?: string
         notes?: string
+        rpe_actual?: number
       }
     }) => trainingApi.updateSession(id, data).then((r) => r.data),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['trainingWeek'] }),

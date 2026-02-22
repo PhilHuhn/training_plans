@@ -2,11 +2,13 @@ from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File,
 from fastapi.responses import Response, JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, desc
+from sqlalchemy.orm import selectinload
 from datetime import date, timedelta
 from typing import Optional
 from app.core.database import get_db
 from app.models.user import User
 from app.models.training_session import TrainingSession, UploadedPlan, SessionStatus, SessionSource
+from app.services.training_load import calculate_trimp
 from app.schemas.training import (
     TrainingSessionCreate,
     TrainingSessionUpdate,
@@ -72,11 +74,56 @@ async def get_training_week(
         .where(TrainingSession.user_id == current_user.id)
         .where(TrainingSession.session_date >= week_start)
         .where(TrainingSession.session_date <= week_end)
+        .options(selectinload(TrainingSession.completed_activity))
         .order_by(TrainingSession.session_date)
     )
 
     result = await db.execute(query)
     sessions = result.scalars().all()
+
+    # User preferences for TRIMP calculation
+    preferences = current_user.preferences or {}
+    resting_hr = preferences.get("resting_hr", 50)
+    max_hr = preferences.get("max_hr", 190)
+
+    # Build enriched session responses
+    session_responses = []
+    total_load_planned = 0.0
+    total_load_actual = 0.0
+    phases = []
+
+    for s in sessions:
+        resp = TrainingSessionResponse.model_validate(s)
+
+        # Compute actual TRIMP from completed activity
+        if s.completed_activity and s.completed_activity.avg_heart_rate and s.completed_activity.duration:
+            resp.actual_load = round(calculate_trimp(
+                s.completed_activity.duration,
+                s.completed_activity.avg_heart_rate,
+                resting_hr, max_hr,
+            ), 1)
+            total_load_actual += resp.actual_load
+
+            # Build activity summary for comparison overlay
+            resp.completed_activity_summary = {
+                "distance_km": round((s.completed_activity.distance or 0) / 1000, 2),
+                "duration_min": round((s.completed_activity.duration or 0) / 60, 1),
+                "avg_hr": s.completed_activity.avg_heart_rate,
+                "avg_pace": s.completed_activity.avg_pace,
+            }
+
+        # Accumulate planned load from whichever workout source
+        workout = s.final_workout or s.recommendation_workout or s.planned_workout
+        if workout:
+            est_load = workout.get("estimated_load")
+            if est_load:
+                total_load_planned += est_load
+
+            phase = workout.get("training_phase")
+            if phase:
+                phases.append(phase)
+
+        session_responses.append(resp)
 
     # Calculate totals
     total_planned = sum(
@@ -86,12 +133,18 @@ async def get_training_week(
         (s.recommendation_workout or {}).get("distance_km", 0) or 0 for s in sessions
     )
 
+    # Dominant training phase for the week
+    dominant_phase = max(set(phases), key=phases.count) if phases else None
+
     return TrainingWeekResponse(
-        sessions=[TrainingSessionResponse.model_validate(s) for s in sessions],
+        sessions=session_responses,
         week_start=week_start,
         week_end=week_end,
         total_distance_planned=total_planned,
         total_distance_recommended=total_recommended,
+        training_phase=dominant_phase,
+        total_load_planned=round(total_load_planned, 1) if total_load_planned else None,
+        total_load_actual=round(total_load_actual, 1) if total_load_actual else None,
     )
 
 
@@ -165,6 +218,8 @@ async def update_training_session(
         session.status = update_data.status
     if update_data.notes is not None:
         session.notes = update_data.notes
+    if update_data.rpe_actual is not None:
+        session.rpe_actual = update_data.rpe_actual
 
     await db.commit()
     await db.refresh(session)

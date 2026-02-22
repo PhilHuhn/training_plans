@@ -2,9 +2,9 @@ import { Trash2 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import SessionCard from './session-card'
-import { cn, formatDateShort, isToday, addDays } from '@/lib/utils'
+import { cn, formatDateShort, isToday, addDays, phaseColor } from '@/lib/utils'
 import type { TrainingWeekResponse, TrainingSession } from '@/lib/types'
-import { useDeleteSession, useAcceptWorkout } from '@/hooks/use-training'
+import { useDeleteSession, useAcceptWorkout, useUpdateSession } from '@/hooks/use-training'
 
 interface TrainingWeekProps {
   data?: TrainingWeekResponse
@@ -15,6 +15,7 @@ interface TrainingWeekProps {
 export default function TrainingWeek({ data, onEditSession, onAddSession }: TrainingWeekProps) {
   const deleteSession = useDeleteSession()
   const acceptWorkout = useAcceptWorkout()
+  const updateSession = useUpdateSession()
 
   if (!data) return null
 
@@ -30,15 +31,31 @@ export default function TrainingWeek({ data, onEditSession, onAddSession }: Trai
     days.push(addDays(data.week_start, i))
   }
 
+  const handleSwapAlternative = (session: TrainingSession, source: 'planned' | 'ai') => {
+    const workout = source === 'planned' ? session.planned_workout : session.recommendation_workout
+    if (workout?.alternative_workout) {
+      const field = source === 'planned' ? 'planned_workout' : 'recommendation_workout'
+      updateSession.mutate({
+        id: session.id,
+        data: { [field]: workout.alternative_workout } as never,
+      })
+    }
+  }
+
   return (
     <div className="space-y-2">
-      {/* Column headers */}
-      <div className="hidden grid-cols-3 gap-3 px-2 lg:grid">
+      {/* Column headers with phase badge */}
+      <div className="hidden gap-3 px-2 lg:grid lg:grid-cols-3">
         <p className="text-center text-xs font-medium uppercase tracking-wider text-blue-600">
           Manual / Uploaded
         </p>
-        <p className="text-center text-xs font-medium uppercase tracking-wider text-violet-600">
+        <p className="flex items-center justify-center gap-2 text-center text-xs font-medium uppercase tracking-wider text-violet-600">
           AI Recommendation
+          {data.training_phase && (
+            <Badge className={cn('text-[10px] capitalize', phaseColor(data.training_phase))}>
+              {data.training_phase} phase
+            </Badge>
+          )}
         </p>
         <p className="text-center text-xs font-medium uppercase tracking-wider text-emerald-600">
           Final Plan
@@ -95,6 +112,11 @@ export default function TrainingWeek({ data, onEditSession, onAddSession }: Trai
                     ? () => acceptWorkout.mutate({ id: session.id, source: 'planned' })
                     : undefined
                 }
+                onSwapAlternative={
+                  session?.planned_workout?.alternative_workout
+                    ? () => handleSwapAlternative(session, 'planned')
+                    : undefined
+                }
               />
               <SessionCard
                 workout={session?.recommendation_workout}
@@ -103,6 +125,11 @@ export default function TrainingWeek({ data, onEditSession, onAddSession }: Trai
                 onAccept={
                   session?.recommendation_workout
                     ? () => acceptWorkout.mutate({ id: session.id, source: 'ai' })
+                    : undefined
+                }
+                onSwapAlternative={
+                  session?.recommendation_workout?.alternative_workout
+                    ? () => handleSwapAlternative(session, 'ai')
                     : undefined
                 }
               />

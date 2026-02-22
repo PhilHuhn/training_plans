@@ -14,6 +14,7 @@ from app.prompts.training_recommendation import (
     PLAN_CONVERSION_PROMPT,
 )
 from app.services.strava_service import format_pace
+from app.services.training_load import calculate_trimp
 
 
 async def generate_recommendations(
@@ -134,6 +135,41 @@ async def generate_recommendations(
         for zone, data in cycling_power_zones.items()
     ]) or "Not configured (no FTP set)"
 
+    # Calculate weekly TRIMP for last 4 weeks
+    resting_hr = preferences.get("resting_hr", 50)
+    max_hr = preferences.get("max_hr", 190)
+    trimp_lines = []
+    for week_offset in range(4):
+        w_end = datetime.utcnow() - timedelta(weeks=week_offset)
+        w_start = w_end - timedelta(weeks=1)
+        w_acts = [a for a in recent_activities if w_start <= a.start_date < w_end]
+        w_trimp = sum(
+            calculate_trimp(a.duration or 0, a.avg_heart_rate or 0, resting_hr, max_hr)
+            for a in w_acts if a.avg_heart_rate and a.duration
+        )
+        trimp_lines.append(f"- Week -{week_offset + 1}: {w_trimp:.0f} TRIMP ({len(w_acts)} sessions)")
+    weekly_trimp_text = "\n".join(trimp_lines) if trimp_lines else "No data."
+
+    # Fetch recent RPE feedback (last 14 days)
+    rpe_result = await db.execute(
+        select(TrainingSession)
+        .where(TrainingSession.user_id == user.id)
+        .where(TrainingSession.rpe_actual.isnot(None))
+        .where(TrainingSession.session_date >= (start_date - timedelta(days=14)))
+        .order_by(desc(TrainingSession.session_date))
+        .limit(10)
+    )
+    rpe_sessions = rpe_result.scalars().all()
+    if rpe_sessions:
+        rpe_lines = []
+        for rs in rpe_sessions:
+            rpe_target = (rs.final_workout or rs.recommendation_workout or rs.planned_workout or {}).get("rpe_target")
+            target_str = f"target={rpe_target}" if rpe_target else "no target"
+            rpe_lines.append(f"- {rs.session_date}: actual={rs.rpe_actual} ({target_str})")
+        recent_rpe_text = "\n".join(rpe_lines)
+    else:
+        recent_rpe_text = "No RPE feedback yet."
+
     # Calculate planning duration
     planning_days = (end_date - start_date).days
     planning_weeks = planning_days // 7
@@ -165,6 +201,8 @@ async def generate_recommendations(
         weekly_other=weekly_other,
         upcoming_competitions=competitions_text,
         fixed_plan=fixed_plan_text,
+        weekly_trimp=weekly_trimp_text,
+        recent_rpe=recent_rpe_text,
         start_date=start_date.isoformat(),
         end_date=end_date.isoformat(),
         planning_weeks=planning_weeks,

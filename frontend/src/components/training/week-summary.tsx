@@ -1,4 +1,4 @@
-import { Calendar, Sparkles, CheckCircle } from 'lucide-react'
+import { Calendar, Sparkles, CheckCircle, Activity } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import type { TrainingWeekResponse } from '@/lib/types'
 
@@ -15,6 +15,14 @@ export default function WeekSummary({ data }: WeekSummaryProps) {
     data?.sessions.reduce((sum, s) => {
       return sum + (s.final_workout?.distance_km ?? 0)
     }, 0) ?? 0
+
+  const loadPlanned = data?.total_load_planned ?? 0
+  const loadActual = data?.total_load_actual ?? 0
+  const loadDisplay = loadActual > 0
+    ? `${loadActual.toFixed(0)} / ${loadPlanned.toFixed(0)}`
+    : loadPlanned > 0
+      ? `${loadPlanned.toFixed(0)}`
+      : '-'
 
   const cards = [
     {
@@ -35,10 +43,16 @@ export default function WeekSummary({ data }: WeekSummaryProps) {
       icon: CheckCircle,
       color: 'text-[#092B37] bg-[#D1FAE5]',
     },
+    {
+      label: 'Training Load',
+      value: loadDisplay,
+      icon: Activity,
+      color: 'text-[#092B37] bg-[#FCD34D]',
+    },
   ]
 
   return (
-    <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
       {cards.map((c) => (
         <Card key={c.label}>
           <CardContent className="flex items-center gap-3 p-4">

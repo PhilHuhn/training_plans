@@ -11,6 +11,8 @@ _SESSION_KEYS = {
     "km": "distance_km", "min": "duration_min", "int": "intensity",
     "hr": "hr_zone", "pace": "pace_range", "pw": "power_target_watts",
     "ivl": "intervals", "n": "notes",
+    "ph": "training_phase", "tr": "terrain", "el": "elevation_target_m",
+    "load": "estimated_load", "rpe": "rpe_target", "alt": "alternative_workout",
 }
 _INTERVAL_KEYS = {"r": "reps", "dm": "distance_m", "tp": "target_pace", "rec": "recovery"}
 
@@ -49,6 +51,11 @@ def expand_short_keys(data: dict) -> dict:
                         else:
                             expanded_ivl.append(ivl)
                     expanded[full_key] = expanded_ivl
+                elif full_key == "alternative_workout" and isinstance(v, dict):
+                    # Recursively expand alternative workout keys
+                    expanded[full_key] = {
+                        _SESSION_KEYS.get(ak, ak): av for ak, av in v.items()
+                    }
                 else:
                     expanded[full_key] = v
             expanded_sessions.append(expanded)
