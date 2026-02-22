@@ -24,10 +24,7 @@ export default function SessionCard({
     return (
       <div
         className={cn(
-          'flex h-full min-h-[80px] items-center justify-center rounded-xl border-2 border-dashed p-3 text-xs text-muted-foreground',
-          variant === 'planned' && 'border-blue-200',
-          variant === 'ai' && 'border-violet-200',
-          variant === 'final' && 'border-emerald-200',
+          'flex h-full min-h-[80px] items-center justify-center rounded-none border-2 border-dashed border-[#092B37] p-3 text-xs text-muted-foreground',
         )}
       >
         {variant === 'planned' && onEdit && (
@@ -61,10 +58,10 @@ export default function SessionCard({
   return (
     <div
       className={cn(
-        'rounded-xl border p-3 text-sm transition-shadow hover:shadow-sm',
-        variant === 'planned' && 'border-blue-100 bg-blue-50/50',
-        variant === 'ai' && 'border-violet-100 bg-violet-50/50',
-        variant === 'final' && 'border-emerald-100 bg-emerald-50/50',
+        'rounded-none border-2 border-[#092B37] p-3 text-sm shadow-brutal-sm',
+        variant === 'planned' && 'bg-[#DBEAFE]',
+        variant === 'ai' && 'bg-[#EDE9FE]',
+        variant === 'final' && 'bg-[#D1FAE5]',
       )}
     >
       <div className="mb-2 flex items-start justify-between gap-2">

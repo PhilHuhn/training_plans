@@ -26,10 +26,10 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-zinc-50 via-emerald-50/30 to-zinc-50 p-4">
+    <div className="flex min-h-screen items-center justify-center bg-background p-4">
       <Card className="w-full max-w-sm">
         <CardHeader className="text-center">
-          <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-xl bg-primary">
+          <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-none border-2 border-[#092B37] bg-primary">
             <Zap className="h-6 w-6 text-primary-foreground" />
           </div>
           <CardTitle className="text-xl">Create account</CardTitle>
@@ -38,7 +38,7 @@ export default function RegisterPage() {
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             {(error || register.error) && (
-              <div className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive">
+              <div className="rounded-none border-2 border-destructive bg-[#FEE2E2] p-3 text-sm text-destructive">
                 {error || 'Registration failed. Email may already be in use.'}
               </div>
             )}

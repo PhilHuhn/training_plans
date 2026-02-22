@@ -207,7 +207,7 @@ export default function CompetitionsPage() {
       {isLoading ? (
         <div className="grid gap-4 sm:grid-cols-2">
           {Array.from({ length: 4 }).map((_, i) => (
-            <Skeleton key={i} className="h-40 rounded-xl" />
+            <Skeleton key={i} className="h-40" />
           ))}
         </div>
       ) : !competitions?.length ? (
@@ -221,7 +221,7 @@ export default function CompetitionsPage() {
       ) : (
         <div className="grid gap-4 sm:grid-cols-2">
           {competitions.map((comp) => (
-            <Card key={comp.id} className="transition-shadow hover:shadow-sm">
+            <Card key={comp.id} className="shadow-brutal-sm">
               <CardContent className="p-5">
                 <div className="mb-3 flex items-start justify-between">
                   <div>

@@ -150,7 +150,7 @@ export default function ActivitiesPage() {
       {sportStatsLoading ? (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           {Array.from({ length: 4 }).map((_, i) => (
-            <Skeleton key={i} className="h-20 rounded-xl" />
+            <Skeleton key={i} className="h-20" />
           ))}
         </div>
       ) : sportStats?.sports && sportStats.sports.length > 0 ? (
@@ -158,7 +158,7 @@ export default function ActivitiesPage() {
           {sportStats.sports.map((s) => (
             <Card
               key={s.sport}
-              className={`cursor-pointer transition-all hover:shadow-md ${sportFilter === s.sport ? 'ring-2 ring-primary' : ''}`}
+              className={`cursor-pointer transition-all shadow-brutal-sm ${sportFilter === s.sport ? 'ring-4 ring-primary' : ''}`}
               onClick={() => {
                 setSportFilter(sportFilter === s.sport ? null : s.sport)
                 setPage(1)
@@ -166,8 +166,8 @@ export default function ActivitiesPage() {
             >
               <CardContent className="flex items-center gap-3 p-4">
                 <div
-                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg"
-                  style={{ backgroundColor: stravaSportHex(s.sport) + '20', color: stravaSportHex(s.sport) }}
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-none border-2 border-[#092B37]"
+                  style={{ backgroundColor: stravaSportHex(s.sport) + '30', color: stravaSportHex(s.sport) }}
                 >
                   {sportIcon(s.sport)}
                 </div>
@@ -201,7 +201,7 @@ export default function ActivitiesPage() {
                     <XAxis dataKey="week" tick={{ fontSize: 11 }} />
                     <YAxis tick={{ fontSize: 11 }} width={40} />
                     <Tooltip
-                      contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid #e5e7eb' }}
+                      contentStyle={{ fontSize: 12, borderRadius: 0, border: '2px solid #092B37', boxShadow: '4px 4px 0px #092B37' }}
                       // eslint-disable-next-line @typescript-eslint/no-explicit-any
                       formatter={((value: any, name: any) => [
                         `${Number(value ?? 0).toFixed(1)} km`,
@@ -248,13 +248,13 @@ export default function ActivitiesPage() {
                       ))}
                     </Pie>
                     <Tooltip
-                      contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid #e5e7eb' }}
+                      contentStyle={{ fontSize: 12, borderRadius: 0, border: '2px solid #092B37', boxShadow: '4px 4px 0px #092B37' }}
                       // eslint-disable-next-line @typescript-eslint/no-explicit-any
                       formatter={((value: any) => [`${value ?? 0} activities`]) as never}
                     />
                     <Legend
                       verticalAlign="bottom"
-                      iconType="circle"
+                      iconType="square"
                       iconSize={8}
                       wrapperStyle={{ fontSize: 11 }}
                     />
@@ -299,7 +299,7 @@ export default function ActivitiesPage() {
       {isLoading ? (
         <div className="space-y-3">
           {Array.from({ length: 5 }).map((_, i) => (
-            <Skeleton key={i} className="h-16 w-full rounded-xl" />
+            <Skeleton key={i} className="h-16 w-full" />
           ))}
         </div>
       ) : data?.activities.length === 0 ? (
@@ -319,13 +319,13 @@ export default function ActivitiesPage() {
       ) : (
         <div className="space-y-2">
           {data?.activities.map((activity) => (
-            <Card key={activity.id} className="transition-shadow hover:shadow-sm">
+            <Card key={activity.id} className="shadow-brutal-sm">
               <CardContent className="flex items-center gap-4 p-4">
                 {/* Sport icon */}
                 <div
-                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg"
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-none border-2 border-[#092B37]"
                   style={{
-                    backgroundColor: stravaSportHex(activity.activity_type) + '20',
+                    backgroundColor: stravaSportHex(activity.activity_type) + '30',
                     color: stravaSportHex(activity.activity_type),
                   }}
                 >

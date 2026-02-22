@@ -54,8 +54,8 @@ export default function TrainingWeek({ data, onEditSession, onAddSession }: Trai
           <div
             key={dateStr}
             className={cn(
-              'rounded-xl border bg-card p-3 transition-shadow',
-              today && 'ring-2 ring-primary/30',
+              'rounded-none border-2 border-[#092B37] bg-card p-3',
+              today && 'ring-4 ring-primary',
             )}
           >
             {/* Day header */}
@@ -63,7 +63,7 @@ export default function TrainingWeek({ data, onEditSession, onAddSession }: Trai
               <div className="flex items-center gap-2">
                 <span className="text-sm font-medium">{formatDateShort(dateStr)}</span>
                 {today && (
-                  <Badge variant="secondary" className="bg-primary/10 text-primary text-xs">
+                  <Badge variant="secondary" className="bg-[#FBBF24] text-[#092B37] text-xs">
                     Today
                   </Badge>
                 )}

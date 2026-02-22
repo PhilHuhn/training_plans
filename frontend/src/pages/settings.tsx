@@ -383,7 +383,7 @@ export default function SettingsPage() {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Badge variant="secondary" className="gap-1.5">
-                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                  <span className="h-1.5 w-1.5 rounded-none bg-emerald-500" />
                   Connected
                 </Badge>
               </div>
@@ -650,7 +650,7 @@ export default function SettingsPage() {
           {historyLoading ? (
             <div className="space-y-3">
               {Array.from({ length: 3 }).map((_, i) => (
-                <Skeleton key={i} className="h-16 w-full rounded-lg" />
+                <Skeleton key={i} className="h-16 w-full" />
               ))}
             </div>
           ) : !zoneHistory || zoneHistory.length === 0 ? (
@@ -680,10 +680,10 @@ export default function SettingsPage() {
 
                 const sourceColor =
                   entry.source === 'strava_estimate'
-                    ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400'
+                    ? 'bg-[#FDBA74] text-[#092B37] border-2 border-[#092B37]'
                     : entry.source === 'reverted'
-                      ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
-                      : 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                      ? 'bg-[#93C5FD] text-[#092B37] border-2 border-[#092B37]'
+                      : 'bg-[#6EE7B7] text-[#092B37] border-2 border-[#092B37]'
 
                 // Build compact summary
                 const parts: string[] = []
@@ -701,8 +701,8 @@ export default function SettingsPage() {
                 return (
                   <div
                     key={entry.id}
-                    className={`flex items-start justify-between rounded-lg border p-3 ${
-                      isLatest ? 'border-primary/30 bg-primary/5' : ''
+                    className={`flex items-start justify-between rounded-none border-2 border-[#092B37] p-3 ${
+                      isLatest ? 'ring-4 ring-primary' : ''
                     }`}
                   >
                     <div className="min-w-0 flex-1 space-y-1">

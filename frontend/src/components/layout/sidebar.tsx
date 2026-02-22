@@ -40,10 +40,10 @@ export default function Sidebar({ onClose }: SidebarProps) {
     <div className="flex h-full flex-col bg-sidebar text-sidebar-foreground">
       {/* Logo */}
       <div className="flex h-16 items-center gap-2 px-6">
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-sidebar-primary">
+        <div className="flex h-8 w-8 items-center justify-center rounded-none border-2 border-sidebar-border bg-sidebar-primary">
           <Zap className="h-4 w-4 text-sidebar-primary-foreground" />
         </div>
-        <span className="text-lg font-semibold tracking-tight">Turbine</span>
+        <span className="text-lg font-bold uppercase tracking-wider">Turbine</span>
       </div>
 
       <Separator className="bg-sidebar-border" />
@@ -58,9 +58,9 @@ export default function Sidebar({ onClose }: SidebarProps) {
               to={item.href}
               onClick={onClose}
               className={cn(
-                'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
+                'flex items-center gap-3 rounded-none px-3 py-2.5 text-sm font-bold uppercase tracking-wider transition-colors',
                 isActive
-                  ? 'bg-sidebar-accent text-sidebar-primary'
+                  ? 'bg-sidebar-accent text-sidebar-primary border-l-4 border-sidebar-primary'
                   : 'text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground',
               )}
             >
@@ -76,7 +76,7 @@ export default function Sidebar({ onClose }: SidebarProps) {
       {/* User section */}
       <div className="p-4">
         <div className="flex items-center gap-3">
-          <Avatar className="h-9 w-9 border border-sidebar-border">
+          <Avatar className="h-9 w-9 border-2 border-sidebar-border">
             <AvatarFallback className="bg-sidebar-accent text-xs text-sidebar-foreground">
               {initials}
             </AvatarFallback>
@@ -87,7 +87,7 @@ export default function Sidebar({ onClose }: SidebarProps) {
           </div>
           <button
             onClick={logout}
-            className="rounded-md p-1.5 text-sidebar-foreground/60 transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground"
+            className="rounded-none p-1.5 text-sidebar-foreground/60 transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground"
           >
             <LogOut className="h-4 w-4" />
           </button>

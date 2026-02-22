@@ -4,6 +4,7 @@ Auto-generated from git history.
 
 ## 2026-02-21
 
+- Match Strava zone names/counts, per-section estimation, fix pace input & JSON parsing (PhilHuhn)
 - Add zone history UI, per-sport availability windows, and fix migration bug (PhilHuhn)
 - Replace cross-training toggle with per-sport selection in generate modal (PhilHuhn)
 - Add cross-training support, multi-sport features, and activity stats dashboard (PhilHuhn)

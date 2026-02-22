@@ -79,7 +79,7 @@ export default function ChatPanel() {
               >
                 <div
                   className={cn(
-                    'max-w-[85%] rounded-2xl px-4 py-2.5 text-sm',
+                    'max-w-[85%] rounded-none border-2 border-[#092B37] px-4 py-2.5 text-sm',
                     msg.role === 'user'
                       ? 'bg-primary text-primary-foreground'
                       : 'bg-muted text-foreground',
@@ -100,10 +100,10 @@ export default function ChatPanel() {
 
             {isLoading && (
               <div className="flex justify-start">
-                <div className="flex gap-1 rounded-2xl bg-muted px-4 py-3">
-                  <span className="h-2 w-2 animate-bounce rounded-full bg-muted-foreground/40 [animation-delay:0ms]" />
-                  <span className="h-2 w-2 animate-bounce rounded-full bg-muted-foreground/40 [animation-delay:150ms]" />
-                  <span className="h-2 w-2 animate-bounce rounded-full bg-muted-foreground/40 [animation-delay:300ms]" />
+                <div className="flex gap-1 rounded-none border-2 border-[#092B37] bg-muted px-4 py-3">
+                  <span className="h-2 w-2 animate-bounce rounded-none bg-muted-foreground/40 [animation-delay:0ms]" />
+                  <span className="h-2 w-2 animate-bounce rounded-none bg-muted-foreground/40 [animation-delay:150ms]" />
+                  <span className="h-2 w-2 animate-bounce rounded-none bg-muted-foreground/40 [animation-delay:300ms]" />
                 </div>
               </div>
             )}

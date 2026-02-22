@@ -83,54 +83,54 @@ export function isToday(dateStr: string): boolean {
 
 export function workoutTypeColor(type: string): string {
   const colors: Record<string, string> = {
-    easy: 'bg-green-100 text-green-700',
-    recovery: 'bg-blue-100 text-blue-700',
-    tempo: 'bg-orange-100 text-orange-700',
-    interval: 'bg-red-100 text-red-700',
-    long_run: 'bg-purple-100 text-purple-700',
-    rest: 'bg-zinc-100 text-zinc-500',
-    cross_training: 'bg-cyan-100 text-cyan-700',
+    easy: 'bg-[#6EE7B7] text-[#092B37] border-2 border-[#092B37]',
+    recovery: 'bg-[#93C5FD] text-[#092B37] border-2 border-[#092B37]',
+    tempo: 'bg-[#FDBA74] text-[#092B37] border-2 border-[#092B37]',
+    interval: 'bg-[#FCA5A5] text-[#092B37] border-2 border-[#092B37]',
+    long_run: 'bg-[#C4B5FD] text-[#092B37] border-2 border-[#092B37]',
+    rest: 'bg-[#F5F0EB] text-[#092B37] border-2 border-[#092B37]',
+    cross_training: 'bg-[#67E8F9] text-[#092B37] border-2 border-[#092B37]',
   }
-  return colors[type] || 'bg-zinc-100 text-zinc-700'
+  return colors[type] || 'bg-[#F5F0EB] text-[#092B37] border-2 border-[#092B37]'
 }
 
 export function priorityColor(priority: string): string {
   const colors: Record<string, string> = {
-    A: 'bg-red-100 text-red-700 border-red-200',
-    B: 'bg-amber-100 text-amber-700 border-amber-200',
-    C: 'bg-emerald-100 text-emerald-700 border-emerald-200',
+    A: 'bg-[#FCA5A5] text-[#092B37] border-2 border-[#092B37]',
+    B: 'bg-[#FBBF24] text-[#092B37] border-2 border-[#092B37]',
+    C: 'bg-[#6EE7B7] text-[#092B37] border-2 border-[#092B37]',
   }
-  return colors[priority] || 'bg-zinc-100 text-zinc-700'
+  return colors[priority] || 'bg-[#F5F0EB] text-[#092B37] border-2 border-[#092B37]'
 }
 
 export function sportColor(sport: string): string {
   const colors: Record<string, string> = {
-    running: 'bg-green-100 text-green-700',
-    cycling: 'bg-yellow-100 text-yellow-700',
-    swimming: 'bg-blue-100 text-blue-700',
-    strength: 'bg-rose-100 text-rose-700',
-    hiking: 'bg-amber-100 text-amber-700',
-    rowing: 'bg-indigo-100 text-indigo-700',
+    running: 'bg-[#6EE7B7] text-[#092B37]',
+    cycling: 'bg-[#FCD34D] text-[#092B37]',
+    swimming: 'bg-[#93C5FD] text-[#092B37]',
+    strength: 'bg-[#FCA5A5] text-[#092B37]',
+    hiking: 'bg-[#FDBA74] text-[#092B37]',
+    rowing: 'bg-[#C4B5FD] text-[#092B37]',
   }
-  return colors[sport] || 'bg-zinc-100 text-zinc-700'
+  return colors[sport] || 'bg-[#F5F0EB] text-[#092B37]'
 }
 
 export function stravaSportColor(stravaType: string): string {
   const colors: Record<string, string> = {
-    Run: 'bg-green-100 text-green-700',
-    TrailRun: 'bg-amber-100 text-amber-700',
-    VirtualRun: 'bg-green-100 text-green-700',
-    Ride: 'bg-yellow-100 text-yellow-700',
-    VirtualRide: 'bg-yellow-100 text-yellow-700',
-    MountainBikeRide: 'bg-yellow-100 text-yellow-700',
-    EBikeRide: 'bg-yellow-100 text-yellow-700',
-    Swim: 'bg-blue-100 text-blue-700',
-    WeightTraining: 'bg-rose-100 text-rose-700',
-    Hike: 'bg-emerald-100 text-emerald-700',
-    Walk: 'bg-teal-100 text-teal-700',
-    Rowing: 'bg-indigo-100 text-indigo-700',
+    Run: 'bg-[#6EE7B7] text-[#092B37]',
+    TrailRun: 'bg-[#FDBA74] text-[#092B37]',
+    VirtualRun: 'bg-[#6EE7B7] text-[#092B37]',
+    Ride: 'bg-[#FCD34D] text-[#092B37]',
+    VirtualRide: 'bg-[#FCD34D] text-[#092B37]',
+    MountainBikeRide: 'bg-[#FCD34D] text-[#092B37]',
+    EBikeRide: 'bg-[#FCD34D] text-[#092B37]',
+    Swim: 'bg-[#93C5FD] text-[#092B37]',
+    WeightTraining: 'bg-[#FCA5A5] text-[#092B37]',
+    Hike: 'bg-[#6EE7B7] text-[#092B37]',
+    Walk: 'bg-[#67E8F9] text-[#092B37]',
+    Rowing: 'bg-[#C4B5FD] text-[#092B37]',
   }
-  return colors[stravaType] || 'bg-zinc-100 text-zinc-700'
+  return colors[stravaType] || 'bg-[#F5F0EB] text-[#092B37]'
 }
 
 export function sportLabel(sport: string): string {
@@ -169,22 +169,22 @@ export function stravaSportLabel(stravaType: string): string {
 /** Color hex for a Strava activity type (for charts) */
 export function stravaSportHex(stravaType: string): string {
   const colors: Record<string, string> = {
-    Run: '#22c55e',
-    TrailRun: '#f59e0b',
-    VirtualRun: '#86efac',
-    Ride: '#eab308',
-    VirtualRide: '#fde047',
-    MountainBikeRide: '#ca8a04',
-    EBikeRide: '#facc15',
-    Swim: '#3b82f6',
-    WeightTraining: '#f43f5e',
-    Hike: '#10b981',
-    Walk: '#14b8a6',
-    Rowing: '#6366f1',
-    Yoga: '#a855f7',
-    Workout: '#6b7280',
+    Run: '#0D9488',
+    TrailRun: '#D97706',
+    VirtualRun: '#0D9488',
+    Ride: '#FBBF24',
+    VirtualRide: '#FBBF24',
+    MountainBikeRide: '#CA8A04',
+    EBikeRide: '#FBBF24',
+    Swim: '#3B82F6',
+    WeightTraining: '#EF4444',
+    Hike: '#10B981',
+    Walk: '#14B8A6',
+    Rowing: '#6366F1',
+    Yoga: '#A855F7',
+    Workout: '#5C6B73',
   }
-  return colors[stravaType] || '#9ca3af'
+  return colors[stravaType] || '#5C6B73'
 }
 
 /** Strava sport icon name for badge display */

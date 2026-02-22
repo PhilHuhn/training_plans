@@ -21,19 +21,19 @@ export default function WeekSummary({ data }: WeekSummaryProps) {
       label: 'Planned',
       value: `${planned.toFixed(1)} km`,
       icon: Calendar,
-      color: 'text-blue-600 bg-blue-50',
+      color: 'text-[#092B37] bg-[#DBEAFE]',
     },
     {
       label: 'AI Recommended',
       value: `${recommended.toFixed(1)} km`,
       icon: Sparkles,
-      color: 'text-violet-600 bg-violet-50',
+      color: 'text-[#092B37] bg-[#EDE9FE]',
     },
     {
       label: 'Final Plan',
       value: `${finalTotal.toFixed(1)} km`,
       icon: CheckCircle,
-      color: 'text-emerald-600 bg-emerald-50',
+      color: 'text-[#092B37] bg-[#D1FAE5]',
     },
   ]
 
@@ -42,7 +42,7 @@ export default function WeekSummary({ data }: WeekSummaryProps) {
       {cards.map((c) => (
         <Card key={c.label}>
           <CardContent className="flex items-center gap-3 p-4">
-            <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${c.color}`}>
+            <div className={`flex h-10 w-10 items-center justify-center rounded-none border-2 border-[#092B37] ${c.color}`}>
               <c.icon className="h-5 w-5" />
             </div>
             <div>
