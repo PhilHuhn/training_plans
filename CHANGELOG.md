@@ -2,6 +2,10 @@
 
 Auto-generated from git history.
 
+## 2026-02-22
+
+- Apply neo-brutalist UI design system across entire frontend (PhilHuhn)
+
 ## 2026-02-21
 
 - Match Strava zone names/counts, per-section estimation, fix pace input & JSON parsing (PhilHuhn)

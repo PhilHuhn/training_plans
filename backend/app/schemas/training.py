@@ -106,6 +106,8 @@ class TrainingSessionResponse(TrainingSessionBase):
     id: int
     source: SessionSource
     status: SessionStatus
+    final_workout: Optional[WorkoutDetails] = None
+    accepted_source: Optional[str] = None
     completed_activity_id: Optional[int] = None
     created_at: datetime
     updated_at: datetime
