@@ -1,23 +1,14 @@
-# Python
-__pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
-venv/
-env/
-.env
-backend/.env
-*.egg-info/
-dist/
-build/
-
 # Node
 node_modules/
 .next/
 out/
+.env
 .env.local
 .env*.local
+.env.production
+
+# Drizzle metadata is committed; only the snapshot cache is ignored
+drizzle/meta/_journal.json.bak
 
 # IDE
 .idea/
@@ -33,19 +24,7 @@ Thumbs.db
 *.log
 npm-debug.log*
 
-# Testing
-.coverage
-htmlcov/
-.pytest_cache/
-
-# Database
-*.db
-*.sqlite3
-
 # Misc
 *.bak
 .cache/
 nul
-
-# Build output (served by FastAPI in production)
-backend/static/spa/

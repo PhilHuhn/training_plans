@@ -1,191 +1,125 @@
 # Turbine Turmweg Training
 
-AI-powered training plan management for runners - from 5K to ultramarathons.
+AI-powered training plan management for runners — from 5K to ultramarathons.
 
 ## Features
 
-- **Activity Sync**: Connect to Strava to automatically sync your running activities
-- **Competition Management**: Track upcoming races with goals and priority levels
-- **Two-Column Training View**: See your fixed training plan alongside AI recommendations
-- **AI Recommendations**: Get personalized training suggestions based on your recent activities, upcoming races, and fitness level
-- **Document Upload**: Upload training plans from your coach (PDF, Word, TXT) and have them parsed automatically
-- **Pace/HR Conversion**: Convert between pace-based and heart rate-based training plans
-- **Multi-user Support**: Create accounts for you and your friends
+- **Strava sync** — auto-import activities (with lap data) for runs, rides, swims, and more
+- **Competition tracker** — A/B/C-priority races with goal time and days-until countdown
+- **Three-column training view** — uploaded plan / AI recommendation / final accepted workout, side by side
+- **AI recommendations** — periodized weekly plans powered by Claude, aware of your zones, recent load (TRIMP), and upcoming races
+- **Document upload** — drop a PDF/Word/Markdown plan and Claude extracts every session into structured form
+- **Pace ↔ HR conversion** — flip a single session between pace-based and HR-based formats
+- **Garmin FIT export** — download structured workouts as `.fit` files for your watch
+- **AI coach chat** — streaming chat (`Turbi`) that can read and modify your plan via tool-use
+- **Zone estimation** — derive HR / pace / cycling power zones from your Strava history
+- **LaTeX-document UI** — Computer Modern serif on cream paper, hyperref blue links, booktabs tables
 
 ## Tech Stack
 
-- **Backend**: FastAPI (Python 3.11+)
-- **Frontend**: Next.js 14 with TypeScript
-- **Database**: PostgreSQL
-- **AI**: Anthropic Claude API
-- **Styling**: Tailwind CSS with shadcn/ui
+- **Framework**: Next.js 15 (App Router) + TypeScript 5.7 + React 19
+- **Database**: PostgreSQL via [Drizzle ORM](https://orm.drizzle.team/) (with `drizzle-kit` migrations)
+- **Auth**: bare `jsonwebtoken` (HS256, 7-day) + `bcryptjs`. Bearer header *and* `access_token` cookie supported.
+- **AI**: [`@anthropic-ai/sdk`](https://github.com/anthropics/anthropic-sdk-typescript) — `claude-sonnet-4-20250514`
+- **Document parsing**: `pdf-parse` (PDF) + `mammoth` (DOCX)
+- **FIT export**: `@garmin/fitsdk` (official Garmin JS SDK)
+- **State**: `@tanstack/react-query` + `zustand`
+- **Styling**: Tailwind CSS v4 with the LaTeX-document design tokens defined in `src/app/globals.css`
 
-## Getting Started
+## Local development
 
 ### Prerequisites
 
-- Python 3.11+
-- Node.js 18+
-- PostgreSQL (or use Docker)
-- Strava API credentials
-- Anthropic API key
+- Node.js 20+
+- Docker (for Postgres)
+- A Strava API app and an Anthropic API key
 
-### Local Development
-
-1. **Clone and setup environment**
+### One-time setup
 
 ```bash
-# Clone the repository
-git clone <your-repo-url>
+git clone <repo-url> turbine-turmweg
 cd turbine-turmweg
 
-# Create environment files
-cp backend/.env.example backend/.env
-cp frontend/.env.example frontend/.env.local
-```
+cp .env.example .env
+# Edit .env: set SECRET_KEY (`openssl rand -hex 32`),
+# STRAVA_CLIENT_ID / STRAVA_CLIENT_SECRET, ANTHROPIC_API_KEY.
 
-2. **Configure environment variables**
-
-Edit `backend/.env`:
-```
-DATABASE_URL=postgresql://user:password@localhost:5432/turbine_turmweg
-SECRET_KEY=your-secret-key
-STRAVA_CLIENT_ID=your-strava-client-id
-STRAVA_CLIENT_SECRET=your-strava-client-secret
-ANTHROPIC_API_KEY=your-anthropic-api-key
-FRONTEND_URL=http://localhost:3000
-```
-
-Edit `frontend/.env.local`:
-```
-NEXT_PUBLIC_API_URL=http://localhost:8000
-```
-
-3. **Start with Docker (recommended)**
-
-```bash
-docker-compose up -d
-```
-
-Or start services manually:
-
-4. **Backend setup**
-
-```bash
-cd backend
-python -m venv venv
-source venv/bin/activate  # Windows: venv\Scripts\activate
-pip install -r requirements.txt
-alembic upgrade head
-uvicorn main:app --reload
-```
-
-5. **Frontend setup**
-
-```bash
-cd frontend
 npm install
+docker compose up -d db        # Postgres on :5432
+npm run db:push                # Apply Drizzle schema
+```
+
+### Running
+
+```bash
 npm run dev
 ```
 
-Visit http://localhost:3000 to access the application.
+Visit `http://localhost:3000`. You'll be redirected to `/login` — register an account and you'll land on `/training`.
 
-## Strava API Setup
+### npm scripts
+
+| script | description |
+|---|---|
+| `dev` | Next dev server with HMR on port 3000 |
+| `build` | Production build (`tsc` + `next build`) |
+| `start` | Run the production build |
+| `lint` | `next lint` |
+| `db:generate` | Generate a new SQL migration from `src/server/db/schema.ts` |
+| `db:push` | Apply the current schema to the configured DB (idempotent; safe for fresh setup) |
+| `db:studio` | Open Drizzle Studio at `https://local.drizzle.studio` to browse the DB |
+
+## Strava OAuth setup
 
 1. Go to https://www.strava.com/settings/api
 2. Create a new application
-3. Set the Authorization Callback Domain to `localhost` (or your production domain)
-4. Copy the Client ID and Client Secret to your `.env` file
+3. Set the **Authorization Callback Domain** to `localhost` for development, or your production hostname for prod
+4. Copy the Client ID and Client Secret to your `.env`
+
+The redirect URI is built from `BASE_URL` — make sure that env var matches the URL Strava will redirect to (`http://localhost:3000` locally, your domain in prod).
 
 ## Deployment
 
-### Frontend (Vercel)
+The repo includes a [`render.yaml`](render.yaml) for one-click deployment to [Render](https://render.com):
 
-1. Connect your repository to Vercel
-2. Set environment variables:
-   - `NEXT_PUBLIC_API_URL`: Your backend URL
+- A managed Postgres database
+- A web service running `npm ci && npm run db:push && npm run build` then `npm start`
+- `SECRET_KEY` auto-generated; `DATABASE_URL` wired from the database
+- `STRAVA_CLIENT_ID/SECRET`, `ANTHROPIC_API_KEY`, `BASE_URL` set as sync-disabled secrets
 
-### Backend
+Other targets (Vercel, Fly.io, Railway) work too — you just need a Node 20+ runtime, Postgres, and the same env vars.
 
-The backend can be deployed to:
-- **Railway** (free tier available)
-- **Render** (free tier available)
-- **Fly.io** (free tier available)
-
-Configure these environment variables in your deployment platform:
-- `DATABASE_URL`
-- `SECRET_KEY`
-- `STRAVA_CLIENT_ID`
-- `STRAVA_CLIENT_SECRET`
-- `STRAVA_REDIRECT_URI` (update to production URL)
-- `ANTHROPIC_API_KEY`
-- `FRONTEND_URL`
-
-### Database
-
-Options for PostgreSQL:
-- **Vercel Postgres** (free tier)
-- **Neon** (free tier)
-- **Supabase** (free tier)
-- **Railway** (free tier)
-
-## API Endpoints
-
-### Authentication
-- `POST /api/auth/register` - Register new user
-- `POST /api/auth/login` - Login
-- `GET /api/auth/me` - Get current user
-
-### Strava
-- `GET /api/strava/auth-url` - Get Strava OAuth URL
-- `POST /api/strava/callback` - Handle OAuth callback
-- `POST /api/strava/sync` - Sync activities
-
-### Activities
-- `GET /api/activities` - List activities
-- `GET /api/activities/stats/summary` - Get statistics
-
-### Competitions
-- `GET /api/competitions` - List competitions
-- `POST /api/competitions` - Create competition
-- `PUT /api/competitions/{id}` - Update competition
-- `DELETE /api/competitions/{id}` - Delete competition
-
-### Training
-- `GET /api/training/sessions` - Get training sessions
-- `GET /api/training/sessions/week` - Get week view
-- `POST /api/training/sessions` - Create session
-- `PUT /api/training/sessions/{id}` - Update session
-- `POST /api/training/generate-recommendations` - Generate AI recommendations
-- `POST /api/training/convert-session` - Convert pace/HR
-- `POST /api/training/upload-plan` - Upload training plan
-
-## Project Structure
+## Repo layout
 
 ```
 turbine-turmweg/
-├── backend/
-│   ├── app/
-│   │   ├── api/routes/      # API endpoints
-│   │   ├── core/            # Config, security, database
-│   │   ├── models/          # SQLAlchemy models
-│   │   ├── schemas/         # Pydantic schemas
-│   │   ├── services/        # Business logic
-│   │   └── prompts/         # Claude prompts
-│   ├── alembic/             # Database migrations
-│   └── main.py              # FastAPI app
-├── frontend/
-│   ├── app/                 # Next.js app router
-│   ├── components/          # React components
-│   └── lib/                 # Utilities and API client
-├── docker-compose.yml
-└── README.md
+├── src/
+│   ├── app/                        # Next.js App Router
+│   │   ├── (auth)/login,register/  # Public pages
+│   │   ├── (app)/                  # Auth-gated shell (sidebar + header + chat panel)
+│   │   │   ├── training/           # Three-column training view
+│   │   │   ├── activities/         # Strava activity list + charts
+│   │   │   ├── competitions/       # Race tracker
+│   │   │   ├── settings/           # Zones, profile, Strava connection
+│   │   │   └── changelog/          # Git log viewer
+│   │   ├── api/                    # 33 route handlers (auth, training, strava, chat, …)
+│   │   ├── globals.css             # LaTeX-document design tokens
+│   │   └── providers.tsx           # React Query + Tooltip + Toaster
+│   ├── components/                 # UI kit (Radix-based) + layout + training widgets
+│   ├── hooks/                      # use-auth, use-training, use-chat, …
+│   ├── lib/                        # Wire types, formatters
+│   ├── stores/                     # Zustand: auth + chat
+│   ├── middleware.ts               # Auth-cookie gate for the (app) group
+│   └── server/                     # Server-only code (Next bundler keeps it off the client)
+│       ├── db/                     # Drizzle schema + client singleton
+│       ├── auth/                   # JWT + bcrypt + session helpers
+│       ├── services/               # Claude, training engine, Strava, document parser, FIT export, zones, TRIMP
+│       └── prompts/                # Claude prompts
+├── drizzle/                        # Generated migrations
+├── docker-compose.yml              # Postgres only
+└── render.yaml                     # Render deploy spec
 ```
-
-## Contributing
-
-This is a private project for friends. If you have access, feel free to submit PRs!
 
 ## License
 
-Private - All rights reserved.
+Private — all rights reserved.

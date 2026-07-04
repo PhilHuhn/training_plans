@@ -5,232 +5,156 @@ A private training plan management app for runners (5K to ultramarathons) with S
 
 ## Tech Stack
 
-### Backend (Full-Stack)
-- **Framework**: FastAPI (Python 3.11+)
-- **Database**: PostgreSQL
-- **ORM**: SQLAlchemy with Alembic migrations
-- **Authentication**: JWT-based with python-jose (cookie + Bearer token)
-- **Templates**: Jinja2 with HTMX for dynamic interactions
-- **Styling**: Tailwind CSS (via CDN)
-- **External APIs**:
-  - Strava API (OAuth2 for activity sync)
-  - Anthropic Claude API (training recommendations)
-
-### Deployment
-- **Application**: Single FastAPI server serving both API and HTML
-- **Database**: PostgreSQL (Vercel Postgres / Neon / local)
-- **Docker**: docker-compose for local development
+- **Framework**: Next.js 15 (App Router), React 19, TypeScript 5.7
+- **Styling**: Tailwind CSS v4 (`src/app/globals.css` holds the LaTeX-document tokens — Computer Modern serif on cream paper, hyperref blue links, monochrome chart ramp)
+- **State**: `@tanstack/react-query` for server state, `zustand` (with `persist`) for auth + chat
+- **UI primitives**: Radix UI + shadcn-style wrappers under `src/components/ui/`
+- **DB**: PostgreSQL via Drizzle ORM (`drizzle-orm` + `drizzle-kit`); driver is `postgres`
+- **Auth**: bare `jsonwebtoken` (HS256, 7-day expiry) + `bcryptjs`. Bearer header **and** `access_token` HttpOnly cookie are both supported.
+- **AI**: official `@anthropic-ai/sdk` — model `claude-sonnet-4-20250514`. Tool-use loop for the chat coach; structured JSON output (with short-key compression) for recommendations and document parsing.
+- **Document parsing**: `pdf-parse` + `mammoth`
+- **FIT export**: `@garmin/fitsdk` (low-level Encoder)
 
 ## Project Structure
+
 ```
 turbine-turmweg/
-├── backend/
-│   ├── app/
-│   │   ├── api/
-│   │   │   ├── routes/
-│   │   │   │   ├── auth.py
-│   │   │   │   ├── activities.py
-│   │   │   │   ├── competitions.py
-│   │   │   │   ├── training.py
-│   │   │   │   └── strava.py
-│   │   │   └── deps.py
-│   │   ├── core/
-│   │   │   ├── config.py
-│   │   │   ├── security.py
-│   │   │   ├── database.py
-│   │   │   └── claude_client.py
-│   │   ├── models/
-│   │   │   ├── user.py
-│   │   │   ├── activity.py
-│   │   │   ├── competition.py
-│   │   │   └── training_session.py
-│   │   ├── schemas/
-│   │   │   └── *.py
-│   │   ├── services/
-│   │   │   ├── strava_service.py
-│   │   │   ├── training_engine.py
-│   │   │   └── document_parser.py
-│   │   └── prompts/
-│   │       └── training_recommendation.py
-│   ├── templates/
-│   │   ├── base.html
-│   │   ├── auth/
-│   │   │   ├── login.html
-│   │   │   └── register.html
-│   │   ├── dashboard/
-│   │   │   ├── base.html
-│   │   │   ├── training.html
-│   │   │   ├── activities.html
-│   │   │   ├── competitions.html
-│   │   │   └── settings.html
-│   │   └── partials/
-│   │       └── competitions_list.html
-│   ├── alembic/
-│   ├── requirements.txt
-│   ├── main.py
-│   ├── Dockerfile
-│   └── start.sh
-├── docker-compose.yml
-├── CLAUDE.MD
-└── README.md
+├── src/
+│   ├── app/                                   # App Router
+│   │   ├── (auth)/                            # Unauthenticated layout group
+│   │   │   ├── login/page.tsx
+│   │   │   └── register/page.tsx
+│   │   ├── (app)/                             # Authenticated shell (sidebar + header + chat panel)
+│   │   │   ├── layout.tsx                     # `dynamic = "force-dynamic"` to skip prerender
+│   │   │   ├── training/page.tsx              # Three-column training view
+│   │   │   ├── activities/page.tsx            # Activity list + recharts
+│   │   │   ├── competitions/page.tsx
+│   │   │   ├── settings/page.tsx
+│   │   │   └── changelog/page.tsx
+│   │   ├── api/                               # Route handlers (33 endpoints)
+│   │   │   ├── auth/{login,register,me,refresh,logout}/route.ts
+│   │   │   ├── strava/{auth-url,callback,disconnect,sync}/route.ts
+│   │   │   ├── activities/{route,[id],stats/{summary,by-sport,weekly-by-sport}}/route.ts
+│   │   │   ├── competitions/{route,[id]}/route.ts
+│   │   │   ├── training/...                   # 11 endpoints incl. generate-recommendations, convert-session, upload-plan, sessions/[id]/export/garmin
+│   │   │   ├── settings/...                   # 11 endpoints (account, password, zones + estimate-{,hr,pace,power}, history, revert)
+│   │   │   ├── chat/message/route.ts          # Streaming SSE + tool-use loop
+│   │   │   ├── changelog/route.ts             # `git log` via child_process
+│   │   │   └── health/route.ts
+│   │   ├── globals.css                        # LaTeX-document design tokens
+│   │   ├── layout.tsx                         # Root layout (mounts Providers, loads CM fonts)
+│   │   ├── providers.tsx                      # 'use client' QueryClient + Tooltip + Toaster
+│   │   └── page.tsx                           # Cookie-based redirect to /training or /login
+│   ├── components/
+│   │   ├── ui/                                # 19 Radix-based primitives (Button, Card, Dialog, …)
+│   │   ├── layout/                            # AppLayout, Sidebar, Header, ChatPanel
+│   │   └── training/                          # SessionCard, TrainingWeek, WeekSummary, SessionModal, GenerateModal
+│   ├── hooks/                                 # use-auth, use-training, use-chat, use-activities, use-competitions, use-settings
+│   ├── lib/
+│   │   ├── types.ts                           # Wire-format types (mirror server response shapes)
+│   │   └── utils.ts                           # cn(), date/distance/pace formatters, monochrome color helpers
+│   ├── stores/                                # Zustand: auth-store, chat-store (both `'use client'` with SSR-safe localStorage guards)
+│   ├── api/                                   # Axios wrappers consumed by hooks
+│   ├── middleware.ts                          # Auth-cookie gate; redirects (app)/* → /login when missing
+│   ├── types/                                 # Manual `.d.ts` for pdf-parse/lib + @garmin/fitsdk
+│   └── server/                                # Server-only code (Next bundler keeps off-client)
+│       ├── db/
+│       │   ├── schema.ts                      # Drizzle tables + relations + inferred types + DEFAULT_USER_PREFERENCES
+│       │   └── index.ts                       # postgres-js client singleton
+│       ├── auth/
+│       │   ├── jwt.ts                         # signToken / verifyToken
+│       │   ├── password.ts                    # bcryptjs cost 10
+│       │   └── session.ts                     # getSession / requireSession + cookie helpers
+│       ├── http.ts                            # errorJson() + parseJson() for routes
+│       ├── serializers.ts                     # Drizzle row → wire-format response shapes
+│       ├── env.ts                             # zod-validated env (with .env.local fallback for empty-shell-var safety)
+│       ├── prompts/
+│       │   └── training-recommendation.ts     # All four Claude prompts verbatim
+│       └── services/
+│           ├── claude.ts                      # Anthropic client + short-key system + JSON extractor
+│           ├── training-engine.ts             # generateRecommendations / convertSession / saveRecommendations
+│           ├── training-load.ts               # Bannister TRIMP + planned-load estimator
+│           ├── strava.ts                      # OAuth refresh + sync + lap analysis + AI profile-summary
+│           ├── document-parser.ts             # PDF/DOCX → text → Claude → structured sessions
+│           ├── fit-export.ts                  # Garmin FIT encoder (workout file)
+│           ├── zones.ts                       # HR/pace/cycling-power zone math + Strava-driven estimation
+│           └── pace.ts                        # formatPace / parsePace / formatGoalTime
+├── drizzle/                                   # drizzle-kit migration output (initial: 0000_famous_blindfold.sql)
+├── drizzle.config.ts
+├── next.config.ts                             # serverExternalPackages: pdf-parse, mammoth, @garmin/fitsdk
+├── postcss.config.mjs                         # Tailwind v4 plugin
+├── tsconfig.json                              # Strict + path alias `@/*` → ./src/*
+├── docker-compose.yml                         # Postgres-only
+├── render.yaml                                # Render web + db deploy spec
+└── .env                                       # Local-only secrets (gitignored)
 ```
 
-## Database Schema
+## Database Schema (Drizzle)
 
-### Users
-- id, email, password_hash, name
-- strava_access_token, strava_refresh_token, strava_athlete_id
-- preferences (JSON: units, hr_zones, pace_zones)
-- created_at, updated_at
+Single canonical source: `src/server/db/schema.ts`. Six tables, all keyed by `serial id`:
 
-### Activities (synced from Strava)
-- id, user_id, strava_id
-- type, name, distance, duration
-- avg_heart_rate, max_heart_rate
-- avg_pace, elevation_gain
-- start_date, raw_data (JSON)
+- **users** — email (unique), passwordHash, name, Strava tokens + athleteId (unique), profileSummary (text, AI-generated post-sync), preferences (jsonb with default seed for HR/pace zones, max_hr, resting_hr)
+- **activities** — userId FK, stravaId (unique), name, activityType, distance, duration, elevationGain, calories, avgHeartRate, maxHeartRate, avgPace (sec/km), startDate (indexed), rawData + lapsData (jsonb)
+- **competitions** — userId FK, name, raceType (pgEnum 5K/10K/HM/M/50K/100K/50M/100M/OTHER), raceDate (indexed), distance, location, goalTime, goalPace, priority (pgEnum A/B/C, default B), notes
+- **trainingSessions** — userId FK, sessionDate (indexed), source (pgEnum app_recommendation/uploaded_plan/manual), status (pgEnum planned/completed/skipped/modified), plannedWorkout + recommendationWorkout + finalWorkout (jsonb), acceptedSource (varchar), completedActivityId FK, uploadedPlanId FK, rpeActual
+- **uploadedPlans** — userId FK, filename, contentType, contentText (text), parsedSessions (jsonb), isActive (integer 1/0)
+- **zoneHistory** — userId FK, calculatedAt, source ("manual" | "strava_estimate" | "reverted"), maxHr, restingHr, hrZones (jsonb), thresholdPace, paceZones (jsonb), ftp, cyclingPowerZones (jsonb), plus avg HR/pace metrics
 
-### Competitions
-- id, user_id, name, race_type (5K/10K/HM/M/Ultra)
-- race_date, distance, goal_time
-- priority (A/B/C race)
-- location, notes
+Migrations live in `drizzle/`. JSON column shape changes do **not** need a new migration — only top-level columns do.
 
-### TrainingSessions
-- id, user_id, session_date
-- source (app_recommendation / uploaded_plan / manual)
-- planned_workout (JSON: type, distance, duration, intensity, hr_zones, pace)
-- recommendation_workout (JSON: same structure)
-- completed_activity_id (FK to Activities, nullable)
-- status (planned/completed/skipped/modified)
-- notes
+## Claude integration patterns
 
-### UploadedPlans
-- id, user_id, filename, content_text
-- parsed_sessions (JSON array)
-- upload_date, is_active
-
-## Core Features
-
-### 1. Activity History
-- Sync activities from Strava (runs only)
-- Display with key metrics: distance, pace, HR, elevation
-- Filtering by date range, type
-
-### 2. Competition Management
-- Add upcoming races with goals
-- Priority classification (A/B/C races)
-- Goal time and distance
-- Days until countdown
-
-### 3. Training Plan View (Two-Column)
-Left column: Fixed plans (from uploaded documents or manual entry)
-Right column: AI recommendations based on:
-- Recent activity load
-- Upcoming competitions
-- Heart rate and pace trends
-- Recovery status
-
-### 4. Document Upload
-- Support PDF, Word (.docx), plain text
-- Parse training sessions using Claude
-- Map to internal session format
-
-### 5. Pace ↔ HR Conversion
-- Convert pace-based plans to HR-based and vice versa
-- Use personal HR zones and pace zones
-- Claude-powered intelligent conversion
+- **Short-key system** (`src/server/services/claude.ts`): `_TOP_KEYS` (a/wf/ss/w), `_SESSION_KEYS` (16 mappings), `_INTERVAL_KEYS` (r/dm/tp/rec). `expandShortKeys` is idempotent and recursive (handles `intervals` arrays + nested `alternative_workout`).
+- **JSON extractor** has three fallbacks: brace-matching (handles surrounding text), repair pass (trailing commas + unquoted keys), truncation recovery (closes unclosed brackets/braces).
+- **Tool-use chat** (`src/app/api/chat/message/route.ts`): seven tools (`get_training_sessions`, `get_session_details`, `update_session_workout`, `create_session`, `get_recent_activities`, `get_upcoming_competitions`, `get_user_zones`); loop continues while `stop_reason === "tool_use"`. Streaming branch wraps the final text in SSE (`data: {...,"done":true}`).
 
 ## Routes
 
-### HTML Pages (served by FastAPI)
-- GET / - Redirect to dashboard or login
-- GET /login - Login page
-- POST /login - Login form submission
-- GET /register - Registration page
-- POST /register - Registration form submission
-- GET /logout - Clear session and redirect
-- GET /dashboard - Training view (main page)
-- GET /training - Alias for dashboard
-- GET /activities - Activities list
-- GET /competitions - Competitions management
-- GET /settings - User settings
+### HTML pages
+- `/login`, `/register` — public, redirect to `/training` if cookie present
+- `/training`, `/activities`, `/competitions`, `/settings`, `/changelog` — gated by middleware
 
-### API Endpoints (JSON + HTMX)
-- POST /api/auth/register - Register new user
-- POST /api/auth/login - Login and get token
-- GET /api/auth/me - Get current user
+### API endpoints (all prefixed with `/api`)
 
-- GET /api/strava/auth - Strava OAuth redirect
-- GET /api/strava/callback - OAuth callback
-- POST /api/strava/sync - Sync activities
+Same surface as the original FastAPI backend (37 endpoints) — see `src/app/api/...` for the full tree. Highlights:
 
-- GET /api/activities - List activities
-- GET /api/activities/{id} - Get single activity
-- GET /api/activities/stats/summary - Activity statistics
+- `POST /auth/{register,login,me,refresh,logout}` — `me` uses Bearer or cookie
+- `GET /strava/auth-url`, `GET /strava/callback`, `POST /strava/{disconnect,sync}` — sync runs token refresh, paginates activities, fetches lap data, regenerates the Claude profile summary
+- Activities + competitions + training sessions: standard CRUD plus `accept`, `week` (with TRIMP enrichment), `generate-recommendations`, `convert-session`, `upload-plan`, `uploaded-plans`, `sessions/[id]/export/garmin`
+- `POST /chat/message` — streaming SSE by default; pass `{stream: false}` for JSON
+- Settings: `account`, `password`, zones (`PUT`, `history`, `revert/[historyId]`, `estimate*`)
 
-- GET /api/competitions - List competitions
-- POST /api/competitions - Create competition (JSON or form)
-- GET /api/competitions/{id} - Get competition
-- PUT /api/competitions/{id} - Update competition
-- DELETE /api/competitions/{id} - Delete competition
+## Environment variables
 
-- GET /api/training/sessions - List training sessions
-- GET /api/training/sessions/week - Get week's sessions
-- POST /api/training/sessions - Create session
-- PUT /api/training/sessions/{id} - Update session
-- DELETE /api/training/sessions/{id} - Delete session
-- POST /api/training/generate-recommendations - AI recommendations
-- POST /api/training/upload-plan - Upload training document
-- POST /api/training/convert-session - Pace/HR conversion
+Defined and validated in `src/server/env.ts` (zod). The loader falls back to `.env.local` then `.env` when a process.env value is missing or empty — this is intentional, because some shells inject empty `ANTHROPIC_API_KEY=` envs that would otherwise mask the real value.
 
-## Environment Variables
+| Variable | Purpose |
+|---|---|
+| `DATABASE_URL` | Postgres connection string |
+| `SECRET_KEY` | JWT signing (HS256, ≥16 chars) |
+| `STRAVA_CLIENT_ID` / `STRAVA_CLIENT_SECRET` | Strava OAuth |
+| `ANTHROPIC_API_KEY` | Claude API |
+| `BASE_URL` | Public origin used for the Strava redirect URI |
 
-```
-DATABASE_URL=postgresql+asyncpg://turbine:turbine_dev@localhost:5432/turbine_turmweg
-SECRET_KEY=your-secret-key-here
-STRAVA_CLIENT_ID=your-strava-client-id
-STRAVA_CLIENT_SECRET=your-strava-client-secret
-ANTHROPIC_API_KEY=your-anthropic-api-key
-```
+## Development workflow
 
-## Development Commands
+- `docker compose up -d db` to boot Postgres
+- `npm run db:push` after editing `schema.ts` (or `npm run db:generate` to author a migration first, then push)
+- `npm run dev` for HMR
+- `npm run build` to verify production build (also runs `tsc -b`)
 
-### Using Docker (recommended)
-```bash
-# Start all services
-docker-compose up
+## Conventions
 
-# Access app at http://localhost:8000
-```
-
-### Local Development (without Docker)
-```bash
-# Start PostgreSQL (requires local installation)
-# Create database: turbine_turmweg
-
-cd backend
-python -m venv venv
-source venv/bin/activate  # or venv\Scripts\activate on Windows
-pip install -r requirements.txt
-alembic upgrade head
-uvicorn main:app --reload
-```
-
-## Key Implementation Notes
-
-1. **Authentication**: Cookie-based for HTML pages, Bearer token for API calls
-2. **HTMX Integration**: API routes detect HTMX requests and return HTML partials
-3. **Strava OAuth**: Use authorization code flow, store tokens securely, implement refresh logic
-4. **Claude Integration**: Use structured output (JSON mode) for reliable parsing
-5. **Training Load**: Calculate using TRIMP or similar metrics from HR data
-6. **Recommendations**: Should respect rest days, taper periods, progressive overload
-7. **Document Parsing**: Use Claude to extract structured training data from uploaded docs
+- Server-only modules: import `"server-only"` at the top to enforce.
+- Route handlers: `export const runtime = "nodejs"; export const dynamic = "force-dynamic";` to opt out of static prerender.
+- Auth: every gated route uses `requireSession(req)` which returns `{user}` or `{response}` (a 401 NextResponse) — pattern is `if ("response" in session) return session.response`.
+- Wire format: TypeScript types in `src/lib/types.ts` are the canonical client contract. Server response builders in `src/server/serializers.ts` produce that exact shape from Drizzle rows.
+- Style: LaTeX-document tokens in `globals.css`. Hairline borders, italic small-caps for status, justified body text via `.prose-paper`. Avoid bringing back the old neo-brutalist `border-2 border-[#092B37]` / `shadow-brutal` classes.
 
 ## Design Guidelines
 
-- Clean, minimalist interface
-- Mobile-responsive (Tailwind CSS)
-- Color scheme: Primary green/teal (`primary-600`), grays for text
-- Typography: Clean sans-serif (system fonts via Tailwind)
-- HTMX for smooth interactions without full page reloads
+- Body in Computer Modern serif (with Latin Modern / Charter / Georgia fallbacks), 17px, line-height 1.55.
+- Backgrounds in cream `#FAF8F2`, ink `#0A0A0A`, links and primary in hyperref blue `#1F3A93`, accent/destructive in maroon `#7E1F2E`.
+- Auto-numbered sections via CSS counters on `<main class="tex-numbered">`.
+- Tables follow the booktabs convention: thicker top + bottom rules, hairline mid rule, no row stripes.
+- All Radix primitives + state-using components are `'use client'`.

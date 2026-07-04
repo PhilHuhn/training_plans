@@ -7,10 +7,10 @@ databases:
 services:
   - type: web
     name: turbine-turmweg
-    runtime: python
+    runtime: node
     plan: free
-    buildCommand: cd backend && pip install -r requirements.txt
-    startCommand: cd backend && alembic upgrade head && uvicorn main:app --host 0.0.0.0 --port $PORT
+    buildCommand: npm ci && npm run db:push && npm run build
+    startCommand: npm start
     envVars:
       - key: DATABASE_URL
         fromDatabase:
@@ -18,7 +18,7 @@ services:
           property: connectionString
       - key: SECRET_KEY
         generateValue: true
-      - key: ENVIRONMENT
+      - key: NODE_ENV
         value: production
       - key: STRAVA_CLIENT_ID
         sync: false
@@ -26,4 +26,6 @@ services:
         sync: false
       - key: ANTHROPIC_API_KEY
         sync: false
-    healthCheckPath: /health
+      - key: BASE_URL
+        sync: false
+    healthCheckPath: /api/health
