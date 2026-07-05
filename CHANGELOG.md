@@ -2,6 +2,10 @@
 
 Auto-generated from git history.
 
+## 2026-07-04
+
+- Remove all project source files, migrations, configuration, and client code (PhilHuhn)
+
 ## 2026-02-22
 
 - Add extended training definition: phase labels, terrain, TRIMP, RPE, comparison, alternatives (PhilHuhn)

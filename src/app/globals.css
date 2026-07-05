@@ -1,0 +1,171 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --font-sans: 'Computer Modern Serif', 'Latin Modern Roman', 'CMU Serif', Charter, Georgia, ui-serif, serif;
+  --font-serif: 'Computer Modern Serif', 'Latin Modern Roman', 'CMU Serif', Charter, Georgia, ui-serif, serif;
+  --font-mono: 'Computer Modern Typewriter', 'CMU Typewriter Text', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --shadow-brutal: none;
+  --shadow-brutal-sm: none;
+}
+
+:root {
+  --radius: 0;
+  --background: #FAF8F2;
+  --foreground: #0A0A0A;
+  --card: #FAF8F2;
+  --card-foreground: #0A0A0A;
+  --popover: #FAF8F2;
+  --popover-foreground: #0A0A0A;
+  --primary: #1F3A93;
+  --primary-foreground: #FAF8F2;
+  --secondary: #EDE7D8;
+  --secondary-foreground: #0A0A0A;
+  --muted: #EDE7D8;
+  --muted-foreground: #555555;
+  --accent: #7E1F2E;
+  --accent-foreground: #FAF8F2;
+  --destructive: #7E1F2E;
+  --destructive-foreground: #FAF8F2;
+  --border: color-mix(in srgb, #0A0A0A 18%, transparent);
+  --input: color-mix(in srgb, #0A0A0A 30%, transparent);
+  --ring: #1F3A93;
+  --chart-1: #0A0A0A;
+  --chart-2: #444444;
+  --chart-3: #777777;
+  --chart-4: #AAAAAA;
+  --chart-5: #1F3A93;
+  --sidebar: #F2EEE4;
+  --sidebar-foreground: #0A0A0A;
+  --sidebar-primary: #1F3A93;
+  --sidebar-primary-foreground: #FAF8F2;
+  --sidebar-accent: #E6E0CE;
+  --sidebar-accent-foreground: #0A0A0A;
+  --sidebar-border: color-mix(in srgb, #0A0A0A 18%, transparent);
+  --sidebar-ring: #1F3A93;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  html {
+    font-feature-settings: "kern", "liga", "onum";
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-family: var(--font-serif);
+    font-size: 17px;
+    line-height: 1.55;
+  }
+  a {
+    color: var(--primary);
+    text-decoration: none;
+  }
+  a:hover {
+    text-decoration: underline;
+  }
+  :focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+  }
+  code, pre, kbd, samp {
+    font-family: var(--font-mono);
+  }
+  em, i {
+    font-style: italic;
+  }
+}
+
+@layer utilities {
+  .prose-paper {
+    text-align: justify;
+    hyphens: auto;
+  }
+  .prose-paper p {
+    text-indent: 0;
+    margin-bottom: 0.75rem;
+  }
+  .smallcaps {
+    font-variant-caps: small-caps;
+    letter-spacing: 0.04em;
+  }
+  .rule-top {
+    border-top: 1.5px solid var(--foreground);
+  }
+  .rule-bottom {
+    border-bottom: 1.5px solid var(--foreground);
+  }
+  .booktabs-top {
+    border-top: 1.5px solid var(--foreground);
+  }
+  .booktabs-mid {
+    border-bottom: 0.75px solid var(--foreground);
+  }
+  .booktabs-bottom {
+    border-bottom: 1.5px solid var(--foreground);
+  }
+  .marginpar {
+    border-left: 1px solid var(--border);
+    padding-left: 1rem;
+    font-size: 0.92em;
+    color: var(--muted-foreground);
+  }
+}
+
+/* Auto-numbered section headings inside the main content column */
+main.tex-numbered {
+  counter-reset: tex-section;
+}
+main.tex-numbered h2 {
+  counter-increment: tex-section;
+  counter-reset: tex-subsection;
+}
+main.tex-numbered h2::before {
+  content: counter(tex-section) ".\00a0\00a0";
+}
+main.tex-numbered h3 {
+  counter-increment: tex-subsection;
+}
+main.tex-numbered h3::before {
+  content: counter(tex-section) "." counter(tex-subsection) "\00a0\00a0";
+}

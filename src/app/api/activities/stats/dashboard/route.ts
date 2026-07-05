@@ -1,0 +1,238 @@
+import { NextResponse, type NextRequest } from "next/server";
+import { and, asc, eq, gte } from "drizzle-orm";
+import { db } from "@/server/db";
+import { activities } from "@/server/db/schema";
+import type { UserPreferences } from "@/server/db/schema";
+import { requireSession } from "@/server/auth/session";
+import { calculateTrimp } from "@/server/services/training-load";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+// CTL uses a 42-day exponential decay; seed it with data from before the
+// requested window so the curve doesn't start at zero.
+const CTL_WARMUP_DAYS = 42;
+const RUN_TYPES = new Set(["Run", "TrailRun", "VirtualRun"]);
+
+interface ActivityRow {
+  id: number;
+  name: string;
+  activityType: string | null;
+  distance: number | null;
+  duration: number | null;
+  elevationGain: number | null;
+  avgHeartRate: number | null;
+  avgPace: number | null;
+  startDate: Date;
+}
+
+function isoDay(d: Date): string {
+  return d.toISOString().slice(0, 10);
+}
+
+function mondayOf(date: Date): string {
+  const d = new Date(date);
+  const day = d.getUTCDay();
+  d.setUTCDate(d.getUTCDate() + (day === 0 ? -6 : 1 - day));
+  return isoDay(d);
+}
+
+function round1(n: number): number {
+  return Math.round(n * 10) / 10;
+}
+
+function periodSummary(rows: ActivityRow[]) {
+  let distance = 0;
+  let duration = 0;
+  let elevation = 0;
+  let hrSum = 0;
+  let hrCount = 0;
+  let runPaceWeighted = 0;
+  let runDistance = 0;
+  for (const a of rows) {
+    distance += (a.distance ?? 0) / 1000;
+    duration += (a.duration ?? 0) / 3600;
+    elevation += a.elevationGain ?? 0;
+    if (a.avgHeartRate) {
+      hrSum += a.avgHeartRate;
+      hrCount += 1;
+    }
+    if (RUN_TYPES.has(a.activityType ?? "") && a.avgPace && a.distance) {
+      runPaceWeighted += a.avgPace * (a.distance / 1000);
+      runDistance += a.distance / 1000;
+    }
+  }
+  return {
+    count: rows.length,
+    distance_km: round1(distance),
+    duration_hours: round1(duration),
+    elevation_m: Math.round(elevation),
+    avg_heart_rate: hrCount > 0 ? Math.round(hrSum / hrCount) : null,
+    avg_run_pace: runDistance > 0 ? Math.round(runPaceWeighted / runDistance) : null,
+  };
+}
+
+function zoneDistribution(rows: ActivityRow[], prefs: UserPreferences | null) {
+  const zones = prefs?.hr_zones;
+  if (!zones) return [];
+  const entries = Object.entries(zones).sort(([, a], [, b]) => a.min - b.min);
+  const hours = new Map<string, number>(entries.map(([key]) => [key, 0]));
+  for (const a of rows) {
+    if (!a.avgHeartRate || !a.duration) continue;
+    // Classify the whole activity by its average HR: coarse, but honest about
+    // what the data supports (we don't have full HR streams for every activity).
+    let matched: string | null = null;
+    for (const [key, range] of entries) {
+      if (a.avgHeartRate <= range.max) {
+        matched = key;
+        break;
+      }
+    }
+    if (!matched) matched = entries[entries.length - 1][0];
+    hours.set(matched, (hours.get(matched) ?? 0) + a.duration / 3600);
+  }
+  return entries.map(([key, range]) => ({
+    zone: key,
+    name: range.name ?? key,
+    min: range.min,
+    max: range.max,
+    hours: round1(hours.get(key) ?? 0),
+  }));
+}
+
+export async function GET(req: NextRequest) {
+  const session = await requireSession(req);
+  if ("response" in session) return session.response;
+
+  const daysParam = parseInt(req.nextUrl.searchParams.get("days") ?? "90", 10) || 90;
+  const days = Math.max(7, Math.min(730, daysParam));
+
+  const now = new Date();
+  const periodStart = new Date(now.getTime() - days * DAY_MS);
+  const prevStart = new Date(now.getTime() - 2 * days * DAY_MS);
+  const fetchStart = new Date(prevStart.getTime() - CTL_WARMUP_DAYS * DAY_MS);
+
+  const rows: ActivityRow[] = await db
+    .select({
+      id: activities.id,
+      name: activities.name,
+      activityType: activities.activityType,
+      distance: activities.distance,
+      duration: activities.duration,
+      elevationGain: activities.elevationGain,
+      avgHeartRate: activities.avgHeartRate,
+      avgPace: activities.avgPace,
+      startDate: activities.startDate,
+    })
+    .from(activities)
+    .where(and(eq(activities.userId, session.user.id), gte(activities.startDate, fetchStart)))
+    .orderBy(asc(activities.startDate));
+
+  const prefs = (session.user.preferences ?? null) as UserPreferences | null;
+  const maxHr = prefs?.max_hr ?? null;
+  const restingHr = prefs?.resting_hr ?? null;
+
+  const inPeriod = rows.filter((a) => a.startDate >= periodStart);
+  const inPrevPeriod = rows.filter((a) => a.startDate >= prevStart && a.startDate < periodStart);
+
+  // --- Daily TRIMP + Banister fitness/fatigue/form ---------------------------
+  const trimpByDay = new Map<string, number>();
+  for (const a of rows) {
+    const t = calculateTrimp(a.duration, a.avgHeartRate, restingHr, maxHr);
+    if (t <= 0) continue;
+    const day = isoDay(a.startDate);
+    trimpByDay.set(day, (trimpByDay.get(day) ?? 0) + t);
+  }
+
+  const load: {
+    date: string;
+    trimp: number;
+    ctl: number;
+    atl: number;
+    tsb: number;
+  }[] = [];
+  let ctl = 0;
+  let atl = 0;
+  const ctlDecay = Math.exp(-1 / 42);
+  const atlDecay = Math.exp(-1 / 7);
+  for (let t = fetchStart.getTime(); t <= now.getTime(); t += DAY_MS) {
+    const day = isoDay(new Date(t));
+    const trimp = trimpByDay.get(day) ?? 0;
+    const tsb = ctl - atl; // form: yesterday's fitness minus fatigue
+    ctl = ctl * ctlDecay + trimp * (1 - ctlDecay);
+    atl = atl * atlDecay + trimp * (1 - atlDecay);
+    if (t >= periodStart.getTime()) {
+      load.push({
+        date: day,
+        trimp: round1(trimp),
+        ctl: round1(ctl),
+        atl: round1(atl),
+        tsb: round1(tsb),
+      });
+    }
+  }
+
+  // --- Pace trend (runs in period) -------------------------------------------
+  const paceTrend = inPeriod
+    .filter((a) => RUN_TYPES.has(a.activityType ?? "") && a.avgPace && a.distance && a.distance >= 1000)
+    .map((a) => ({
+      date: isoDay(a.startDate),
+      pace: Math.round(a.avgPace!),
+      distance_km: round1(a.distance! / 1000),
+      avg_hr: a.avgHeartRate ? Math.round(a.avgHeartRate) : null,
+      name: a.name,
+    }));
+
+  // --- Records over the whole fetched range (period-only for biggest week) ---
+  const weeklyKm = new Map<string, number>();
+  for (const a of inPeriod) {
+    const wk = mondayOf(a.startDate);
+    weeklyKm.set(wk, (weeklyKm.get(wk) ?? 0) + (a.distance ?? 0) / 1000);
+  }
+  let biggestWeek: { week: string; distance_km: number } | null = null;
+  for (const [week, km] of weeklyKm) {
+    if (!biggestWeek || km > biggestWeek.distance_km) {
+      biggestWeek = { week, distance_km: round1(km) };
+    }
+  }
+
+  const pickBest = (
+    candidates: ActivityRow[],
+    better: (a: ActivityRow, b: ActivityRow) => boolean,
+  ): ActivityRow | null => candidates.reduce<ActivityRow | null>((best, a) => (!best || better(a, best) ? a : best), null);
+
+  const longest = pickBest(inPeriod, (a, b) => (a.distance ?? 0) > (b.distance ?? 0));
+  const mostClimb = pickBest(inPeriod, (a, b) => (a.elevationGain ?? 0) > (b.elevationGain ?? 0));
+  const fastestRun = pickBest(
+    inPeriod.filter((a) => RUN_TYPES.has(a.activityType ?? "") && a.avgPace && (a.distance ?? 0) >= 5000),
+    (a, b) => a.avgPace! < b.avgPace!,
+  );
+
+  const toRecord = (a: ActivityRow | null) =>
+    a
+      ? {
+          id: a.id,
+          name: a.name,
+          date: isoDay(a.startDate),
+          distance_km: a.distance != null ? round1(a.distance / 1000) : null,
+          elevation_m: a.elevationGain != null ? Math.round(a.elevationGain) : null,
+          pace: a.avgPace != null ? Math.round(a.avgPace) : null,
+        }
+      : null;
+
+  return NextResponse.json({
+    days,
+    summary: periodSummary(inPeriod),
+    previous: periodSummary(inPrevPeriod),
+    load,
+    zone_distribution: zoneDistribution(inPeriod, prefs),
+    pace_trend: paceTrend,
+    records: {
+      longest: toRecord(longest),
+      most_elevation: toRecord(mostClimb),
+      fastest_run_5k_plus: toRecord(fastestRun),
+      biggest_week: biggestWeek,
+    },
+  });
+}
