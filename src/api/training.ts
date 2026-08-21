@@ -153,4 +153,20 @@ export const trainingApi = {
     apiClient.get(`/training/sessions/${sessionId}/export/garmin`, {
       responseType: 'blob',
     }),
+
+  exportIcs: (start?: string, end?: string) =>
+    apiClient.get('/training/export/ics', {
+      responseType: 'blob',
+      params: { ...(start ? { start } : {}), ...(end ? { end } : {}) },
+    }),
+
+  importIcs: (file: File) => {
+    const formData = new FormData()
+    formData.append('file', file)
+    return apiClient.post<{ imported: number; duplicates: number; skipped: string[] }>(
+      '/training/import/ics',
+      formData,
+      { headers: { 'Content-Type': 'multipart/form-data' } },
+    )
+  },
 }

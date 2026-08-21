@@ -6,6 +6,8 @@ import {
   Calendar,
   Zap,
   Trophy,
+  MessageCircle,
+  Users,
   Settings,
   FileText,
   LogOut,
@@ -19,6 +21,8 @@ const navItems = [
   { href: '/training', icon: Calendar, label: 'Training' },
   { href: '/activities', icon: Zap, label: 'Activities' },
   { href: '/competitions', icon: Trophy, label: 'Competitions' },
+  { href: '/coach', icon: MessageCircle, label: 'Coach' },
+  { href: '/club', icon: Users, label: 'Club' },
   { href: '/settings', icon: Settings, label: 'Settings' },
   { href: '/changelog', icon: FileText, label: 'Changelog' },
 ]

@@ -19,6 +19,8 @@ const UpdateBody = z.object({
   status: SessionStatus.optional(),
   notes: z.string().nullable().optional(),
   rpe_actual: z.number().int().min(1).max(10).nullable().optional(),
+  // Club overlay: ± days this session may shift to align with teammates.
+  flex_days: z.number().int().min(0).max(3).optional(),
 });
 
 async function loadSession(id: number, userId: number) {
@@ -51,6 +53,7 @@ export async function PUT(
   if (data.status !== undefined) update.status = data.status;
   if (data.notes !== undefined) update.notes = data.notes;
   if (data.rpe_actual !== undefined) update.rpeActual = data.rpe_actual;
+  if (data.flex_days !== undefined) update.flexDays = data.flex_days;
 
   const [updated] = await db
     .update(trainingSessions)

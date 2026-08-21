@@ -2,6 +2,14 @@
 
 Auto-generated from git history.
 
+## 2026-08-21
+
+- Add club overlay, coach, ICS import/export; harden Render deploy config (PhilHuhn)
+
+## 2026-07-05
+
+- Remove all project source files, migrations, configuration, and client code (PhilHuhn)
+
 ## 2026-07-04
 
 - Remove all project source files, migrations, configuration, and client code (PhilHuhn)

@@ -37,6 +37,7 @@ export const sessionSourceEnum = pgEnum("session_source", [
   "app_recommendation",
   "uploaded_plan",
   "manual",
+  "ics_import",
 ]);
 
 export const sessionStatusEnum = pgEnum("session_status", [
@@ -45,6 +46,12 @@ export const sessionStatusEnum = pgEnum("session_status", [
   "skipped",
   "modified",
 ]);
+
+export const clubPlanTierEnum = pgEnum("club_plan_tier", ["free", "paid"]);
+
+export const clubRoleEnum = pgEnum("club_role", ["coach", "athlete", "captain"]);
+
+export const clubVisibilityEnum = pgEnum("club_visibility", ["typ_only", "full"]);
 
 // =====================================================================
 // Default user preferences (matches FastAPI seed)
@@ -90,6 +97,15 @@ export type UserPreferences = {
   [key: string]: unknown;
 };
 
+// Club CI theme. Color values must pass the server-side sanitizer
+// (hex only) before being injected as CSS variables.
+export type ClubTheme = {
+  primary?: string;
+  accent?: string;
+  background?: string;
+  logoUrl?: string;
+};
+
 // =====================================================================
 // Tables
 // =====================================================================
@@ -108,6 +124,11 @@ export const users = pgTable(
     stravaTokenExpiresAt: timestamp("strava_token_expires_at"),
 
     profileSummary: text("profile_summary"),
+
+    // Coaching persona (user-authored, rarely changes) and the athlete profile
+    // "living document" (maintained by the chat coach via tool call).
+    coachInstructions: text("coach_instructions"),
+    athleteProfile: text("athlete_profile"),
 
     preferences: jsonb("preferences").$type<UserPreferences>().notNull().default(DEFAULT_USER_PREFERENCES),
 
@@ -244,6 +265,10 @@ export const trainingSessions = pgTable(
     notes: varchar("notes", { length: 2000 }),
     rpeActual: integer("rpe_actual"),
 
+    // Club overlay: how many days (±) this session may shift to align with
+    // teammates. 0 = pinned to sessionDate.
+    flexDays: integer("flex_days").notNull().default(0),
+
     createdAt: timestamp("created_at").notNull().defaultNow(),
     updatedAt: timestamp("updated_at").notNull().defaultNow(),
   },
@@ -290,6 +315,70 @@ export const zoneHistory = pgTable(
   }),
 );
 
+export const clubs = pgTable(
+  "clubs",
+  {
+    id: serial("id").primaryKey(),
+    name: varchar("name", { length: 255 }).notNull(),
+    slug: varchar("slug", { length: 100 }).notNull(),
+
+    themeJson: jsonb("theme_json").$type<ClubTheme>(),
+    planTier: clubPlanTierEnum("plan_tier").notNull().default("free"),
+
+    // External donation link (Ko-fi/Stripe/PayPal) — no payment code in-app.
+    donationUrl: varchar("donation_url", { length: 500 }),
+
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (t) => ({
+    slugIdx: uniqueIndex("clubs_slug_key").on(t.slug),
+  }),
+);
+
+export const clubMemberships = pgTable(
+  "club_memberships",
+  {
+    id: serial("id").primaryKey(),
+    clubId: integer("club_id")
+      .notNull()
+      .references(() => clubs.id, { onDelete: "cascade" }),
+    userId: integer("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+
+    role: clubRoleEnum("role").notNull().default("athlete"),
+    // typ_only: teammates see availability + session type only (no paces/targets).
+    visibility: clubVisibilityEnum("visibility").notNull().default("typ_only"),
+
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => ({
+    clubUserIdx: uniqueIndex("club_memberships_club_user_key").on(t.clubId, t.userId),
+    userIdIdx: index("club_memberships_user_id_idx").on(t.userId),
+  }),
+);
+
+export const sponsors = pgTable(
+  "sponsors",
+  {
+    id: serial("id").primaryKey(),
+    clubId: integer("club_id")
+      .notNull()
+      .references(() => clubs.id, { onDelete: "cascade" }),
+
+    name: varchar("name", { length: 255 }).notNull(),
+    logoUrl: varchar("logo_url", { length: 500 }),
+    url: varchar("url", { length: 500 }),
+    discountCode: varchar("discount_code", { length: 100 }),
+
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => ({
+    clubIdIdx: index("sponsors_club_id_idx").on(t.clubId),
+  }),
+);
+
 // =====================================================================
 // Relations
 // =====================================================================
@@ -300,6 +389,21 @@ export const usersRelations = relations(users, ({ many }) => ({
   trainingSessions: many(trainingSessions),
   uploadedPlans: many(uploadedPlans),
   zoneHistory: many(zoneHistory),
+  clubMemberships: many(clubMemberships),
+}));
+
+export const clubsRelations = relations(clubs, ({ many }) => ({
+  memberships: many(clubMemberships),
+  sponsors: many(sponsors),
+}));
+
+export const clubMembershipsRelations = relations(clubMemberships, ({ one }) => ({
+  club: one(clubs, { fields: [clubMemberships.clubId], references: [clubs.id] }),
+  user: one(users, { fields: [clubMemberships.userId], references: [users.id] }),
+}));
+
+export const sponsorsRelations = relations(sponsors, ({ one }) => ({
+  club: one(clubs, { fields: [sponsors.clubId], references: [clubs.id] }),
 }));
 
 export const activitiesRelations = relations(activities, ({ one }) => ({
@@ -347,3 +451,11 @@ export type UploadedPlan = typeof uploadedPlans.$inferSelect;
 export type NewUploadedPlan = typeof uploadedPlans.$inferInsert;
 export type ZoneHistory = typeof zoneHistory.$inferSelect;
 export type NewZoneHistory = typeof zoneHistory.$inferInsert;
+export type Club = typeof clubs.$inferSelect;
+export type NewClub = typeof clubs.$inferInsert;
+export type ClubMembership = typeof clubMemberships.$inferSelect;
+export type NewClubMembership = typeof clubMemberships.$inferInsert;
+export type Sponsor = typeof sponsors.$inferSelect;
+export type NewSponsor = typeof sponsors.$inferInsert;
+export type ClubRole = ClubMembership["role"];
+export type ClubVisibility = ClubMembership["visibility"];

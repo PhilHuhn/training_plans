@@ -2,16 +2,23 @@ databases:
   - name: turbine-turmweg-db
     databaseName: turbine_turmweg
     user: turbine
-    plan: free
+    plan: basic-256mb
 
 services:
   - type: web
     name: turbine-turmweg
     runtime: node
-    plan: free
-    buildCommand: npm ci && npm run db:push && npm run build
+    plan: starter
+    # Build stays pure: install + compile. No schema changes here.
+    buildCommand: npm ci && npm run build
+    # Runs after a successful build, before traffic is switched over.
+    # This is the correct lifecycle phase for schema pushes — a failed
+    # push aborts the deploy instead of leaving a half-migrated DB live.
+    preDeployCommand: npm run db:push
     startCommand: npm start
     envVars:
+      - key: NODE_VERSION
+        value: "22"
       - key: DATABASE_URL
         fromDatabase:
           name: turbine-turmweg-db

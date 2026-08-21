@@ -11,7 +11,7 @@ A private training plan management app for runners (5K to ultramarathons) with S
 - **UI primitives**: Radix UI + shadcn-style wrappers under `src/components/ui/`
 - **DB**: PostgreSQL via Drizzle ORM (`drizzle-orm` + `drizzle-kit`); driver is `postgres`
 - **Auth**: bare `jsonwebtoken` (HS256, 7-day expiry) + `bcryptjs`. Bearer header **and** `access_token` HttpOnly cookie are both supported.
-- **AI**: official `@anthropic-ai/sdk` — model `claude-sonnet-4-20250514`. Tool-use loop for the chat coach; structured JSON output (with short-key compression) for recommendations and document parsing.
+- **AI**: official `@anthropic-ai/sdk` — model `claude-sonnet-5`. Tool-use loop for the chat coach; structured JSON output (with short-key compression) for recommendations and document parsing.
 - **Document parsing**: `pdf-parse` + `mammoth`
 - **FIT export**: `@garmin/fitsdk` (low-level Encoder)
 
@@ -89,18 +89,37 @@ turbine-turmweg/
 └── .env                                       # Local-only secrets (gitignored)
 ```
 
+## Club overlay feature
+
+A club "overlay" layer sits on top of individual plans and finds shared/parallel
+sessions between club members without compromising anyone's training stimulus.
+It is **optional and additive** — solo users are unaffected. Three feature docs:
+
+- **`src/server/engine/CLAUDE.md`** — the matching engine (taxonomy → compat
+  classes, merge matrix, the guardrail invariant, pace-band math, purity rules).
+  Pure TS, TDD, no DB/SDK imports.
+- **`src/app/(app)/club/CLAUDE.md`** — routes, RBAC, the single visibility
+  serializer choke point, theme + `plan_tier` gate, solo-user contract.
+- **`scripts/CLAUDE.md`** — the `sub-77` seed (`npm run db:seed:club`) and its
+  shared fixture with the engine tests.
+
+Tests run with **Vitest**: `npm run test` (engine guardrails, serializers, ics).
+
 ## Database Schema (Drizzle)
 
-Single canonical source: `src/server/db/schema.ts`. Six tables, all keyed by `serial id`:
+Single canonical source: `src/server/db/schema.ts`. Nine tables, all keyed by `serial id`:
 
 - **users** — email (unique), passwordHash, name, Strava tokens + athleteId (unique), profileSummary (text, AI-generated post-sync), preferences (jsonb with default seed for HR/pace zones, max_hr, resting_hr)
 - **activities** — userId FK, stravaId (unique), name, activityType, distance, duration, elevationGain, calories, avgHeartRate, maxHeartRate, avgPace (sec/km), startDate (indexed), rawData + lapsData (jsonb)
 - **competitions** — userId FK, name, raceType (pgEnum 5K/10K/HM/M/50K/100K/50M/100M/OTHER), raceDate (indexed), distance, location, goalTime, goalPace, priority (pgEnum A/B/C, default B), notes
-- **trainingSessions** — userId FK, sessionDate (indexed), source (pgEnum app_recommendation/uploaded_plan/manual), status (pgEnum planned/completed/skipped/modified), plannedWorkout + recommendationWorkout + finalWorkout (jsonb), acceptedSource (varchar), completedActivityId FK, uploadedPlanId FK, rpeActual
+- **trainingSessions** — userId FK, sessionDate (indexed), source (pgEnum app_recommendation/uploaded_plan/manual/ics_import), status (pgEnum planned/completed/skipped/modified), plannedWorkout + recommendationWorkout + finalWorkout (jsonb), acceptedSource (varchar), completedActivityId FK, uploadedPlanId FK, rpeActual, **flexDays** (int, ± days a session may shift for club matching; default 0)
 - **uploadedPlans** — userId FK, filename, contentType, contentText (text), parsedSessions (jsonb), isActive (integer 1/0)
 - **zoneHistory** — userId FK, calculatedAt, source ("manual" | "strava_estimate" | "reverted"), maxHr, restingHr, hrZones (jsonb), thresholdPace, paceZones (jsonb), ftp, cyclingPowerZones (jsonb), plus avg HR/pace metrics
+- **clubs** — name, slug (unique), themeJson (jsonb CI: primary/accent/background/logoUrl hex), planTier (pgEnum free/paid, default free), donationUrl (varchar)
+- **clubMemberships** — clubId FK, userId FK, role (pgEnum coach/athlete/captain, default athlete), visibility (pgEnum typ_only/full, default typ_only); unique (clubId, userId)
+- **sponsors** — clubId FK, name, logoUrl, url, discountCode
 
-Migrations live in `drizzle/`. JSON column shape changes do **not** need a new migration — only top-level columns do.
+Migrations live in `drizzle/`. JSON column shape changes do **not** need a new migration — only top-level columns do. **Migration policy:** the local DB is managed with `npm run db:push` (drizzle-kit push), not the journal-based `generate`+`migrate` flow — `0001_wandering_pixie.sql` was generated for review but the DB is push-managed. Stay on `db:push`; don't mix the two (it causes drift).
 
 ## Claude integration patterns
 
@@ -120,7 +139,8 @@ Same surface as the original FastAPI backend (37 endpoints) — see `src/app/api
 
 - `POST /auth/{register,login,me,refresh,logout}` — `me` uses Bearer or cookie
 - `GET /strava/auth-url`, `GET /strava/callback`, `POST /strava/{disconnect,sync}` — sync runs token refresh, paginates activities, fetches lap data, regenerates the Claude profile summary
-- Activities + competitions + training sessions: standard CRUD plus `accept`, `week` (with TRIMP enrichment), `generate-recommendations`, `convert-session`, `upload-plan`, `uploaded-plans`, `sessions/[id]/export/garmin`
+- Activities + competitions + training sessions: standard CRUD plus `accept`, `week` (with TRIMP enrichment), `generate-recommendations`, `convert-session`, `upload-plan`, `uploaded-plans`, `sessions/[id]/export/garmin`, `export/ics`, `import/ics`
+- `GET /club`, `GET /club/[slug]`, `GET /club/[slug]/overlay?week=`, `PATCH /club/[slug]/membership` — club overlay (see `src/app/(app)/club/CLAUDE.md`)
 - `POST /chat/message` — streaming SSE by default; pass `{stream: false}` for JSON
 - Settings: `account`, `password`, zones (`PUT`, `history`, `revert/[historyId]`, `estimate*`)
 
@@ -139,8 +159,10 @@ Defined and validated in `src/server/env.ts` (zod). The loader falls back to `.e
 ## Development workflow
 
 - `docker compose up -d db` to boot Postgres
-- `npm run db:push` after editing `schema.ts` (or `npm run db:generate` to author a migration first, then push)
+- `npm run db:push` after editing `schema.ts` (push-managed — see migration policy above)
+- `npm run db:seed:club` to seed the sub-77 demo tenant
 - `npm run dev` for HMR
+- `npm run test` for the Vitest suites (engine guardrails, serializers, ics)
 - `npm run build` to verify production build (also runs `tsc -b`)
 
 ## Conventions

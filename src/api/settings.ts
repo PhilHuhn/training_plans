@@ -68,6 +68,9 @@ export const settingsApi = {
   updateAccount: (data: { name?: string; email?: string }) =>
     apiClient.put('/settings/account', data),
 
+  updateCoach: (data: { coach_instructions?: string | null; athlete_profile?: string | null }) =>
+    apiClient.put('/settings/coach', data),
+
   changePassword: (data: {
     current_password: string
     new_password: string

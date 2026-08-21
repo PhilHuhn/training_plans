@@ -19,7 +19,7 @@ export function useChat() {
 
       addMessage(data.message)
 
-      // Check if AI used tools that modified training data
+      // Check if AI used tools that modified data
       if (data.tool_results?.length) {
         const modifyingTools = ['update_session_workout', 'create_session']
         const hadModification = data.tool_results.some((tr) =>
@@ -27,6 +27,11 @@ export function useChat() {
         )
         if (hadModification) {
           queryClient.invalidateQueries({ queryKey: ['trainingWeek'] })
+          queryClient.invalidateQueries({ queryKey: ['trainingRange'] })
+        }
+        // Coach updated the athlete profile → refresh user so Settings shows it
+        if (data.tool_results.some((tr) => tr.tool === 'update_athlete_profile')) {
+          queryClient.invalidateQueries({ queryKey: ['currentUser'] })
         }
       }
     } catch {

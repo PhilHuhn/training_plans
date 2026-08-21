@@ -15,6 +15,9 @@ export async function GET(req: NextRequest) {
     name: u.name,
     preferences: u.preferences ?? {},
     strava_connected: u.stravaAccessToken != null,
+    profile_summary: u.profileSummary,
+    coach_instructions: u.coachInstructions,
+    athlete_profile: u.athleteProfile,
     created_at: u.createdAt.toISOString(),
   });
 }

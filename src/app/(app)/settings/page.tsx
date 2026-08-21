@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label'
 import { Separator } from '@/components/ui/separator'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
+import ClubSettingsCard from '@/components/club/club-settings-card'
 import { useCurrentUser, useLogout } from '@/hooks/use-auth'
 import { useZoneHistory, useRevertZones } from '@/hooks/use-settings'
 import { stravaApi } from '@/api/strava'
@@ -387,12 +388,35 @@ export default function SettingsPage() {
   const [name, setName] = useState(user?.name || '')
   const [email, setEmail] = useState(user?.email || '')
 
+  // Coach
+  const [coachInstructions, setCoachInstructions] = useState(user?.coach_instructions || '')
+  const [athleteProfile, setAthleteProfile] = useState(user?.athlete_profile || '')
+  const [coachSaving, setCoachSaving] = useState(false)
+
   useEffect(() => {
     if (user) {
       setName(user.name)
       setEmail(user.email)
+      setCoachInstructions(user.coach_instructions || '')
+      setAthleteProfile(user.athlete_profile || '')
     }
   }, [user])
+
+  const saveCoach = async () => {
+    setCoachSaving(true)
+    try {
+      await settingsApi.updateCoach({
+        coach_instructions: coachInstructions || null,
+        athlete_profile: athleteProfile || null,
+      })
+      queryClient.invalidateQueries({ queryKey: ['currentUser'] })
+      toast.success('Coach settings saved')
+    } catch {
+      toast.error('Failed to save coach settings')
+    } finally {
+      setCoachSaving(false)
+    }
+  }
 
   const saveAccount = async () => {
     try {
@@ -499,6 +523,53 @@ export default function SettingsPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Coach configuration */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Coach</CardTitle>
+          <CardDescription>
+            Persona and athlete profile for the AI coach (chat panel and Coach page)
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-1.5">
+            <Label>Coach Instructions</Label>
+            <p className="text-xs text-muted-foreground">
+              Defines how your coach communicates and trains you (methodology, tone, what to
+              push back on).
+            </p>
+            <textarea
+              className="w-full border border-foreground/20 bg-transparent p-2 font-mono text-xs leading-relaxed outline-none focus:border-foreground/50"
+              rows={10}
+              value={coachInstructions}
+              onChange={(e) => setCoachInstructions(e.target.value)}
+              placeholder="Paste your coaching persona / project instructions here…"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Athlete Profile</Label>
+            <p className="text-xs text-muted-foreground">
+              Living document — your coach updates this from chat when new facts emerge
+              (injuries, PRs, learnings). Review and edit here.
+            </p>
+            <textarea
+              className="w-full border border-foreground/20 bg-transparent p-2 font-mono text-xs leading-relaxed outline-none focus:border-foreground/50"
+              rows={14}
+              value={athleteProfile}
+              onChange={(e) => setAthleteProfile(e.target.value)}
+              placeholder="Paste your athlete profile here…"
+            />
+          </div>
+          <Button size="sm" onClick={saveCoach} disabled={coachSaving}>
+            <Save className="mr-1.5 h-3.5 w-3.5" />
+            {coachSaving ? 'Saving…' : 'Save Coach Settings'}
+          </Button>
+        </CardContent>
+      </Card>
+
+      {/* Club membership (renders nothing for solo users) */}
+      <ClubSettingsCard />
 
       {/* Runner Profile */}
       {user?.profile_summary && (

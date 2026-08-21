@@ -5,7 +5,9 @@ export interface User {
   name: string
   preferences: UserPreferences
   strava_connected: boolean
-  profile_summary?: string
+  profile_summary?: string | null
+  coach_instructions?: string | null
+  athlete_profile?: string | null
   created_at: string
 }
 
@@ -251,6 +253,7 @@ export interface TrainingSession {
   accepted_source?: string
   completed_activity_id?: number
   rpe_actual?: number // 1-10 post-workout RPE
+  flex_days?: number // ± days this session may shift for club overlay matching
   actual_load?: number // Calculated TRIMP
   completed_activity_summary?: {
     distance_km: number
@@ -334,4 +337,106 @@ export interface ZoneEstimate {
   hr_zones?: Record<string, ZoneRange>
   pace_zones?: Record<string, ZoneRange>
   activities_analyzed?: number
+}
+
+// Club overlay types
+export type ClubRole = 'coach' | 'athlete' | 'captain'
+export type ClubVisibility = 'typ_only' | 'full'
+export type ClubPlanTier = 'free' | 'paid'
+export type CompromiseMode =
+  | 'SHARED_PACE'
+  | 'SHARED_EASY_SEGMENT'
+  | 'SHARED'
+  | 'PARALLEL_TIME_BASED'
+  | 'PARALLEL_SAME_STRUCTURE'
+  | 'COLOCATED_OPTIONAL'
+
+export interface ClubThemeWire {
+  primary?: string
+  accent?: string
+  background?: string
+  logo_url?: string
+}
+
+export interface SponsorWire {
+  name: string
+  logo_url?: string | null
+  url?: string | null
+  discount_code?: string | null
+}
+
+export interface ClubSummary {
+  id: number
+  name: string
+  slug: string
+  plan_tier: ClubPlanTier
+  role: ClubRole
+  visibility: ClubVisibility
+}
+
+export interface ClubMemberWire {
+  user_id: number
+  name: string
+  role: ClubRole
+  visibility: ClubVisibility
+}
+
+export interface ClubDetailResponse {
+  id: number
+  name: string
+  slug: string
+  plan_tier: ClubPlanTier
+  donation_url?: string | null
+  members: ClubMemberWire[]
+  // Paid features — null on the free tier (server-enforced gate).
+  theme: ClubThemeWire | null
+  sponsor: SponsorWire | null
+  powered_by: boolean
+}
+
+// One member session as seen by the viewer. When `redacted` is true, only
+// availability + session type + duration survive (visibility=typ_only).
+export interface ClubMemberSessionWire {
+  session_id: number
+  user_id: number
+  session_date: string
+  status: SessionStatus
+  session_type: string | null
+  duration_min?: number | null
+  redacted: boolean
+  distance_km?: number | null
+  pace_range?: string | null
+  hr_zone?: string | null
+  intensity?: string | null
+  description?: string | null
+  intervals?: IntervalSet[] | null
+}
+
+export interface CompromiseWire {
+  date: string
+  weekday: number
+  mode: CompromiseMode
+  compat_class: string
+  member_ids: number[]
+  member_session_ids: number[]
+  note: string
+  shared_pace_sec?: number | null
+  skeleton?: string | null
+  shifted?: { session_id: number; from: string; to: string }[]
+}
+
+export interface ClubOverlayRow {
+  user_id: number
+  name: string
+  role: ClubRole
+  visibility: ClubVisibility
+  sessions: ClubMemberSessionWire[]
+}
+
+export interface ClubOverlayResponse {
+  club: ClubSummary
+  week_start: string
+  week_end: string
+  rows: ClubOverlayRow[]
+  shared: CompromiseWire[]
 }

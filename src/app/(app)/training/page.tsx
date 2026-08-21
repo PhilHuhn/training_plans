@@ -9,6 +9,7 @@ import TrainingGrid from '@/components/training/training-grid'
 import TrainingList from '@/components/training/training-list'
 import SessionModal from '@/components/training/session-modal'
 import GenerateModal from '@/components/training/generate-modal'
+import IcsToolbar from '@/components/training/ics-toolbar'
 import { useTrainingRange } from '@/hooks/use-training'
 import { getWeekStart, addDays, formatDateShort } from '@/lib/utils'
 import type { TrainingSession } from '@/lib/types'
@@ -159,6 +160,8 @@ export default function TrainingPage() {
               </button>
             ))}
           </div>
+
+          <IcsToolbar start={rangeStart} end={rangeEnd} />
 
           <Button variant="outline" size="sm" onClick={() => setGenerateOpen(true)}>
             <Sparkles className="mr-1.5 h-3.5 w-3.5 text-violet-500" />

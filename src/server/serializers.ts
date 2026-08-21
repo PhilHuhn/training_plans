@@ -75,6 +75,7 @@ export function trainingSessionResponse(s: TrainingSession) {
     accepted_source: s.acceptedSource ?? undefined,
     completed_activity_id: s.completedActivityId ?? undefined,
     rpe_actual: s.rpeActual ?? undefined,
+    flex_days: s.flexDays ?? 0,
     notes: s.notes ?? undefined,
     created_at: isoStrict(s.createdAt),
     updated_at: isoStrict(s.updatedAt),

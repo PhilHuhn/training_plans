@@ -20,7 +20,7 @@ AI-powered training plan management for runners — from 5K to ultramarathons.
 - **Framework**: Next.js 15 (App Router) + TypeScript 5.7 + React 19
 - **Database**: PostgreSQL via [Drizzle ORM](https://orm.drizzle.team/) (with `drizzle-kit` migrations)
 - **Auth**: bare `jsonwebtoken` (HS256, 7-day) + `bcryptjs`. Bearer header *and* `access_token` cookie supported.
-- **AI**: [`@anthropic-ai/sdk`](https://github.com/anthropics/anthropic-sdk-typescript) — `claude-sonnet-4-20250514`
+- **AI**: [`@anthropic-ai/sdk`](https://github.com/anthropics/anthropic-sdk-typescript) — `claude-sonnet-5`
 - **Document parsing**: `pdf-parse` (PDF) + `mammoth` (DOCX)
 - **FIT export**: `@garmin/fitsdk` (official Garmin JS SDK)
 - **State**: `@tanstack/react-query` + `zustand`

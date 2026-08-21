@@ -28,3 +28,9 @@ npm-debug.log*
 *.bak
 .cache/
 nul
+
+# Local-only coach documents (imported into the DB via Settings, never committed)
+TEMP_agent_docs/
+
+# Claude Code internal worktrees
+.claude/worktrees/
