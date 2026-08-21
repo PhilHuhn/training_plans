@@ -4,6 +4,7 @@ Auto-generated from git history.
 
 ## 2026-08-21
 
+- Regenerate package-lock.json so npm ci can install (PhilHuhn)
 - Add club overlay, coach, ICS import/export; harden Render deploy config (PhilHuhn)
 
 ## 2026-07-05
