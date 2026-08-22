@@ -56,7 +56,7 @@ export const SUB77_ATHLETES: Sub77Athlete[] = [
     email: "hanna@sub77.example",
     thresholdPaceSec: 305,
     goalRaceType: "HM",
-    goalRaceName: "Halbmarathon Lübeck",
+    goalRaceName: "Lübeck Half Marathon",
   },
 ];
 
@@ -96,7 +96,7 @@ export const SUB77_SESSIONS: Sub77PlannedSession[] = [
     workout: {
       type: "tempo",
       sport: "running",
-      description: "3×10 min Schwelle",
+      description: "3×10 min threshold",
       duration_min: 55,
       intensity: "high",
       hr_zone: "zone4",
@@ -109,7 +109,7 @@ export const SUB77_SESSIONS: Sub77PlannedSession[] = [
     workout: {
       type: "tempo",
       sport: "running",
-      description: "25 min Schwellendauerlauf",
+      description: "25 min threshold run",
       duration_min: 50,
       intensity: "high",
       hr_zone: "zone4",
@@ -122,7 +122,7 @@ export const SUB77_SESSIONS: Sub77PlannedSession[] = [
     workout: {
       type: "tempo",
       sport: "running",
-      description: "25 min Schwellendauerlauf",
+      description: "25 min threshold run",
       duration_min: 50,
       intensity: "high",
       hr_zone: "zone4",
@@ -137,7 +137,7 @@ export const SUB77_SESSIONS: Sub77PlannedSession[] = [
     workout: {
       type: "interval",
       sport: "running",
-      description: "6×1000 m, Trabpause",
+      description: "6×1000 m, jog recovery",
       duration_min: 55,
       intensity: "high",
       intervals: [{ reps: 6, distance_m: 1000, target_pace: "4:25", recovery: "90s Trab" }],
@@ -150,7 +150,7 @@ export const SUB77_SESSIONS: Sub77PlannedSession[] = [
     workout: {
       type: "interval",
       sport: "running",
-      description: "6×1000 m, Trabpause",
+      description: "6×1000 m, jog recovery",
       duration_min: 55,
       intensity: "high",
       intervals: [{ reps: 6, distance_m: 1000, target_pace: "4:35", recovery: "90s Trab" }],
@@ -213,7 +213,7 @@ export const SUB77_SESSIONS: Sub77PlannedSession[] = [
     workout: {
       type: "long_run",
       sport: "running",
-      description: "30 km, letzte 3×2 km im Marathon-Zieltempo",
+      description: "30 km, last 3×2 km at marathon goal pace",
       distance_km: 30,
       duration_min: 150,
       intensity: "moderate",

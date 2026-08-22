@@ -2,14 +2,14 @@
 import { cn } from '@/lib/utils'
 import type { CompromiseMode, CompromiseWire } from '@/lib/types'
 
-/** Short German mode labels for the smallcaps badge. */
+/** Short mode labels for the smallcaps badge. */
 const MODE_LABEL: Record<CompromiseMode, string> = {
-  SHARED_PACE: 'Gemeinsam',
-  SHARED_EASY_SEGMENT: 'Easy-Anteil',
-  SHARED: 'Schwelle zus.',
-  PARALLEL_TIME_BASED: 'Parallel (Zeit)',
-  PARALLEL_SAME_STRUCTURE: 'Parallel (Bahn)',
-  COLOCATED_OPTIONAL: 'Location',
+  SHARED_PACE: 'Together',
+  SHARED_EASY_SEGMENT: 'Easy portion',
+  SHARED: 'Threshold together',
+  PARALLEL_TIME_BASED: 'Parallel (time)',
+  PARALLEL_SAME_STRUCTURE: 'Parallel (track)',
+  COLOCATED_OPTIONAL: 'Same location',
 }
 
 const SHARED_MODES: ReadonlySet<string> = new Set([
@@ -62,7 +62,7 @@ export default function CompromiseCard({ compromise, memberNames }: CompromiseCa
       </div>
       {compromise.shifted?.map((s) => (
         <div key={s.session_id} className="text-[9px] italic text-accent">
-          verschoben: {s.from.slice(5)} → {s.to.slice(5)}
+          moved: {s.from.slice(5)} → {s.to.slice(5)}
         </div>
       ))}
     </div>

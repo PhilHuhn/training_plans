@@ -8,12 +8,12 @@ import type { ClubMemberSessionWire, ClubOverlayResponse } from '@/lib/types'
 // Same column skeleton as training-grid.tsx, with the week-label column
 // repurposed as the athlete column.
 const GRID_COLS = 'grid-cols-[110px_repeat(7,minmax(0,1fr))_56px]'
-const DAY_HEADERS = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So']
+const DAY_HEADERS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 
 const ROLE_LABEL: Record<string, string> = {
   coach: 'Coach',
   captain: 'Captain',
-  athlete: 'Athlet:in',
+  athlete: 'Athlete',
 }
 
 function MemberCell({ session }: { session: ClubMemberSessionWire | undefined }) {
@@ -65,7 +65,7 @@ function MemberCell({ session }: { session: ClubMemberSessionWire | undefined })
           </span>
         )}
         {session.redacted && (
-          <span className="truncate text-[9px] italic text-muted-foreground/60">nur Typ</span>
+          <span className="truncate text-[9px] italic text-muted-foreground/60">type only</span>
         )}
       </div>
     </div>
@@ -98,7 +98,7 @@ export default function ClubOverlayGrid({ data }: ClubOverlayGridProps) {
             GRID_COLS,
           )}
         >
-          <div className="px-1.5">Athlet:in</div>
+          <div className="px-1.5">Athlete</div>
           {DAY_HEADERS.map((d, i) => (
             <div
               key={d}
@@ -124,7 +124,7 @@ export default function ClubOverlayGrid({ data }: ClubOverlayGridProps) {
                 <div className="truncate text-xs font-serif">{row.name}</div>
                 <div className="text-[9px] italic smallcaps text-muted-foreground">
                   {ROLE_LABEL[row.role] ?? row.role}
-                  {row.visibility === 'typ_only' && ' · privat'}
+                  {row.visibility === 'typ_only' && ' · private'}
                 </div>
               </div>
               {Array.from({ length: 7 }).map((_, di) => {
@@ -142,13 +142,13 @@ export default function ClubOverlayGrid({ data }: ClubOverlayGridProps) {
           )
         })}
 
-        {/* "Gemeinsam" row — thicker top rule, booktabs-style. */}
+        {/* "Together" row — thicker top rule, booktabs-style. */}
         <div
           className={cn('grid border-b border-t-2 border-foreground/40', GRID_COLS)}
           style={{ minHeight: '76px' }}
         >
           <div className="flex flex-col justify-center border-r border-foreground/15 px-1.5 py-2">
-            <div className="text-xs font-serif italic">Gemeinsam</div>
+            <div className="text-xs font-serif italic">Together</div>
             <div className="text-[9px] italic smallcaps text-muted-foreground">Overlay</div>
           </div>
           {Array.from({ length: 7 }).map((_, di) => {
@@ -168,13 +168,13 @@ export default function ClubOverlayGrid({ data }: ClubOverlayGridProps) {
         <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-[10px] italic text-muted-foreground">
           <span className="inline-flex items-center gap-1">
             <span className="inline-block h-3 w-0.5 border-l-2 border-primary" aria-hidden />
-            gemeinsame Einheit
+            shared session
           </span>
           <span className="inline-flex items-center gap-1">
             <span className="inline-block h-3 w-0.5 border-l-2 border-foreground/30" aria-hidden />
-            parallel / gleiche Location
+            parallel / same location
           </span>
-          <span>„privat" — Athlet:in teilt nur Verfügbarkeit + Typ</span>
+          <span>“private” — athlete shares availability + type only</span>
         </div>
       </div>
     </div>

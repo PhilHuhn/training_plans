@@ -81,7 +81,7 @@ function descriptionFor(workout: WorkoutDetails | null): string | null {
   for (const set of workout.intervals ?? []) {
     const dist = set.distance_m ? `${set.distance_m}m` : set.duration_sec ? `${set.duration_sec}s` : "?";
     const pace = set.target_pace ? ` @ ${set.target_pace}` : "";
-    const rec = set.recovery ? `, Pause ${set.recovery}` : "";
+    const rec = set.recovery ? `, rest ${set.recovery}` : "";
     parts.push(`${set.reps ?? 1}×${dist}${pace}${rec}`);
   }
   if (workout.duration_min && workout.distance_km) parts.push(`${workout.duration_min} min`);
@@ -93,7 +93,7 @@ export function buildIcsForSessions(sessions: IcsSession[], calendarName = "Trai
   const lines: string[] = [
     "BEGIN:VCALENDAR",
     "VERSION:2.0",
-    "PRODID:-//Turbine Turmweg//Training Plan//DE",
+    "PRODID:-//Turbine Turmweg//Training Plan//EN",
     "CALSCALE:GREGORIAN",
     `X-WR-CALNAME:${escapeText(calendarName)}`,
   ];

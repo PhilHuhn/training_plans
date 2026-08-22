@@ -14,6 +14,20 @@ AI-powered training plan management for runners — from 5K to ultramarathons.
 - **AI coach chat** — streaming chat (`Turbi`) that can read and modify your plan via tool-use
 - **Zone estimation** — derive HR / pace / cycling power zones from your Strava history
 - **LaTeX-document UI** — Computer Modern serif on cream paper, hyperref blue links, booktabs tables
+- **Landing page** — public `/` page explaining what the app does; signed-in visitors are redirected to `/training`
+
+## Pricing
+
+Everything is **free to use** today — no paid tier, no usage limits.
+
+### TODO — monetization
+
+- [ ] Donations (one-off) — payment link + a supporter mention
+- [ ] Steady accounts — recurring supporter membership
+
+Until those land, the landing page (`src/app/page.tsx`) states plainly that the
+app is free. The `TODO(monetization)` comment at the top of that file marks the
+copy that has to change when pricing arrives.
 
 ## Tech Stack
 

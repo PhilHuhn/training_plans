@@ -1,4 +1,4 @@
-// German note templates per merge mode. `full` may contain concrete paces;
+// Note templates per merge mode. `full` may contain concrete paces;
 // `visibilitySafe` must not (used when any participant is typ_only — see
 // club-serializers.ts, the single visibility choke point).
 
@@ -15,33 +15,33 @@ export function buildNote(compromise: Compromise): CompromiseNote {
   switch (compromise.mode) {
     case "SHARED_PACE":
       return {
-        full: `Gemeinsamer lockerer Lauf${pace ? ` @ ${pace}` : ""} — Tempo des langsamsten Easy-Bereichs.`,
-        visibilitySafe: "Gemeinsamer lockerer Lauf im gemeinsamen Wohlfühltempo.",
+        full: `Shared easy run${pace ? ` @ ${pace}` : ""} — at the slowest easy range in the group.`,
+        visibilitySafe: "Shared easy run at a pace comfortable for everyone.",
       };
     case "SHARED_EASY_SEGMENT":
       return {
-        full: `Gemeinsame Easy-Kilometer${pace ? ` @ ${pace}` : ""}, Qualitätsabschnitte getrennt laufen.`,
-        visibilitySafe: "Gemeinsame Easy-Kilometer, Qualitätsabschnitte getrennt laufen.",
+        full: `Shared easy kilometers${pace ? ` @ ${pace}` : ""}, run the quality segments separately.`,
+        visibilitySafe: "Shared easy kilometers, run the quality segments separately.",
       };
     case "SHARED":
       return {
-        full: `Gemeinsamer Schwellenlauf${pace ? ` @ ${pace}` : ""} — Tempo-Spread liegt im Band.`,
-        visibilitySafe: "Gemeinsamer Schwellenlauf — Tempos liegen nah genug beieinander.",
+        full: `Shared threshold run${pace ? ` @ ${pace}` : ""} — the pace spread fits inside the band.`,
+        visibilitySafe: "Shared threshold run — paces are close enough together.",
       };
     case "PARALLEL_TIME_BASED":
       return {
-        full: "Gleiche Strecke, zeitbasiert — jede:r im eigenen Schwellentempo.",
-        visibilitySafe: "Gleiche Strecke, zeitbasiert — jede:r im eigenen Schwellentempo.",
+        full: "Same route, time-based — everyone at their own threshold pace.",
+        visibilitySafe: "Same route, time-based — everyone at their own threshold pace.",
       };
     case "PARALLEL_SAME_STRUCTURE":
       return {
-        full: `Gleiche Intervallstruktur${compromise.skeleton ? ` (${compromise.skeleton})` : ""}, eigenes Tempo — Treffpunkt Bahn.`,
-        visibilitySafe: `Gleiche Intervallstruktur${compromise.skeleton ? ` (${compromise.skeleton})` : ""}, eigenes Tempo — Treffpunkt Bahn.`,
+        full: `Same interval structure${compromise.skeleton ? ` (${compromise.skeleton})` : ""}, own pace — meet at the track.`,
+        visibilitySafe: `Same interval structure${compromise.skeleton ? ` (${compromise.skeleton})` : ""}, own pace — meet at the track.`,
       };
     case "COLOCATED_OPTIONAL":
       return {
-        full: "Gleiche Location möglich (Kraft/Cross) — kein gemeinsames Laufen nötig.",
-        visibilitySafe: "Gleiche Location möglich (Kraft/Cross) — kein gemeinsames Laufen nötig.",
+        full: "Same location possible (strength/cross) — no shared running required.",
+        visibilitySafe: "Same location possible (strength/cross) — no shared running required.",
       };
     default:
       return { full: "", visibilitySafe: "" };

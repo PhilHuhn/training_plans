@@ -11,7 +11,7 @@ const vevent = (fields: Record<string, string>) =>
   ["BEGIN:VEVENT", ...Object.entries(fields).map(([k, v]) => `${k}:${v}`), "END:VEVENT"].join(CRLF);
 
 describe("inferWorkoutType", () => {
-  it("maps German + English summary keywords", () => {
+  it("maps English and German summary keywords", () => {
     expect(inferWorkoutType("6x1000 Intervalle")).toBe("interval");
     expect(inferWorkoutType("Tempolauf 25 min")).toBe("tempo");
     expect(inferWorkoutType("Schwellenlauf")).toBe("tempo");
@@ -42,12 +42,12 @@ describe("parseIcsToSessions", () => {
         UID: "r@x",
         "DTSTART;VALUE=DATE": "20260714",
         RRULE: "FREQ=WEEKLY;COUNT=4",
-        SUMMARY: "Wöchentlicher Lauf",
+        SUMMARY: "Weekly run",
       }),
     );
     const { sessions, skipped } = parseIcsToSessions(ics);
     expect(sessions).toHaveLength(0);
-    expect(skipped[0]).toMatch(/Wiederkehrender/);
+    expect(skipped[0]).toMatch(/Recurring event skipped/);
   });
 
   it("round-trips with the exporter (dates + types survive)", () => {

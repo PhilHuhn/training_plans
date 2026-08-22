@@ -19,7 +19,11 @@ export type IcsImportResult = {
   skipped: string[];
 };
 
-/** Summary keyword → workout type (existing vocabulary, German + English). */
+/**
+ * Summary keyword → workout type. The app's own language is English, but the
+ * keyword table stays bilingual on purpose: imported .ics files come from the
+ * athlete's own calendar, which is frequently German.
+ */
 export function inferWorkoutType(summary: string): string {
   const s = summary.toLowerCase();
   if (/wettkampf|\brace\b|marathon\b.*start/i.test(s)) return "race";
@@ -56,14 +60,14 @@ export function parseIcsToSessions(fileText: string): IcsImportResult {
   for (const entry of Object.values(parsed)) {
     if (!entry || entry.type !== "VEVENT") continue;
     const summary = String(entry.summary ?? "").trim();
-    const label = summary || "(ohne Titel)";
+    const label = summary || "(untitled)";
 
     if (entry.rrule) {
-      skipped.push(`Wiederkehrender Termin übersprungen: ${label}`);
+      skipped.push(`Recurring event skipped: ${label}`);
       continue;
     }
     if (!(entry.start instanceof Date)) {
-      skipped.push(`Termin ohne Datum übersprungen: ${label}`);
+      skipped.push(`Event without a date skipped: ${label}`);
       continue;
     }
 
@@ -76,7 +80,7 @@ export function parseIcsToSessions(fileText: string): IcsImportResult {
     const workout: WorkoutDetails = {
       type,
       sport: type === "cross_training" ? "strength" : "running",
-      description: summary || "Importierte Einheit",
+      description: summary || "Imported session",
       ...(extractDistanceKm(summary) ? { distance_km: extractDistanceKm(summary) } : {}),
       ...(durationMin && durationMin < 12 * 60 ? { duration_min: durationMin } : {}),
       ...(entry.description ? { notes: String(entry.description).slice(0, 2000) } : {}),

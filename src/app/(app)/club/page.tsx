@@ -18,10 +18,12 @@ function currentMonday(): string {
   return new Date(utc - dow * DAY_MS).toISOString().slice(0, 10)
 }
 
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+
 function formatWeekRange(weekStart: string): string {
   const fmt = (iso: string) => {
     const d = new Date(`${iso}T00:00:00Z`)
-    return `${d.getUTCDate()}.${d.getUTCMonth() + 1}.`
+    return `${MONTHS[d.getUTCMonth()]} ${d.getUTCDate()}`
   }
   return `${fmt(weekStart)} – ${fmt(addDays(weekStart, 6))}`
 }
@@ -37,18 +39,17 @@ export default function ClubPage() {
   const weekLabel = useMemo(() => formatWeekRange(weekStart), [weekStart])
 
   if (clubsLoading) {
-    return <div className="p-8 text-sm italic text-muted-foreground">Lade Verein …</div>
+    return <div className="p-8 text-sm italic text-muted-foreground">Loading club …</div>
   }
 
   if (!club) {
     return (
       <div className="mx-auto max-w-2xl px-6 py-16 text-center">
         <Users className="mx-auto mb-4 h-8 w-8 text-muted-foreground/50" />
-        <h2 className="mb-2 text-lg font-serif">Du bist in keinem Verein</h2>
+        <h2 className="mb-2 text-lg font-serif">You're not in a club yet</h2>
         <p className="text-sm italic text-muted-foreground">
-          Sobald du Mitglied eines Vereins bist, findet das Overlay hier gemeinsame und
-          parallele Einheiten mit deinen Teamkolleg:innen — ohne deinen Trainingsreiz zu
-          kompromittieren.
+          Once you join a club, the overlay finds shared and parallel sessions with your
+          teammates here — without compromising your own training stimulus.
         </p>
       </div>
     )
@@ -62,7 +63,7 @@ export default function ClubPage() {
         <div>
           <h2 className="text-xl font-serif leading-tight">{club.name}</h2>
           <p className="text-xs italic text-muted-foreground">
-            Vereins-Overlay · deine Rolle: {club.role}
+            Club overlay · your role: {club.role}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -73,7 +74,7 @@ export default function ClubPage() {
               rel="noopener noreferrer"
               className="border border-foreground/30 px-3 py-1.5 text-xs transition-colors hover:border-primary hover:text-primary"
             >
-              Spendier mir ne Club-Mate 🧉
+              Buy me a Club-Mate 🧉
             </a>
           )}
           <div className="flex items-center border border-foreground/20">
@@ -82,7 +83,7 @@ export default function ClubPage() {
               size="sm"
               className="h-8 rounded-none px-2"
               onClick={() => setWeekStart((w) => addDays(w, -7))}
-              aria-label="Vorherige Woche"
+              aria-label="Previous week"
             >
               <ChevronLeft className="h-4 w-4" />
             </Button>
@@ -92,7 +93,7 @@ export default function ClubPage() {
               size="sm"
               className="h-8 rounded-none px-2"
               onClick={() => setWeekStart((w) => addDays(w, 7))}
-              aria-label="Nächste Woche"
+              aria-label="Next week"
             >
               <ChevronRight className="h-4 w-4" />
             </Button>
@@ -103,13 +104,13 @@ export default function ClubPage() {
       {/* Overlay grid */}
       {overlayLoading && (
         <div className="py-12 text-center text-sm italic text-muted-foreground">
-          Berechne Overlaps …
+          Computing overlaps …
         </div>
       )}
       {overlay && overlay.rows.length > 0 && <ClubOverlayGrid data={overlay} />}
       {overlay && overlay.rows.length === 0 && (
         <div className="py-12 text-center text-sm italic text-muted-foreground">
-          Noch keine Mitglieder mit Plänen in dieser Woche.
+          No members with plans for this week yet.
         </div>
       )}
 
