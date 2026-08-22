@@ -58,7 +58,7 @@ const GOAL_RACES: Record<string, { name: string; raceType: "M" | "10K" | "HM"; d
   mara: { name: "Hamburg Marathon", raceType: "M", date: "2026-09-27" },
   tade: { name: "Alsterlauf 10k", raceType: "10K", date: "2026-08-23" },
   timo: { name: "Alsterlauf 10k", raceType: "10K", date: "2026-08-23" },
-  hanna: { name: "Halbmarathon Lübeck", raceType: "HM", date: "2026-09-13" },
+  hanna: { name: "Lübeck Half Marathon", raceType: "HM", date: "2026-09-13" },
 };
 
 async function main() {
@@ -184,7 +184,7 @@ async function main() {
 
   // --- Engine sanity output --------------------------------------------------
   const { compromises, shifts } = matchWeek(sub77EngineInput());
-  console.log("\n=== Compromise-Vorschläge für die Seed-Woche ===");
+  console.log("\n=== Compromise suggestions for the seeded week ===");
   for (const shift of shifts) {
     console.log(`  Shift: Session ${shift.sessionId} ${shift.from} → ${shift.to}`);
   }

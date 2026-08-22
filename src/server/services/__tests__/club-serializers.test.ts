@@ -25,7 +25,7 @@ const session = (id: number, userId: number): OverlaySession => ({
   status: "planned",
   workout: {
     type: "easy",
-    description: "Lockerer DL mit Steigerungen",
+    description: "Easy run with strides",
     duration_min: 50,
     distance_km: 10,
     pace_range: "5:30-5:45",

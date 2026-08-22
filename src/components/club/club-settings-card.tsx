@@ -8,7 +8,7 @@ import type { ClubVisibility } from '@/lib/types'
 const ROLE_LABEL: Record<string, string> = {
   coach: 'Coach',
   captain: 'Captain',
-  athlete: 'Athlet:in',
+  athlete: 'Athlete',
 }
 
 /**
@@ -26,8 +26,8 @@ export default function ClubSettingsCard() {
     updateMembership.mutate(
       { visibility },
       {
-        onSuccess: () => toast.success('Sichtbarkeit aktualisiert'),
-        onError: () => toast.error('Sichtbarkeit konnte nicht gespeichert werden'),
+        onSuccess: () => toast.success('Visibility updated'),
+        onError: () => toast.error('Could not save visibility'),
       },
     )
   }
@@ -35,23 +35,23 @@ export default function ClubSettingsCard() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">Verein</CardTitle>
+        <CardTitle className="text-base">Club</CardTitle>
         <CardDescription>
-          {club.name} — deine Rolle: {ROLE_LABEL[club.role] ?? club.role}
+          {club.name} — your role: {ROLE_LABEL[club.role] ?? club.role}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">
         <div className="space-y-1.5">
-          <Label>Sichtbarkeit für Teamkolleg:innen</Label>
+          <Label>Visibility to teammates</Label>
           <p className="text-xs text-muted-foreground">
-            „Nur Typ" teilt Verfügbarkeit und Einheiten-Typ; Paces und Targets bleiben privat.
-            Coaches sehen immer alles.
+            “Type only” shares availability and session type; paces and targets stay private.
+            Coaches always see everything.
           </p>
           <div className="flex gap-0 border border-foreground/20 w-fit">
             {(
               [
-                ['typ_only', 'Nur Typ'],
-                ['full', 'Alles'],
+                ['typ_only', 'Type only'],
+                ['full', 'Everything'],
               ] as [ClubVisibility, string][]
             ).map(([value, label]) => (
               <button

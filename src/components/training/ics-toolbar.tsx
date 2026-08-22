@@ -27,7 +27,7 @@ export default function IcsToolbar({ start, end }: { start?: string; end?: strin
       a.click()
       URL.revokeObjectURL(url)
     } catch {
-      toast.error('Export fehlgeschlagen')
+      toast.error('Export failed')
     } finally {
       setBusy(false)
     }
@@ -37,14 +37,14 @@ export default function IcsToolbar({ start, end }: { start?: string; end?: strin
     try {
       setBusy(true)
       const { data } = await trainingApi.importIcs(file)
-      const bits = [`${data.imported} importiert`]
-      if (data.duplicates) bits.push(`${data.duplicates} Duplikate übersprungen`)
-      if (data.skipped.length) bits.push(`${data.skipped.length} ignoriert`)
+      const bits = [`${data.imported} imported`]
+      if (data.duplicates) bits.push(`${data.duplicates} duplicates skipped`)
+      if (data.skipped.length) bits.push(`${data.skipped.length} ignored`)
       toast.success(bits.join(' · '))
       queryClient.invalidateQueries({ queryKey: ['trainingRange'] })
       queryClient.invalidateQueries({ queryKey: ['trainingWeek'] })
     } catch {
-      toast.error('Import fehlgeschlagen')
+      toast.error('Import failed')
     } finally {
       setBusy(false)
     }

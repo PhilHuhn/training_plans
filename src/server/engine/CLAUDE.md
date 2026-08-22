@@ -84,7 +84,7 @@ planned). Never feed raw DB JSON to the engine.
 3. **Write the guardrail test first** in `__tests__/guardrails.test.ts`.
 4. Extend `assertStimulusPreserved` so the invariant holds for the new mode.
 5. Implement the cluster resolution in `match-week.ts`.
-6. Add German note templates (`full` + `visibilitySafe`) in `notes.ts`.
+6. Add note templates (`full` + `visibilitySafe`) in `notes.ts`. All user-facing copy is English.
 
 ## Seed ↔ test fixture
 

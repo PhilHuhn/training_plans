@@ -18,7 +18,7 @@ export default function SponsorFooter({
       {sponsor && (
         <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
           <span className="text-[11px] italic smallcaps text-muted-foreground">
-            Unterstützt von
+            Supported by
           </span>
           {sponsor.url ? (
             <a
@@ -34,7 +34,7 @@ export default function SponsorFooter({
           )}
           {sponsor.discount_code && (
             <span className="text-xs text-foreground/80">
-              Rabattcode für Vereinsmitglieder:{' '}
+              Discount code for club members:{' '}
               <code className="border border-foreground/20 px-1 py-0.5 text-[11px] tabular-nums">
                 {sponsor.discount_code}
               </code>

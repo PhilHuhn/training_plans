@@ -1,7 +1,7 @@
 # Club Overlay Feature (`src/app/(app)/club/`)
 
 The club "overlay" sits on top of individual training plans: a week grid with
-one row per athlete plus a **"Gemeinsam"** (shared) row of compromise cards
+one row per athlete plus a **"Together"** (shared) row of compromise cards
 computed by the matching engine (`src/server/engine/`).
 
 ## Solo-user contract (do not break)
@@ -9,7 +9,7 @@ computed by the matching engine (`src/server/engine/`).
 Club membership is **optional and additive**. A user with zero
 `club_memberships` rows sees the app exactly as before — Training, Activities,
 Coach chat, Strava all unchanged. `/club` shows a quiet empty state; the
-settings "Verein" card renders nothing. Never make a club concept a
+settings "Club" card renders nothing. Never make a club concept a
 precondition for a non-club feature.
 
 ## Routes & data flow
@@ -68,7 +68,7 @@ no global mutation. **Theme values are sanitized server-side** (`sanitizeClubThe
 hex + https-URL allowlist) because `theme_json` is stored data landing in a
 style attribute (CSS injection vector).
 
-Sponsor slot + donation button ("Spendier mir ne Club-Mate 🧉", links to
+Sponsor slot + donation button ("Buy me a Club-Mate 🧉", links to
 `club.donationUrl` — a configurable URL, no payment integration) live in the
 page + `sponsor-footer.tsx`.
 

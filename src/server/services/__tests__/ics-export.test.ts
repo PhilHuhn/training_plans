@@ -39,7 +39,7 @@ describe("buildIcsForSessions", () => {
 
   it("folds long description lines (75-octet limit) and stays parseable", () => {
     const longDesc =
-      "Sehr langer Beschreibungstext mit vielen Wörtern der die 75-Oktett-Grenze deutlich überschreitet und daher gefaltet werden muss um RFC 5545 zu genügen";
+      "A very long description with plenty of words that comfortably exceeds the 75-octet limit and therefore has to be folded in order to satisfy RFC 5545";
     const ics = buildIcsForSessions(
       [{ id: 9, sessionDate: "2026-07-14", workout: w({ description: longDesc }) }],
       "Fold",
@@ -49,7 +49,7 @@ describe("buildIcsForSessions", () => {
       expect(new TextEncoder().encode(line).length).toBeLessThanOrEqual(75);
     }
     const event = veventsOf(ics)[0];
-    expect(event?.description).toContain("75-Oktett-Grenze");
+    expect(event?.description).toContain("75-octet limit");
   });
 
   it("escapes special characters in the summary", () => {
