@@ -44,7 +44,7 @@ export default function SponsorFooter({
       )}
       {poweredBy && (
         <div className="text-[11px] italic text-muted-foreground">
-          Powered by Turbine Turmweg
+          Powered by Club Turbine
         </div>
       )}
     </footer>

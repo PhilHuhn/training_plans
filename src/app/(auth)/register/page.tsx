@@ -34,7 +34,7 @@ export default function RegisterPage() {
             <Zap className="h-6 w-6 text-foreground" />
           </div>
           <CardTitle className="text-2xl not-italic" style={{ fontVariantCaps: 'normal' }}>Create account</CardTitle>
-          <CardDescription>Get started with Turbine Turmweg</CardDescription>
+          <CardDescription>Get started with Club Turbine</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">

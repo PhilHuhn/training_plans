@@ -93,7 +93,7 @@ export function buildIcsForSessions(sessions: IcsSession[], calendarName = "Trai
   const lines: string[] = [
     "BEGIN:VCALENDAR",
     "VERSION:2.0",
-    "PRODID:-//Turbine Turmweg//Training Plan//EN",
+    "PRODID:-//Club Turbine//Training Plan//EN",
     "CALSCALE:GREGORIAN",
     `X-WR-CALNAME:${escapeText(calendarName)}`,
   ];

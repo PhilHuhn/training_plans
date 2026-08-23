@@ -100,7 +100,7 @@ export async function POST(req: NextRequest) {
     await transporter.sendMail({
       // The envelope sender stays our own account — sending as the visitor
       // would fail SPF and land in spam. Their address goes in Reply-To.
-      from: `"Turbine Turmweg Kontakt" <${env.SMTP_USER}>`,
+      from: `"Club Turbine Kontakt" <${env.SMTP_USER}>`,
       to: env.CONTACT_TO || emailAddress,
       replyTo: `"${name.trim()}" <${email.trim()}>`,
       subject: `Kontaktformular: ${name.trim()}`,

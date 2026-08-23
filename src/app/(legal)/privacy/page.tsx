@@ -4,8 +4,8 @@ import ObfuscatedEmail from '@/components/legal/obfuscated-email'
 import { site } from '@/lib/site'
 
 export const metadata: Metadata = {
-  title: 'Datenschutzerklärung — Turbine Turmweg',
-  description: 'Wie Turbine Turmweg personenbezogene Daten verarbeitet.',
+  title: 'Datenschutzerklärung — Club Turbine',
+  description: 'Wie Club Turbine personenbezogene Daten verarbeitet.',
 }
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
@@ -30,7 +30,7 @@ export default function PrivacyPage() {
 
       <div className="rule-top rule-bottom mt-8 py-6">
         <p className="prose-paper">
-          Turbine Turmweg verarbeitet deine Trainingsdaten — darunter{' '}
+          Club Turbine verarbeitet deine Trainingsdaten — darunter{' '}
           <strong>Herzfrequenzwerte, also Gesundheitsdaten</strong> im Sinne von Art. 9
           DSGVO. Diese Verarbeitung findet ausschließlich auf Grundlage deiner
           ausdrücklichen Einwilligung statt, die du jederzeit widerrufen kannst. Ohne

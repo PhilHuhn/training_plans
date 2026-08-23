@@ -5,8 +5,8 @@ import ObfuscatedEmail from '@/components/legal/obfuscated-email'
 import { site } from '@/lib/site'
 
 export const metadata: Metadata = {
-  title: 'Kontakt — Turbine Turmweg',
-  description: 'Nachricht an den Betreiber von Turbine Turmweg.',
+  title: 'Kontakt — Club Turbine',
+  description: 'Nachricht an den Betreiber von Club Turbine.',
 }
 
 export default function ContactPage() {

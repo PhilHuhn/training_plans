@@ -4,7 +4,7 @@ import ObfuscatedEmail from '@/components/legal/obfuscated-email'
 import { site } from '@/lib/site'
 
 export const metadata: Metadata = {
-  title: 'Impressum — Turbine Turmweg',
+  title: 'Impressum — Club Turbine',
   description: 'Anbieterkennzeichnung nach § 5 DDG.',
 }
 
@@ -31,7 +31,7 @@ export default function ImprintPage() {
           {operator.country}
         </address>
         <p className="mt-3 text-sm italic text-muted-foreground">
-          Turbine Turmweg wird als privates, nicht gewerbliches Projekt betrieben. Ein
+          Club Turbine wird als privates, nicht gewerbliches Projekt betrieben. Ein
           Registereintrag, eine Umsatzsteuer-Identifikationsnummer und eine zuständige
           Aufsichtsbehörde bestehen daher nicht.
         </p>

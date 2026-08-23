@@ -57,9 +57,9 @@ export default function Sidebar({ onClose }: SidebarProps) {
           Manual
         </div>
         <div className="tt-title mt-2 text-[23px] leading-[1.1]">
-          Turbine
+          Club
           <br />
-          Turmweg
+          Turbine
         </div>
         <div className="mt-1.5 text-[12.5px] italic text-muted-foreground">
           A training plan companion

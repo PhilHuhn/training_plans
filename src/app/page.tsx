@@ -89,7 +89,7 @@ export default async function LandingPage() {
       {/* Masthead */}
       <div className="frosted sticky top-0 z-30 flex items-center justify-between border-b border-foreground/15 px-6 py-3.5 lg:px-11">
         <div className="flex items-baseline gap-2.5">
-          <span className="tt-title text-[19px]">Turbine Turmweg</span>
+          <span className="tt-title text-[19px]">Club Turbine</span>
           <span className="smallcaps hidden text-xs italic text-muted-foreground sm:inline">
             manual, ed. 2026
           </span>
@@ -177,7 +177,7 @@ export default async function LandingPage() {
             Abstract
           </div>
           <p className="prose-paper m-0 text-base leading-[1.6]">
-            Turbine Turmweg reads the plan you already train from, syncs what you actually
+            Club Turbine reads the plan you already train from, syncs what you actually
             ran, and lets a coach that knows your zones edit the week in place. It is a
             document, not a dashboard: every session keeps its history, every change is
             legible, and the whole season exports back to the calendar you started with.
@@ -240,9 +240,9 @@ export default async function LandingPage() {
             </div>
           </div>
           <p className="prose-paper m-0 text-[15px] leading-[1.65] text-muted-foreground">
-            Turbine Turmweg is run by the Turmweg club for its own members and anyone else
-            who wants it. There is no subscription and no plan tier. You pay for your own
-            AI usage if you lean on the coach heavily; everything else costs nothing.
+            Club Turbine is run for the club&rsquo;s own members and anyone else who wants
+            it. There is no subscription and no plan tier. You pay for your own AI usage if
+            you lean on the coach heavily; everything else costs nothing.
           </p>
         </div>
       </div>
@@ -288,7 +288,7 @@ export default async function LandingPage() {
       {/* Colophon */}
       <div className="px-6 pb-10 pt-6 lg:px-11">
         <div className="mx-auto flex max-w-4xl flex-col gap-2 text-[13px] italic text-muted-foreground sm:flex-row sm:justify-between">
-          <span>Turbine Turmweg — Hamburg, 2026</span>
+          <span>Club Turbine — Hamburg, 2026</span>
           <span className="flex flex-wrap gap-4">
             <Link href="/login">Sign in</Link>
             <Link href="/imprint">Impressum</Link>

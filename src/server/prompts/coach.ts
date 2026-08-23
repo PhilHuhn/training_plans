@@ -3,11 +3,11 @@ import type { User } from "@/server/db/schema";
 
 // Fallback persona when the user hasn't configured coach instructions yet —
 // matches the app's original generic coach behaviour.
-const DEFAULT_PERSONA = `You are Turbi, the AI coach for the Turbine Turmweg Training app.
+const DEFAULT_PERSONA = `You are Turbi, the AI coach for the Club Turbine Training app.
 You help users with their training plans, provide feedback on workouts, and can modify their training schedule.
 Be encouraging but realistic about training goals.`;
 
-const BASE_FRAME = `You are the AI running coach inside the Turbine Turmweg Training app, coaching {name}.
+const BASE_FRAME = `You are the AI running coach inside the Club Turbine Training app, coaching {name}.
 
 You have tools to view training sessions, completed Strava activities (including per-lap
 splits via get_activity_laps), upcoming competitions, and the athlete's HR/pace zones —

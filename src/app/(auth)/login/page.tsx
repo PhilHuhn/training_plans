@@ -26,7 +26,7 @@ export default function LoginPage() {
             <Zap className="h-6 w-6 text-foreground" />
           </div>
           <CardTitle className="text-2xl not-italic" style={{ fontVariantCaps: 'normal' }}>Welcome back</CardTitle>
-          <CardDescription>Sign in to Turbine Turmweg</CardDescription>
+          <CardDescription>Sign in to Club Turbine</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">

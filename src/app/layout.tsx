@@ -3,7 +3,7 @@ import Providers from "./providers";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Turbine Turmweg",
+  title: "Club Turbine",
   description: "A training plan companion",
 };
 

@@ -1,7 +1,7 @@
 /**
  * Operator details for the legally required pages.
  *
- * Turbine Turmweg is run by a private individual, so § 5 DDG asks for name, a
+ * Club Turbine is run by a private individual, so § 5 DDG asks for name, a
  * deliverable postal address, an email address and a second channel that allows
  * direct and efficient contact. There is no register entry, no VAT ID and no
  * supervisory authority to name.
@@ -10,7 +10,7 @@
  * sitting in the served HTML as one scrapable string — see ObfuscatedEmail.
  */
 export const site = {
-  name: 'Turbine Turmweg',
+  name: 'Club Turbine',
   operator: {
     name: 'Philipp Huhn',
     street: 'Max-Brauer-Allee 183e',
