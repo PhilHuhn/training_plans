@@ -34,3 +34,8 @@ TEMP_agent_docs/
 
 # Claude Code internal worktrees
 .claude/worktrees/
+.ds-sync/
+ds-bundle/
+.design-sync/.cache/
+.design-sync/learnings/
+.design-sync/node_modules

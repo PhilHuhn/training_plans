@@ -1,0 +1,36 @@
+/* Tailwind entry for the design-sync bundle.
+   globals.css stays the single source of tokens and base/utility layers; this
+   file only declares what Tailwind scans and force-generates, so the compiled
+   stylesheet carries the classes the UI kit uses AND the ones a design built
+   with this system will reach for.
+   Fonts are wired separately via cfg.extraFonts — importing them here would
+   leave their url()s relative to the source dir, which Tailwind does not rewrite. */
+@import "../src/app/globals.css";
+
+@source "../src/components/ui";
+@source "./previews";
+
+/* Tailwind only emits classes it can see. The design agent writes its own
+   layout glue against this stylesheet and never re-runs the build, so the
+   token-backed utilities have to be generated up front or they resolve to
+   nothing. Keep this list to token-backed and structural utilities — the
+   design language lives in the colour/typography tokens above. */
+@source inline("{bg,text,border}-{background,foreground,card,card-foreground,popover,popover-foreground,primary,primary-foreground,secondary,secondary-foreground,muted,muted-foreground,accent,accent-foreground,destructive,destructive-foreground,border,input,ring,sidebar,sidebar-foreground,sidebar-primary,sidebar-primary-foreground,sidebar-accent,sidebar-accent-foreground,sidebar-border}");
+@source inline("{p,px,py,pt,pr,pb,pl,m,mx,my,mt,mr,mb,ml,gap,gap-x,gap-y}-{0,0.5,1,1.5,2,2.5,3,4,5,6,8,10,12,16}");
+@source inline("{space-y,space-x}-{0,1,1.5,2,3,4,6,8}");
+@source inline("text-{xs,sm,base,lg,xl,2xl,3xl,4xl,5xl}");
+@source inline("font-{sans,serif,mono,normal,medium,semibold,bold}");
+@source inline("{w,h}-{full,auto,fit,screen}");
+@source inline("max-w-{xs,sm,md,lg,xl,2xl,3xl,4xl,5xl,full,prose}");
+@source inline("{flex,grid,block,inline-block,inline-flex,hidden,relative,absolute}");
+@source inline("flex-{row,col,wrap,1}");
+@source inline("grid-cols-{1,2,3,4,5,6,7,12}");
+@source inline("col-span-{1,2,3,4,6,12}");
+@source inline("items-{start,center,end,baseline,stretch}");
+@source inline("justify-{start,center,end,between,around,evenly}");
+@source inline("text-{left,center,right,justify}");
+@source inline("border-{0,2,4,t,b,l,r}");
+@source inline("rounded-{none,sm,md,lg,xl,full}");
+@source inline("{italic,not-italic,underline,uppercase,lowercase,capitalize,truncate,sr-only}");
+@source inline("opacity-{0,50,60,70,80,90,100}");
+@source inline("overflow-{auto,hidden,x-auto,y-auto}");

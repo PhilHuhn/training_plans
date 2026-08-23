@@ -4,6 +4,7 @@ Auto-generated from git history.
 
 ## 2026-08-21
 
+- Apply schema on deploy by making db:push non-interactive on Render (PhilHuhn)
 - Rebuild package-lock.json on Linux/Node 22 for npm ci parity (PhilHuhn)
 - Regenerate package-lock.json so npm ci can install (PhilHuhn)
 - Add club overlay, coach, ICS import/export; harden Render deploy config (PhilHuhn)

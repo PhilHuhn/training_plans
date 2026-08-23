@@ -1,0 +1,22 @@
+// Bundle entry for design-sync. Lives outside src/ so the app's own source is
+// untouched; re-exports every ui/ module so esbuild sees the whole kit.
+// Regenerate with: ls src/components/ui/*.tsx
+export * from '../src/components/ui/alert'
+export * from '../src/components/ui/avatar'
+export * from '../src/components/ui/badge'
+export * from '../src/components/ui/button'
+export * from '../src/components/ui/card'
+export * from '../src/components/ui/dialog'
+export * from '../src/components/ui/dropdown-menu'
+export * from '../src/components/ui/input'
+export * from '../src/components/ui/label'
+export * from '../src/components/ui/scroll-area'
+export * from '../src/components/ui/select'
+export * from '../src/components/ui/separator'
+export * from '../src/components/ui/sheet'
+export * from '../src/components/ui/skeleton'
+export * from '../src/components/ui/sonner'
+export * from '../src/components/ui/table'
+export * from '../src/components/ui/tabs'
+export * from '../src/components/ui/textarea'
+export * from '../src/components/ui/tooltip'
