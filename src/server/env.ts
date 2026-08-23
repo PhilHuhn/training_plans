@@ -50,6 +50,14 @@ const envSchema = z.object({
   STRAVA_CLIENT_SECRET: z.string().default(""),
   ANTHROPIC_API_KEY: z.string().default(""),
   BASE_URL: z.string().url().default("http://localhost:3000"),
+  // Contact form delivery. All optional: without them the app still boots and
+  // /api/contact answers with a clear "not configured" error instead of
+  // silently swallowing a message someone expected to reach a human.
+  SMTP_HOST: z.string().default(""),
+  SMTP_PORT: z.coerce.number().int().positive().default(587),
+  SMTP_USER: z.string().default(""),
+  SMTP_PASSWORD: z.string().default(""),
+  CONTACT_TO: z.string().default(""),
 });
 
 const parsed = envSchema.safeParse({
@@ -59,6 +67,11 @@ const parsed = envSchema.safeParse({
   STRAVA_CLIENT_SECRET: readEnv("STRAVA_CLIENT_SECRET"),
   ANTHROPIC_API_KEY: readEnv("ANTHROPIC_API_KEY"),
   BASE_URL: readEnv("BASE_URL"),
+  SMTP_HOST: readEnv("SMTP_HOST"),
+  SMTP_PORT: readEnv("SMTP_PORT"),
+  SMTP_USER: readEnv("SMTP_USER"),
+  SMTP_PASSWORD: readEnv("SMTP_PASSWORD"),
+  CONTACT_TO: readEnv("CONTACT_TO"),
 });
 
 if (!parsed.success) {

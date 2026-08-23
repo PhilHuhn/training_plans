@@ -289,10 +289,11 @@ export default async function LandingPage() {
       <div className="px-6 pb-10 pt-6 lg:px-11">
         <div className="mx-auto flex max-w-4xl flex-col gap-2 text-[13px] italic text-muted-foreground sm:flex-row sm:justify-between">
           <span>Turbine Turmweg — Hamburg, 2026</span>
-          <span className="flex gap-4">
+          <span className="flex flex-wrap gap-4">
             <Link href="/login">Sign in</Link>
-            <Link href="/register">Register</Link>
-            <Link href="/changelog">Changelog</Link>
+            <Link href="/imprint">Impressum</Link>
+            <Link href="/privacy">Datenschutz</Link>
+            <Link href="/contact">Kontakt</Link>
           </span>
         </div>
       </div>
