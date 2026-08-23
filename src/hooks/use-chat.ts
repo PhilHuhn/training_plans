@@ -34,10 +34,18 @@ export function useChat() {
           queryClient.invalidateQueries({ queryKey: ['currentUser'] })
         }
       }
-    } catch {
+    } catch (err) {
+      // The route already turns upstream failures into a message that is safe
+      // to show and says whether retrying can help; the raw cause stays in the
+      // server log. Falling back to a generic line only when there is no body.
+      const detail =
+        (err as { response?: { data?: { detail?: unknown } } })?.response?.data?.detail
       addMessage({
         role: 'assistant',
-        content: 'Sorry, I encountered an error. Please try again.',
+        content:
+          typeof detail === 'string' && detail.trim() !== ''
+            ? detail
+            : 'Sorry, I could not reach the coach. Please try again.',
       })
     } finally {
       setLoading(false)

@@ -4,6 +4,7 @@ Auto-generated from git history.
 
 ## 2026-08-23
 
+- Rename the app to Club Turbine in user-facing copy (PhilHuhn)
 - Add imprint, privacy policy and contact form (PhilHuhn)
 - Adopt the 2026 design refresh across the shell, dashboard and landing page (PhilHuhn)
 - Add design-sync inputs for the Turbine Turmweg UI design system (PhilHuhn)

@@ -14,6 +14,7 @@ import {
 import { requireSession } from "@/server/auth/session";
 import { errorJson, parseJson } from "@/server/http";
 import { anthropic, CLAUDE_MODEL } from "@/server/services/claude";
+import { classifyClaudeError } from "@/server/services/claude-errors";
 import { formatPace } from "@/server/services/pace";
 import { buildCoachSystemPrompt } from "@/server/prompts/coach";
 
@@ -526,9 +527,18 @@ export async function POST(req: NextRequest) {
           );
           controller.close();
         } catch (err) {
-          const message = err instanceof Error ? err.message : "Chat failed";
+          // Log the upstream detail here: the client only ever sees the safe
+          // message, so without this line an outage leaves no trace at all.
+          console.error("[chat] tool loop failed (stream):", err);
+          const failure = classifyClaudeError(err);
           controller.enqueue(
-            encoder.encode(`data: ${JSON.stringify({ error: message, done: true })}\n\n`),
+            encoder.encode(
+              `data: ${JSON.stringify({
+                error: failure.detail,
+                retryable: failure.retryable,
+                done: true,
+              })}\n\n`,
+            ),
           );
           controller.close();
         }
@@ -551,6 +561,10 @@ export async function POST(req: NextRequest) {
       tool_results: toolResults.length > 0 ? toolResults : undefined,
     });
   } catch (err) {
-    return errorJson(err instanceof Error ? err.message : "Chat failed", 500);
+    console.error("[chat] tool loop failed:", err);
+    const failure = classifyClaudeError(err);
+    return errorJson(failure.detail, failure.status, {
+      headers: { "X-Retryable": String(failure.retryable) },
+    });
   }
 }
