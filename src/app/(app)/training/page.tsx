@@ -82,36 +82,53 @@ export default function TrainingPage() {
     0,
   )
 
+  const allSessions = (data?.weeks ?? []).flatMap((w) => w.sessions ?? [])
+  const completedCount = allSessions.filter((x) => x.status === 'completed').length
+
   return (
-    <div className="mx-auto w-full max-w-6xl space-y-5">
-      {/* Header: range navigation + AI plan */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="icon"
-            className="h-8 w-8"
-            onClick={() => shiftRange(-rangeWeeks)}
-          >
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
-          <Button variant="outline" size="sm" onClick={goToday}>
-            Today
-          </Button>
-          <Button
-            variant="outline"
-            size="icon"
-            className="h-8 w-8"
-            onClick={() => shiftRange(rangeWeeks)}
-          >
-            <ChevronRight className="h-4 w-4" />
-          </Button>
-          <span className="text-sm italic text-muted-foreground">
-            {formatDateShort(rangeStart)} — {formatDateShort(rangeEnd)}
-          </span>
+    <>
+      {/* Opening band: where you are in the plan, and how to move through it */}
+      <div className="surface-band relative overflow-hidden border-b border-foreground/15 px-4 py-5 lg:px-7">
+        <div className="relative z-[2] mx-auto flex w-full max-w-6xl flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+        <div className="flex items-center gap-3.5">
+          {/* One segmented control rather than three loose buttons */}
+          <div className="flex border border-foreground/25 bg-background/70">
+            <button
+              type="button"
+              onClick={() => shiftRange(-rangeWeeks)}
+              aria-label="Previous range"
+              className="border-r border-foreground/20 px-2.5 py-1.5 hover:bg-foreground/5"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              onClick={goToday}
+              className="smallcaps border-r border-foreground/20 px-3.5 py-1.5 text-[13px] italic hover:bg-foreground/5"
+            >
+              Today
+            </button>
+            <button
+              type="button"
+              onClick={() => shiftRange(rangeWeeks)}
+              aria-label="Next range"
+              className="px-2.5 py-1.5 hover:bg-foreground/5"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </button>
+          </div>
+          <div>
+            <div className="tt-title tabular-nums text-xl">
+              {formatDateShort(rangeStart)} — {formatDateShort(rangeEnd)}
+            </div>
+            <div className="smallcaps text-[11.5px] italic text-muted-foreground">
+              {rangeWeeks}-week block
+              {data?.weeks?.[0]?.training_phase ? ` · ${data.weeks[0].training_phase} phase` : ''}
+            </div>
+          </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           {/* View mode: grid (calendar) vs list (spreadsheet) */}
           <fieldset className="flex items-center gap-3 text-xs">
             <legend className="sr-only">View mode</legend>
@@ -143,7 +160,7 @@ export default function TrainingPage() {
           </fieldset>
 
           {/* Range size selector */}
-          <div className="flex border border-foreground/20">
+          <div className="flex border border-foreground/25">
             {[4, 6, 8, 12].map((n) => (
               <button
                 key={n}
@@ -151,8 +168,8 @@ export default function TrainingPage() {
                 onClick={() => setRangeWeeks(n)}
                 className={
                   n === rangeWeeks
-                    ? 'border-r border-foreground/20 bg-foreground/10 px-2 py-1 text-xs last:border-r-0'
-                    : 'border-r border-foreground/20 bg-transparent px-2 py-1 text-xs text-muted-foreground last:border-r-0 hover:text-foreground'
+                    ? 'smallcaps border-r border-foreground/20 bg-foreground px-3 py-1.5 text-[13px] italic text-background last:border-r-0'
+                    : 'smallcaps border-r border-foreground/20 bg-background/70 px-3 py-1.5 text-[13px] italic text-muted-foreground last:border-r-0 hover:text-foreground'
                 }
                 aria-pressed={n === rangeWeeks}
               >
@@ -168,26 +185,32 @@ export default function TrainingPage() {
             AI Plan
           </Button>
         </div>
+        </div>
       </div>
 
-      {/* Range totals strip */}
-      <div className="flex flex-wrap items-baseline gap-x-6 gap-y-1 border-y border-foreground/15 py-2">
+      <div className="mx-auto w-full max-w-6xl space-y-5 px-4 py-6 lg:px-7">
+      {/* Range totals */}
+      <div className="rule-top rule-bottom grid grid-cols-2 gap-4 py-3.5 sm:grid-cols-4">
         <div>
-          <span className="text-[10px] italic smallcaps text-muted-foreground">Range</span>
-          <span className="ml-2 text-base font-serif tabular-nums">{rangeWeeks} weeks</span>
+          <div className="smallcaps text-[11.5px] italic text-muted-foreground">Range</div>
+          <div className="tt-display tabular-nums text-[23px]">{rangeWeeks} weeks</div>
         </div>
         <div>
-          <span className="text-[10px] italic smallcaps text-muted-foreground">Total km</span>
-          <span className="ml-2 text-base font-serif tabular-nums">{totalKm.toFixed(0)} km</span>
+          <div className="smallcaps text-[11.5px] italic text-muted-foreground">Total km</div>
+          <div className="tt-display tabular-nums text-[23px]">{totalKm.toFixed(0)} km</div>
         </div>
-        {totalLoad > 0 && (
-          <div>
-            <span className="text-[10px] italic smallcaps text-muted-foreground">
-              Planned TRIMP
-            </span>
-            <span className="ml-2 text-base font-serif tabular-nums">{totalLoad.toFixed(0)}</span>
+        <div>
+          <div className="smallcaps text-[11.5px] italic text-muted-foreground">Planned TRIMP</div>
+          <div className="tt-display tabular-nums text-[23px]">
+            {totalLoad > 0 ? totalLoad.toFixed(0) : '—'}
           </div>
-        )}
+        </div>
+        <div>
+          <div className="smallcaps text-[11.5px] italic text-muted-foreground">Completed</div>
+          <div className="tt-display tabular-nums text-[23px]">
+            {completedCount} / {allSessions.length}
+          </div>
+        </div>
       </div>
 
       {isLoading && (
@@ -225,6 +248,7 @@ export default function TrainingPage() {
         onClose={() => setGenerateOpen(false)}
         weekStart={rangeStart}
       />
-    </div>
+      </div>
+    </>
   )
 }

@@ -1,4 +1,5 @@
 'use client'
+import type { DashboardLoadPoint } from '@/lib/types'
 import { useState } from 'react'
 import { ArrowDownRight, ArrowUpRight, Minus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -79,17 +80,38 @@ function KpiCard({
   delta?: React.ReactNode
 }) {
   return (
-    <Card>
-      <CardContent className="p-4">
-        <p className="text-xs italic smallcaps text-muted-foreground">{label}</p>
-        <div className="flex items-baseline gap-2">
-          <p className="text-2xl font-semibold leading-tight tabular-nums">{value}</p>
-          {unit && <span className="text-xs text-muted-foreground">{unit}</span>}
-        </div>
-        {delta}
-      </CardContent>
-    </Card>
+    <div className="surface-tile px-[18px] py-4">
+      <p className="smallcaps text-[11.5px] italic text-muted-foreground">{label}</p>
+      <div className="flex items-baseline gap-1.5">
+        <p className="tt-display text-2xl leading-tight tabular-nums">{value}</p>
+        {unit && <span className="text-xs text-muted-foreground">{unit}</span>}
+      </div>
+      {delta}
+    </div>
   )
+}
+
+function BandFigure({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <div className="smallcaps text-[11.5px] italic text-muted-foreground">{label}</div>
+      <div className="tt-display tabular-nums text-[26px]">{value}</div>
+    </div>
+  )
+}
+
+// A one-line reading of the form (TSB) figure, so the band says something a
+// runner can act on instead of repeating the number underneath it. Thresholds
+// follow the usual Banister reading: positive form is fresh, deeply negative
+// form means fatigue has run ahead of fitness.
+function formHeadline(latest: DashboardLoadPoint | null): string {
+  if (!latest) return 'No load data for this period yet.'
+  const tsb = latest.tsb
+  if (tsb > 15) return 'Well rested — fitness is drifting down.'
+  if (tsb > 5) return 'Fresh. A hard session would land well.'
+  if (tsb > -10) return 'Load and freshness are in balance.'
+  if (tsb > -25) return 'Carrying real fatigue. Keep the easy days easy.'
+  return 'Fatigue is well ahead of fitness. Back off before it costs you.'
 }
 
 function formatDay(dateStr: string): string {
@@ -107,26 +129,62 @@ export default function DashboardPage() {
   const latest = load.length > 0 ? load[load.length - 1] : null
   const hasActivities = (data?.summary.count ?? 0) > 0
 
+  const rangeLabel = RANGES.find((r) => r.days === days)?.label ?? `${days} days`
+
   return (
-    <div className="mx-auto max-w-6xl space-y-6">
-      {/* Range selector */}
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-sm italic text-muted-foreground">
-          Comparisons refer to the preceding period of equal length.
-        </p>
-        <div className="flex gap-1.5">
-          {RANGES.map((r) => (
-            <Button
-              key={r.days}
-              variant={days === r.days ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setDays(r.days)}
-            >
-              {r.label}
-            </Button>
-          ))}
+    <>
+      {/* Opening band */}
+      <div className="surface-band relative overflow-hidden border-b border-foreground/15 px-4 py-7 lg:px-7 lg:py-[34px]">
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0 z-[1]"
+          style={{
+            background:
+              'radial-gradient(90% 120% at 88% 0%, color-mix(in srgb, var(--primary) 13%, transparent), transparent 62%)',
+          }}
+        />
+        <div className="relative z-[2] mx-auto max-w-6xl">
+          <div className="smallcaps text-xs italic text-muted-foreground">
+            Last {rangeLabel.toLowerCase()}
+          </div>
+          <div className="mt-2 flex flex-wrap items-end justify-between gap-6">
+            <div className="tt-display max-w-[30ch] text-[28px] leading-[1.12] lg:text-[34px]">
+              {formHeadline(latest)}
+            </div>
+            <div className="flex flex-wrap gap-8">
+              {latest && (
+                <>
+                  <BandFigure label="Fitness" value={latest.ctl.toFixed(0)} />
+                  <BandFigure label="Fatigue" value={latest.atl.toFixed(0)} />
+                  <BandFigure
+                    label="Form"
+                    value={`${latest.tsb > 0 ? '+' : ''}${latest.tsb.toFixed(0)}`}
+                  />
+                </>
+              )}
+            </div>
+          </div>
+          <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
+            <p className="text-sm italic text-muted-foreground">
+              Comparisons refer to the preceding period of equal length.
+            </p>
+            <div className="flex gap-1.5">
+              {RANGES.map((r) => (
+                <Button
+                  key={r.days}
+                  variant={days === r.days ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setDays(r.days)}
+                >
+                  {r.label}
+                </Button>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
+
+      <div className="mx-auto max-w-6xl space-y-6 px-4 py-7 lg:px-7">
 
       {isLoading ? (
         <div className="space-y-4">
@@ -158,7 +216,7 @@ export default function DashboardPage() {
         data && (
           <>
             {/* KPI cards */}
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+            <div className="hairline-grid grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6">
               <KpiCard
                 label="Activities"
                 value={String(data.summary.count)}
@@ -450,6 +508,7 @@ export default function DashboardPage() {
           </>
         )
       )}
-    </div>
+      </div>
+    </>
   )
 }

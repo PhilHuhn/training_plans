@@ -1,31 +1,18 @@
 'use client'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import {
-  LayoutDashboard,
-  Calendar,
-  Zap,
-  Trophy,
-  MessageCircle,
-  Users,
-  Settings,
-  FileText,
-  LogOut,
-} from 'lucide-react'
+import { LogOut } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useCurrentUser, useLogout } from '@/hooks/use-auth'
+import { useCompetitions } from '@/hooks/use-competitions'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { Button } from '@/components/ui/button'
+import { navItems } from './nav-items'
 
-const navItems = [
-  { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-  { href: '/training', icon: Calendar, label: 'Training' },
-  { href: '/activities', icon: Zap, label: 'Activities' },
-  { href: '/competitions', icon: Trophy, label: 'Competitions' },
-  { href: '/coach', icon: MessageCircle, label: 'Coach' },
-  { href: '/club', icon: Users, label: 'Club' },
-  { href: '/settings', icon: Settings, label: 'Settings' },
-  { href: '/changelog', icon: FileText, label: 'Changelog' },
-]
+
+// The countdown bar fills as the race approaches. Twelve weeks is the usual
+// build length, so anything further out simply reads as an empty bar.
+const COUNTDOWN_WINDOW_DAYS = 84
 
 interface SidebarProps {
   onClose?: () => void
@@ -34,6 +21,7 @@ interface SidebarProps {
 export default function Sidebar({ onClose }: SidebarProps) {
   const pathname = usePathname() ?? '/'
   const { data: user } = useCurrentUser()
+  const { data: competitions } = useCompetitions()
   const logout = useLogout()
 
   const initials = user?.name
@@ -43,23 +31,49 @@ export default function Sidebar({ onClose }: SidebarProps) {
     .toUpperCase()
     .slice(0, 2) || '?'
 
+  const nextRace = (competitions ?? [])
+    .filter((c) => new Date(c.race_date) >= new Date(new Date().toDateString()))
+    .sort((a, b) => a.race_date.localeCompare(b.race_date))[0]
+
+  const daysToRace = nextRace
+    ? Math.max(
+        0,
+        Math.round(
+          (new Date(nextRace.race_date).getTime() - new Date(new Date().toDateString()).getTime()) /
+            86_400_000,
+        ),
+      )
+    : null
+
+  const countdownPct =
+    daysToRace === null ? 0 : Math.min(100, Math.max(0, ((COUNTDOWN_WINDOW_DAYS - daysToRace) / COUNTDOWN_WINDOW_DAYS) * 100))
+
   return (
-    <div className="flex h-full flex-col bg-sidebar text-sidebar-foreground border-r border-sidebar-border font-serif">
+    <div className="surface-sidebar flex h-full flex-col text-sidebar-foreground font-serif">
       {/* Title block (mimics LaTeX \title) */}
-      <div className="px-6 pt-6 pb-4">
-        <div className="text-xs italic smallcaps text-muted-foreground">Manual</div>
-        <div className="text-2xl leading-tight tracking-tight">Turbine&nbsp;Turmweg</div>
-        <div className="text-xs italic text-muted-foreground mt-1">A training plan companion</div>
+      <div className="px-5 pt-6 pb-4">
+        <div className="smallcaps flex items-center gap-2 text-xs italic text-muted-foreground">
+          <span className="inline-block h-px w-5 bg-current" />
+          Manual
+        </div>
+        <div className="tt-title mt-2 text-[23px] leading-[1.1]">
+          Turbine
+          <br />
+          Turmweg
+        </div>
+        <div className="mt-1.5 text-[12.5px] italic text-muted-foreground">
+          A training plan companion
+        </div>
       </div>
 
-      <div className="px-6">
-        <div className="border-t border-sidebar-border" />
-      </div>
+      <div className="mx-5 h-px bg-sidebar-border" />
 
       {/* Table of Contents */}
-      <nav className="flex-1 px-6 py-4">
-        <div className="text-xs italic smallcaps text-muted-foreground mb-2">Contents</div>
-        <ol className="space-y-0.5">
+      <nav className="pt-4">
+        <div className="smallcaps px-5 pb-2.5 text-[11.5px] italic text-muted-foreground">
+          Contents
+        </div>
+        <ol className="flex flex-col gap-px">
           {navItems.map((item, idx) => {
             const isActive = pathname === item.href
             return (
@@ -68,15 +82,19 @@ export default function Sidebar({ onClose }: SidebarProps) {
                   href={item.href}
                   onClick={onClose}
                   className={cn(
-                    'group flex items-baseline gap-2 px-1 py-1 text-sm transition-colors',
+                    'grid grid-cols-[20px_1fr_15px] items-center gap-2.5 px-5 py-2 transition-colors',
                     isActive
-                      ? 'text-foreground border-l-2 border-accent pl-2 -ml-3'
-                      : 'text-foreground/75 hover:text-foreground',
+                      ? 'nav-active border-l-2 border-accent pl-[18px] italic'
+                      : 'text-foreground/80 hover:text-foreground',
                   )}
                 >
-                  <span className="tabular-nums w-5 text-right">{idx + 1}.</span>
-                  <span className={cn('flex-1', isActive && 'italic')}>{item.label}</span>
-                  <item.icon className="h-3.5 w-3.5 opacity-50" />
+                  <span className="tabular-nums text-right text-xs text-muted-foreground">
+                    {idx + 1}
+                  </span>
+                  <span className="text-[15px]">{item.label}</span>
+                  <item.icon
+                    className={cn('h-[13px] w-[13px]', isActive ? 'text-accent' : 'opacity-40')}
+                  />
                 </Link>
               </li>
             )
@@ -84,29 +102,45 @@ export default function Sidebar({ onClose }: SidebarProps) {
         </ol>
       </nav>
 
-      <div className="px-6">
-        <div className="border-t border-sidebar-border" />
-      </div>
+      {/* Next race — the one number that reframes the whole week */}
+      {nextRace && daysToRace !== null && (
+        <Link
+          href="/competitions"
+          onClick={onClose}
+          className="wash-primary mx-5 mt-5 border border-sidebar-border p-3.5 no-underline hover:border-primary/40"
+        >
+          <div className="smallcaps text-[11.5px] italic text-muted-foreground">Next race</div>
+          <div className="mt-1 truncate text-[15px]">{nextRace.name}</div>
+          <div className="tt-display tabular-nums text-[22px]">
+            {daysToRace === 0 ? 'today' : `${daysToRace} ${daysToRace === 1 ? 'day' : 'days'}`}
+          </div>
+          <div className="mt-2.5 h-[3px] bg-foreground/12">
+            <div className="h-[3px] bg-primary" style={{ width: `${countdownPct}%` }} />
+          </div>
+        </Link>
+      )}
 
       {/* Author / colophon */}
-      <div className="px-6 py-4">
-        <div className="flex items-center gap-3">
-          <Avatar className="h-8 w-8 border border-foreground/30">
+      <div className="mt-auto border-t border-sidebar-border px-5 py-3.5">
+        <div className="flex items-center gap-2.5">
+          <Avatar className="size-8 border border-foreground/30">
             <AvatarFallback className="bg-transparent text-xs text-foreground">
               {initials}
             </AvatarFallback>
           </Avatar>
-          <div className="flex-1 overflow-hidden">
+          <div className="min-w-0 flex-1">
             <p className="truncate text-sm">{user?.name}</p>
-            <p className="truncate text-xs italic text-muted-foreground">{user?.email}</p>
+            <p className="truncate text-[11.5px] italic text-muted-foreground">{user?.email}</p>
           </div>
-          <button
+          <Button
+            variant="ghost"
+            size="icon-sm"
             onClick={logout}
-            className="p-1.5 text-muted-foreground transition-colors hover:text-accent"
             aria-label="Log out"
+            className="text-muted-foreground hover:text-accent"
           >
-            <LogOut className="h-4 w-4" />
-          </button>
+            <LogOut className="h-[15px] w-[15px]" />
+          </Button>
         </div>
       </div>
     </div>

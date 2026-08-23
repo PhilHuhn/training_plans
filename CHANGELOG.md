@@ -2,6 +2,15 @@
 
 Auto-generated from git history.
 
+## 2026-08-23
+
+- Add design-sync inputs for the Turbine Turmweg UI design system (PhilHuhn)
+
+## 2026-08-22
+
+- Merge pull request #1 from PhilHuhn/claude/german-text-landing-page-v8dsxz (PhilHuhn)
+- Translate remaining German UI copy to English and add a landing page (Claude)
+
 ## 2026-08-21
 
 - Apply schema on deploy by making db:push non-interactive on Render (PhilHuhn)

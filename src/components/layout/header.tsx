@@ -1,47 +1,51 @@
 'use client'
-import { Menu, MessageCircle } from 'lucide-react'
+import { Menu, PanelRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
 import { useCurrentUser } from '@/hooks/use-auth'
 import { useChatStore } from '@/stores/chat-store'
-import { Badge } from '@/components/ui/badge'
 
 interface HeaderProps {
   title: string
+  /** Position in the sidebar's table of contents; renders as the eyebrow. */
+  section?: number
   onMenuClick: () => void
 }
 
-export default function Header({ title, onMenuClick }: HeaderProps) {
+export default function Header({ title, section, onMenuClick }: HeaderProps) {
   const { data: user } = useCurrentUser()
   const toggleChat = useChatStore((s) => s.toggleOpen)
 
   return (
-    <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b border-foreground/20 bg-background px-4 lg:px-6">
-      <Button
-        variant="ghost"
-        size="icon"
-        className="lg:hidden"
-        onClick={onMenuClick}
-      >
+    <header className="frosted sticky top-0 z-30 flex h-16 flex-shrink-0 items-center gap-4 border-b border-foreground/15 px-4 lg:px-7">
+      <Button variant="ghost" size="icon" className="lg:hidden" onClick={onMenuClick}>
         <Menu className="h-5 w-5" />
       </Button>
 
-      <h1 className="text-2xl font-serif leading-none">{title}</h1>
+      <div className="min-w-0">
+        {section !== undefined && (
+          <div className="smallcaps text-[11.5px] italic text-muted-foreground">
+            Section {section}
+          </div>
+        )}
+        <h1 className="tt-title truncate text-[23px] leading-[1.1]">{title}</h1>
+      </div>
 
       <div className="ml-auto flex items-center gap-3">
         {user?.strava_connected && (
-          <Badge variant="outline" className="gap-1.5 text-xs">
-            <span className="h-1.5 w-1.5 rounded-full bg-foreground" />
-            Strava connected
+          <Badge variant="outline" className="gap-2">
+            <span className="h-1.5 w-1.5 bg-accent" />
+            <span className="smallcaps italic">Strava connected</span>
           </Badge>
         )}
 
         <Button
           variant="outline"
-          size="icon"
-          className="relative h-9 w-9"
+          size="icon-sm"
           onClick={toggleChat}
+          aria-label="Toggle coach panel"
         >
-          <MessageCircle className="h-4 w-4" />
+          <PanelRight className="h-[15px] w-[15px]" />
         </Button>
       </div>
     </header>

@@ -50,7 +50,7 @@
   --radius: 0;
   --background: #FAF8F2;
   --foreground: #0A0A0A;
-  --card: #FAF8F2;
+  --card: #FCFAF5;
   --card-foreground: #0A0A0A;
   --popover: #FAF8F2;
   --popover-foreground: #0A0A0A;
@@ -59,7 +59,7 @@
   --secondary: #EDE7D8;
   --secondary-foreground: #0A0A0A;
   --muted: #EDE7D8;
-  --muted-foreground: #555555;
+  --muted-foreground: #6B6862;
   --accent: #7E1F2E;
   --accent-foreground: #FAF8F2;
   --destructive: #7E1F2E;
@@ -80,6 +80,17 @@
   --sidebar-accent-foreground: #0A0A0A;
   --sidebar-border: color-mix(in srgb, #0A0A0A 18%, transparent);
   --sidebar-ring: #1F3A93;
+
+  /* Layered surfaces (2026 refresh). Shallow gradients stand in for the flat
+     fills the earlier design used — warm at the edges, paper in the middle. */
+  --gradient-sidebar: linear-gradient(180deg, #F5F1E4 0%, #FAF8F2 46%, #F7F3E8 100%);
+  --gradient-band: linear-gradient(180deg, #FCFAF4 0%, #F5F1E3 100%);
+  --gradient-tile: linear-gradient(180deg, #FCFAF5, #FAF8F2);
+  --gradient-nav-active: linear-gradient(90deg, color-mix(in srgb, var(--accent) 9%, transparent), transparent 78%);
+  --gradient-wash-accent: linear-gradient(160deg, color-mix(in srgb, var(--accent) 6%, transparent), transparent 62%);
+  --gradient-wash-primary: linear-gradient(160deg, color-mix(in srgb, var(--primary) 7%, transparent), transparent 70%);
+  --gradient-invert: linear-gradient(135deg, #0A0A0A 0%, #141821 58%, #1F3A93 190%);
+  --frosted: color-mix(in srgb, var(--background) 86%, transparent);
 }
 
 @layer base {
@@ -144,6 +155,33 @@
   .booktabs-bottom {
     border-bottom: 1.5px solid var(--foreground);
   }
+
+  /* --- 2026 refresh helpers --------------------------------------------- */
+  .surface-sidebar { background: var(--gradient-sidebar); }
+  .surface-band { background: var(--gradient-band); }
+  .surface-tile { background: var(--gradient-tile); }
+  .surface-invert { background: var(--gradient-invert); color: var(--background); }
+  .wash-accent { background: var(--gradient-wash-accent); }
+  .wash-primary { background: var(--gradient-wash-primary); }
+  .nav-active { background: var(--gradient-nav-active); }
+  /* Sticky chrome sits on frosted paper so content scrolls visibly beneath it. */
+  .frosted {
+    background: var(--frosted);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+  }
+  /* Display figures and headings are set tight; body copy is not. */
+  .tt-display { letter-spacing: -0.02em; }
+  .tt-title { letter-spacing: -0.015em; }
+  /* One hairline between cells, drawn by the parent's own background. */
+  .hairline-grid { background: var(--border); gap: 1px; }
+  /* Photographic bands: desaturated, flattened, and pushed under the type. */
+  .band-photo {
+    filter: grayscale(1) contrast(1.9) brightness(1.12);
+    opacity: 0.12;
+    mix-blend-mode: multiply;
+  }
+
   .marginpar {
     border-left: 1px solid var(--border);
     padding-left: 1rem;
