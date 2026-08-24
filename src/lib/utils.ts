@@ -112,69 +112,9 @@ export function stravaSportColor(_stravaType: string): string {
   return monoChip
 }
 
-export function sportLabel(sport: string): string {
-  const labels: Record<string, string> = {
-    running: 'Running',
-    cycling: 'Cycling',
-    swimming: 'Swimming',
-    strength: 'Strength',
-    hiking: 'Hiking',
-    rowing: 'Rowing',
-    other: 'Other',
-  }
-  return labels[sport] || sport.charAt(0).toUpperCase() + sport.slice(1)
-}
+/**
+ * Sport labels, colours and icons now live in @/lib/sport-theme — one map for
+ * charts, badges and lists. sportColor is kept because the activity list badges
+ * still want the neutral chip outline rather than a filled colour.
+ */
 
-export function stravaSportLabel(stravaType: string): string {
-  const labels: Record<string, string> = {
-    Run: 'Run',
-    TrailRun: 'Trail Run',
-    VirtualRun: 'Virtual Run',
-    Ride: 'Ride',
-    VirtualRide: 'Virtual Ride',
-    MountainBikeRide: 'MTB',
-    EBikeRide: 'E-Bike',
-    Swim: 'Swim',
-    WeightTraining: 'Strength',
-    Hike: 'Hike',
-    Walk: 'Walk',
-    Rowing: 'Rowing',
-    Yoga: 'Yoga',
-    Workout: 'Workout',
-  }
-  return labels[stravaType] || stravaType
-}
-
-/** Monochrome shade for a Strava activity type (chart fills, LaTeX-paper aesthetic). */
-export function stravaSportHex(stravaType: string): string {
-  // Stable assignment of each sport to one of a few greyscale shades so stacked
-  // charts remain readable without color cues.
-  const shades = ['#0A0A0A', '#3A3A3A', '#666666', '#8E8E8E', '#B5B5B5']
-  const order = [
-    'Run', 'Ride', 'Swim', 'WeightTraining', 'Hike',
-    'TrailRun', 'VirtualRun', 'VirtualRide', 'MountainBikeRide', 'EBikeRide',
-    'Walk', 'Rowing', 'Yoga', 'Workout',
-  ]
-  const idx = order.indexOf(stravaType)
-  if (idx === -1) return '#777777'
-  return shades[idx % shades.length]
-}
-
-/** Strava sport icon name for badge display */
-export function stravaSportIcon(stravaType: string): string {
-  const map: Record<string, string> = {
-    Run: 'running',
-    TrailRun: 'running',
-    VirtualRun: 'running',
-    Ride: 'cycling',
-    VirtualRide: 'cycling',
-    MountainBikeRide: 'cycling',
-    EBikeRide: 'cycling',
-    Swim: 'swimming',
-    WeightTraining: 'strength',
-    Hike: 'hiking',
-    Walk: 'hiking',
-    Rowing: 'rowing',
-  }
-  return map[stravaType] || 'other'
-}

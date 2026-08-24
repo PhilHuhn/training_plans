@@ -1,5 +1,6 @@
 import apiClient from './client'
 import type {
+  ClubCreatedResponse,
   ClubDetailResponse,
   ClubOverlayResponse,
   ClubRole,
@@ -9,6 +10,12 @@ import type {
 
 export const clubApi = {
   getMyClubs: () => apiClient.get<{ memberships: ClubSummary[] }>('/club'),
+
+  createClub: (name: string) => apiClient.post<ClubCreatedResponse>('/club', { name }),
+
+  joinClub: (code: string) => apiClient.post<ClubSummary>('/club/join', { code }),
+
+  leaveClub: (slug: string) => apiClient.delete<void>(`/club/${slug}/membership`),
 
   getClub: (slug: string) => apiClient.get<ClubDetailResponse>(`/club/${slug}`),
 

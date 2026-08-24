@@ -7,6 +7,7 @@ import {
   Users,
   Settings,
   FileText,
+  ShieldCheck,
   type LucideIcon,
 } from 'lucide-react'
 
@@ -29,7 +30,19 @@ export const navItems: NavItem[] = [
   { href: '/changelog', icon: FileText, label: 'Changelog' },
 ]
 
+// Appended for platform admins only (see @/server/auth/admin), so the numbering
+// of every other section stays the same for ordinary users.
+export const adminNavItem: NavItem = { href: '/admin', icon: ShieldCheck, label: 'Admin' }
+
+/** The sidebar list as this user sees it. */
+export function navItemsFor(isAdmin: boolean | undefined): NavItem[] {
+  return isAdmin ? [...navItems, adminNavItem] : navItems
+}
+
 export function sectionFor(pathname: string): { number: number; label: string } | null {
-  const idx = navItems.findIndex((i) => i.href === pathname)
-  return idx === -1 ? null : { number: idx + 1, label: navItems[idx].label }
+  // Admin resolves here too, so the header shows a title on /admin. It is not
+  // an access check — the API is the gate.
+  const all = [...navItems, adminNavItem]
+  const idx = all.findIndex((i) => i.href === pathname)
+  return idx === -1 ? null : { number: idx + 1, label: all[idx].label }
 }

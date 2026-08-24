@@ -11,22 +11,20 @@ import {
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Sparkles, Footprints, Bike, Waves, Dumbbell, Mountain, Ship, CalendarClock, Check, Loader2 } from 'lucide-react'
+import { Sparkles, CalendarClock, Check, Loader2 } from 'lucide-react'
 import { useGenerateRecommendations } from '@/hooks/use-training'
 import { useCompetitions } from '@/hooks/use-competitions'
 import { addDays, daysBetween, cn } from '@/lib/utils'
+import { planningSportTheme } from '@/lib/sport-theme'
 import type { Competition } from '@/lib/types'
 
 const MAX_WEEKS = 16
 
-const ALL_SPORTS = [
-  { id: 'running', label: 'Running', icon: Footprints, locked: true, color: 'bg-green-400' },
-  { id: 'cycling', label: 'Cycling', icon: Bike, locked: false, color: 'bg-yellow-400' },
-  { id: 'swimming', label: 'Swimming', icon: Waves, locked: false, color: 'bg-blue-400' },
-  { id: 'strength', label: 'Strength', icon: Dumbbell, locked: false, color: 'bg-rose-400' },
-  { id: 'hiking', label: 'Hiking', icon: Mountain, locked: false, color: 'bg-amber-400' },
-  { id: 'rowing', label: 'Rowing', icon: Ship, locked: false, color: 'bg-indigo-400' },
-] as const
+// Labels, icons and colours all come from @/lib/sport-theme so a sport looks
+// the same here as it does on the activities charts.
+const ALL_SPORTS = (
+  ['running', 'cycling', 'swimming', 'strength', 'hiking', 'rowing'] as const
+).map((id) => ({ id, locked: id === 'running', ...planningSportTheme(id) }))
 
 interface GenerateModalProps {
   open: boolean
@@ -264,18 +262,19 @@ export default function GenerateModal({ open, onClose, weekStart }: GenerateModa
             <div className="flex flex-wrap gap-2">
               {ALL_SPORTS.map((sport) => {
                 const isSelected = sportConfig.has(sport.id)
-                const Icon = sport.icon
+                const Icon = sport.Icon
                 return (
                   <button
                     key={sport.id}
                     type="button"
                     disabled={sport.locked}
                     onClick={() => !sport.locked && toggleSport(sport.id)}
+                    style={isSelected ? { borderColor: sport.color, color: sport.color } : undefined}
                     className={cn(
-                      'flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors',
+                      'flex items-center gap-1.5 border px-3 py-1.5 text-xs font-medium transition-colors',
                       isSelected
-                        ? 'border-violet-300 bg-violet-50 text-violet-700'
-                        : 'border-gray-200 bg-white text-gray-400 hover:border-gray-300 hover:text-gray-500',
+                        ? 'bg-secondary'
+                        : 'border-border text-muted-foreground hover:text-foreground',
                       sport.locked && 'cursor-default opacity-80',
                     )}
                   >
@@ -299,7 +298,7 @@ export default function GenerateModal({ open, onClose, weekStart }: GenerateModa
             </Label>
             <div className="space-y-1">
               {ALL_SPORTS.filter((s) => sportConfig.has(s.id)).map((sport) => {
-                const Icon = sport.icon
+                const Icon = sport.Icon
                 const config = sportConfig.get(sport.id)!
                 const offsetDays = Math.max(daysBetween(startDate, config.startDate), 0)
                 const leftPct = (offsetDays / totalDays) * 100
@@ -309,7 +308,7 @@ export default function GenerateModal({ open, onClose, weekStart }: GenerateModa
                   <div key={sport.id} className="group">
                     <div className="flex items-center gap-2">
                       <div className="flex w-20 shrink-0 items-center gap-1.5">
-                        <Icon className="h-3 w-3 text-muted-foreground" />
+                        <Icon className="h-3 w-3" style={{ color: sport.color }} />
                         <span className="text-xs font-medium truncate">{sport.label}</span>
                       </div>
                       {/* Timeline bar */}

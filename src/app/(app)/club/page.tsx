@@ -1,6 +1,7 @@
 'use client'
 import { useMemo, useState } from 'react'
-import { ChevronLeft, ChevronRight, Users } from 'lucide-react'
+import { ChevronLeft, ChevronRight } from 'lucide-react'
+import ClubOnboarding from '@/components/club/club-onboarding'
 import ClubOverlayGrid from '@/components/club/club-overlay-grid'
 import SponsorFooter from '@/components/club/sponsor-footer'
 import ThemeScope from '@/components/club/theme-scope'
@@ -30,7 +31,9 @@ function formatWeekRange(weekStart: string): string {
 
 export default function ClubPage() {
   const { data: memberships, isLoading: clubsLoading } = useMyClubs()
-  const club = memberships?.[0]
+  // Users can now belong to several clubs; the switcher below picks between them.
+  const [activeSlug, setActiveSlug] = useState<string | null>(null)
+  const club = memberships?.find((m) => m.slug === activeSlug) ?? memberships?.[0]
   const [weekStart, setWeekStart] = useState(currentMonday)
 
   const { data: detail } = useClub(club?.slug)
@@ -42,18 +45,7 @@ export default function ClubPage() {
     return <div className="p-8 text-sm italic text-muted-foreground">Loading club …</div>
   }
 
-  if (!club) {
-    return (
-      <div className="mx-auto max-w-2xl px-6 py-16 text-center">
-        <Users className="mx-auto mb-4 h-8 w-8 text-muted-foreground/50" />
-        <h2 className="mb-2 text-lg font-serif">You're not in a club yet</h2>
-        <p className="text-sm italic text-muted-foreground">
-          Once you join a club, the overlay finds shared and parallel sessions with your
-          teammates here — without compromising your own training stimulus.
-        </p>
-      </div>
-    )
-  }
+  if (!club) return <ClubOnboarding />
 
   return (
     <ThemeScope theme={detail?.theme}>
@@ -65,6 +57,23 @@ export default function ClubPage() {
           <p className="text-xs italic text-muted-foreground">
             Club overlay · your role: {club.role}
           </p>
+          {memberships && memberships.length > 1 && (
+            <div className="mt-2 flex flex-wrap gap-2">
+              {memberships.map((m) => (
+                <button
+                  key={m.slug}
+                  onClick={() => setActiveSlug(m.slug)}
+                  className={
+                    m.slug === club.slug
+                      ? 'border-b border-foreground text-xs'
+                      : 'border-b border-transparent text-xs text-muted-foreground transition-colors hover:text-foreground'
+                  }
+                >
+                  {m.name}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
         <div className="flex items-center gap-2">
           {detail?.donation_url && (

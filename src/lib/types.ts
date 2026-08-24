@@ -5,6 +5,7 @@ export interface User {
   name: string
   preferences: UserPreferences
   strava_connected: boolean
+  is_admin: boolean
   profile_summary?: string | null
   coach_instructions?: string | null
   athlete_profile?: string | null
@@ -374,6 +375,42 @@ export interface ClubSummary {
   visibility: ClubVisibility
 }
 
+/** POST /api/club response — a summary plus the freshly minted join code. */
+export interface ClubCreatedResponse extends ClubSummary {
+  join_code: string
+}
+
+export interface AdminMembershipWire {
+  club_id: number
+  club_name: string
+  slug: string
+  role: ClubRole
+  visibility: ClubVisibility
+}
+
+export interface AdminUserWire {
+  id: number
+  email: string
+  name: string
+  created_at: string
+  strava_connected: boolean
+  is_admin: boolean
+  /** True when admin comes from ADMIN_EMAILS, which the dashboard cannot revoke. */
+  admin_via_env: boolean
+  memberships: AdminMembershipWire[]
+}
+
+export interface AdminClubWire {
+  id: number
+  name: string
+  slug: string
+  plan_tier: ClubPlanTier
+  donation_url: string | null
+  join_code: string
+  member_count: number
+  created_at: string
+}
+
 export interface ClubMemberWire {
   user_id: number
   name: string
@@ -387,6 +424,8 @@ export interface ClubDetailResponse {
   slug: string
   plan_tier: ClubPlanTier
   donation_url?: string | null
+  // Coaches only — the code teammates use to join. Null for everyone else.
+  join_code?: string | null
   members: ClubMemberWire[]
   // Paid features — null on the free tier (server-enforced gate).
   theme: ClubThemeWire | null

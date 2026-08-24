@@ -8,18 +8,26 @@ computed by the matching engine (`src/server/engine/`).
 
 Club membership is **optional and additive**. A user with zero
 `club_memberships` rows sees the app exactly as before — Training, Activities,
-Coach chat, Strava all unchanged. `/club` shows a quiet empty state; the
-settings "Club" card renders nothing. Never make a club concept a
-precondition for a non-club feature.
+Coach chat, Strava all unchanged. `/club` shows the create/join onboarding
+(`components/club/club-onboarding.tsx`); the settings "Club" card renders
+nothing. Never make a club concept a precondition for a non-club feature.
+
+A user may belong to **several** clubs: the club page has a switcher and the
+settings page renders one card per membership. Don't reintroduce a
+`memberships[0]` assumption.
 
 ## Routes & data flow
 
 | Endpoint | Auth | Purpose |
 |---|---|---|
 | `GET /api/club` | `requireSession` | caller's memberships |
+| `POST /api/club` | `requireSession` | create a club; creator becomes its coach |
+| `POST /api/club/join` | `requireSession` | join by code — the ONLY route that creates a first membership, so it cannot be club-gated |
 | `GET /api/club/[slug]` | `requireClubMember` | profile, members, theme+sponsor (paid only) |
 | `GET /api/club/[slug]/overlay?week=` | `requireClubMember` | per-member sessions + computed compromises |
 | `PATCH /api/club/[slug]/membership` | `requireClubMember` / coach for roles | own visibility; coach edits others' roles |
+| `DELETE /api/club/[slug]/membership` | `requireClubMember` | leave the club; the last coach is refused |
+| `GET|PATCH|POST|DELETE /api/admin/**` | `requireAdmin` | platform operator; bypasses the coach-only role gate by design |
 
 Auth helpers live in `@/server/auth/club.ts` (`requireClubMember`,
 `requireClubRole`) and mirror the `requireSession` union shape
@@ -37,6 +45,13 @@ never chooses whose data loads.
 | `captain` | same as athlete (logistics role; v2 tools) | own |
 
 A coach cannot change their own role (lockout guard in the membership route).
+
+**Joining** is by `clubs.joinCode` — a short unique code the API returns to
+coaches only (`GET /api/club/[slug]` nulls it for everyone else). New members
+land on the schema defaults (`athlete` / `typ_only`): joining never widens what
+teammates can see. A **platform admin** (`@/server/auth/admin`) sits above all
+of this and can set any role or visibility from `/admin` — the backstop when a
+club locks itself out.
 
 ## Visibility — the single choke point
 

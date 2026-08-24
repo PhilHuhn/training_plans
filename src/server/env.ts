@@ -58,6 +58,9 @@ const envSchema = z.object({
   SMTP_USER: z.string().default(""),
   SMTP_PASSWORD: z.string().default(""),
   CONTACT_TO: z.string().default(""),
+  // Comma-separated operator emails. Bootstraps platform admin without a DB
+  // write, and stays the escape hatch if the is_admin flag is ever lost.
+  ADMIN_EMAILS: z.string().default(""),
 });
 
 const parsed = envSchema.safeParse({
@@ -72,6 +75,7 @@ const parsed = envSchema.safeParse({
   SMTP_USER: readEnv("SMTP_USER"),
   SMTP_PASSWORD: readEnv("SMTP_PASSWORD"),
   CONTACT_TO: readEnv("CONTACT_TO"),
+  ADMIN_EMAILS: readEnv("ADMIN_EMAILS"),
 });
 
 if (!parsed.success) {
