@@ -26,6 +26,36 @@ export function useClubOverlay(slug: string | undefined, weekStart: string | und
   })
 }
 
+export function useCreateClub() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (name: string) => clubApi.createClub(name).then((r) => r.data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['club'] })
+    },
+  })
+}
+
+export function useJoinClub() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (code: string) => clubApi.joinClub(code).then((r) => r.data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['club'] })
+    },
+  })
+}
+
+export function useLeaveClub() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (slug: string) => clubApi.leaveClub(slug).then((r) => r.data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['club'] })
+    },
+  })
+}
+
 export function useUpdateMembership(slug: string | undefined) {
   const queryClient = useQueryClient()
   return useMutation({

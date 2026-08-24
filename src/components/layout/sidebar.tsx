@@ -7,7 +7,7 @@ import { useCurrentUser, useLogout } from '@/hooks/use-auth'
 import { useCompetitions } from '@/hooks/use-competitions'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
-import { navItems } from './nav-items'
+import { navItemsFor } from './nav-items'
 
 
 // The countdown bar fills as the race approaches. Twelve weeks is the usual
@@ -23,6 +23,8 @@ export default function Sidebar({ onClose }: SidebarProps) {
   const { data: user } = useCurrentUser()
   const { data: competitions } = useCompetitions()
   const logout = useLogout()
+
+  const items = navItemsFor(user?.is_admin)
 
   const initials = user?.name
     ?.split(' ')
@@ -74,7 +76,7 @@ export default function Sidebar({ onClose }: SidebarProps) {
           Contents
         </div>
         <ol className="flex flex-col gap-px">
-          {navItems.map((item, idx) => {
+          {items.map((item, idx) => {
             const isActive = pathname === item.href
             return (
               <li key={item.href}>

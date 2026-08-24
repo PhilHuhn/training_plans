@@ -109,17 +109,19 @@ Tests run with **Vitest**: `npm run test` (engine guardrails, serializers, ics).
 
 Single canonical source: `src/server/db/schema.ts`. Nine tables, all keyed by `serial id`:
 
-- **users** — email (unique), passwordHash, name, Strava tokens + athleteId (unique), profileSummary (text, AI-generated post-sync), preferences (jsonb with default seed for HR/pace zones, max_hr, resting_hr)
+- **users** — email (unique), passwordHash, name, **isAdmin** (boolean, default false — platform operator, not a club role), Strava tokens + athleteId (unique), profileSummary (text, AI-generated post-sync), preferences (jsonb with default seed for HR/pace zones, max_hr, resting_hr)
 - **activities** — userId FK, stravaId (unique), name, activityType, distance, duration, elevationGain, calories, avgHeartRate, maxHeartRate, avgPace (sec/km), startDate (indexed), rawData + lapsData (jsonb)
 - **competitions** — userId FK, name, raceType (pgEnum 5K/10K/HM/M/50K/100K/50M/100M/OTHER), raceDate (indexed), distance, location, goalTime, goalPace, priority (pgEnum A/B/C, default B), notes
 - **trainingSessions** — userId FK, sessionDate (indexed), source (pgEnum app_recommendation/uploaded_plan/manual/ics_import), status (pgEnum planned/completed/skipped/modified), plannedWorkout + recommendationWorkout + finalWorkout (jsonb), acceptedSource (varchar), completedActivityId FK, uploadedPlanId FK, rpeActual, **flexDays** (int, ± days a session may shift for club matching; default 0)
 - **uploadedPlans** — userId FK, filename, contentType, contentText (text), parsedSessions (jsonb), isActive (integer 1/0)
 - **zoneHistory** — userId FK, calculatedAt, source ("manual" | "strava_estimate" | "reverted"), maxHr, restingHr, hrZones (jsonb), thresholdPace, paceZones (jsonb), ftp, cyclingPowerZones (jsonb), plus avg HR/pace metrics
-- **clubs** — name, slug (unique), themeJson (jsonb CI: primary/accent/background/logoUrl hex), planTier (pgEnum free/paid, default free), donationUrl (varchar)
+- **clubs** — name, slug (unique), **joinCode** (varchar 12, unique — the code teammates use to join), createdByUserId FK, themeJson (jsonb CI: primary/accent/background/logoUrl hex), planTier (pgEnum free/paid, default free), donationUrl (varchar)
 - **clubMemberships** — clubId FK, userId FK, role (pgEnum coach/athlete/captain, default athlete), visibility (pgEnum typ_only/full, default typ_only); unique (clubId, userId)
 - **sponsors** — clubId FK, name, logoUrl, url, discountCode
 
 Migrations live in `drizzle/`. JSON column shape changes do **not** need a new migration — only top-level columns do. **Migration policy:** the local DB is managed with `npm run db:push` (drizzle-kit push), not the journal-based `generate`+`migrate` flow — `0001_wandering_pixie.sql` was generated for review but the DB is push-managed. Stay on `db:push`; don't mix the two (it causes drift).
+
+**A new `notNull` column MUST carry a SQL-level `.default(...)`.** On Render, `db:push` runs with `--force` (no TTY to answer prompts); a `notNull` column with only a `$defaultFn` — which is applied client-side, on insert — leaves push unable to satisfy the constraint, and it resolves that by **TRUNCATE**-ing the table and everything referencing it. `clubs.joinCode` carries `.default(sql\`upper(substr(md5(random()::text), 1, 8))\`)` for exactly this reason. Verify any such change by dropping the column on a populated local DB and re-pushing before you ship it.
 
 ## Claude integration patterns
 
@@ -155,6 +157,7 @@ Defined and validated in `src/server/env.ts` (zod). The loader falls back to `.e
 | `STRAVA_CLIENT_ID` / `STRAVA_CLIENT_SECRET` | Strava OAuth |
 | `ANTHROPIC_API_KEY` | Claude API |
 | `BASE_URL` | Public origin used for the Strava redirect URI |
+| `ADMIN_EMAILS` | Comma-separated platform-operator emails; grants `/admin` without a DB flag |
 
 ## Development workflow
 
@@ -169,7 +172,8 @@ Defined and validated in `src/server/env.ts` (zod). The loader falls back to `.e
 
 - Server-only modules: import `"server-only"` at the top to enforce.
 - Route handlers: `export const runtime = "nodejs"; export const dynamic = "force-dynamic";` to opt out of static prerender.
-- Auth: every gated route uses `requireSession(req)` which returns `{user}` or `{response}` (a 401 NextResponse) — pattern is `if ("response" in session) return session.response`.
+- Auth: every gated route uses `requireSession(req)` which returns `{user}` or `{response}` (a 401 NextResponse) — pattern is `if ("response" in session) return session.response`. Club-scoped routes use `requireClubMember` / `requireClubRole` (`@/server/auth/club`); `/api/admin/**` uses `requireAdmin` (`@/server/auth/admin`), which is the real gate — `middleware.ts` only checks that a cookie is present.
+- Sport colours and icons: one map, `@/lib/sport-theme`. Charts, badges, filter tabs and session cards all read `sportTheme(stravaType)` / `planningSportTheme(sport)`; the `--chart-*` tokens in `globals.css` mirror `SPORT_COLORS`. Don't re-derive a per-sport colour or icon anywhere else.
 - Wire format: TypeScript types in `src/lib/types.ts` are the canonical client contract. Server response builders in `src/server/serializers.ts` produce that exact shape from Drizzle rows.
 - Style: LaTeX-document tokens in `globals.css`. Hairline borders, italic small-caps for status, justified body text via `.prose-paper`. Avoid bringing back the old neo-brutalist `border-2 border-[#092B37]` / `shadow-brutal` classes.
 

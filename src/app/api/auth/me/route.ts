@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { isAdmin } from "@/server/auth/admin";
 import { requireSession } from "@/server/auth/session";
 
 export const runtime = "nodejs";
@@ -15,6 +16,7 @@ export async function GET(req: NextRequest) {
     name: u.name,
     preferences: u.preferences ?? {},
     strava_connected: u.stravaAccessToken != null,
+    is_admin: isAdmin(u),
     profile_summary: u.profileSummary,
     coach_instructions: u.coachInstructions,
     athlete_profile: u.athleteProfile,

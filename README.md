@@ -16,6 +16,21 @@ AI-powered training plan management for runners — from 5K to ultramarathons.
 - **LaTeX-document UI** — Computer Modern serif on cream paper, hyperref blue links, booktabs tables
 - **Landing page** — public `/` page explaining what the app does; signed-in visitors are redirected to `/training`
 
+## Clubs
+
+Anyone can start a club from `/club` and becomes its coach. Coaches see a short
+**join code** on the club settings card; teammates paste it into "Join a club"
+to become athletes. Joining never widens what teammates can see of your
+training — new members start at `typ_only` visibility and change it themselves.
+
+## Admin
+
+Set `ADMIN_EMAILS` to a comma-separated list of operator emails and those
+accounts get an **Admin** section listing every registered user and club, with
+controls for club roles, member visibility, club tier and the donation link.
+Admins can also grant admin to other accounts (stored as `users.is_admin`); the
+env var is the bootstrap and stays the way back in if the flag is ever lost.
+
 ## Pricing
 
 Everything is **free to use** today — no paid tier, no usage limits.

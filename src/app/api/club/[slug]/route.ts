@@ -52,6 +52,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ slug
     slug: ctx.club.slug,
     plan_tier: ctx.club.planTier,
     donation_url: ctx.club.donationUrl,
+    // Only coaches hand out the code, so only coaches receive it.
+    join_code: ctx.membership.role === "coach" ? ctx.club.joinCode : null,
     members: memberRows.map((m) => ({
       user_id: m.userId,
       name: m.name,

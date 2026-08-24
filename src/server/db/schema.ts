@@ -2,6 +2,7 @@ import {
   pgTable,
   serial,
   varchar,
+  boolean,
   text,
   integer,
   real,
@@ -13,7 +14,8 @@ import {
   uniqueIndex,
   index,
 } from "drizzle-orm/pg-core";
-import { relations } from "drizzle-orm";
+import { relations, sql } from "drizzle-orm";
+import { generateJoinCode } from "@/lib/club-codes";
 
 // =====================================================================
 // Enums
@@ -122,6 +124,10 @@ export const users = pgTable(
     stravaRefreshToken: varchar("strava_refresh_token", { length: 255 }),
     stravaAthleteId: integer("strava_athlete_id"),
     stravaTokenExpiresAt: timestamp("strava_token_expires_at"),
+
+    // Platform-level operator flag. Unrelated to clubMemberships.role, which is
+    // scoped to a single club. See @/server/auth/admin for how it is resolved.
+    isAdmin: boolean("is_admin").notNull().default(false),
 
     profileSummary: text("profile_summary"),
 
@@ -322,6 +328,22 @@ export const clubs = pgTable(
     name: varchar("name", { length: 255 }).notNull(),
     slug: varchar("slug", { length: 100 }).notNull(),
 
+    // Shared secret a coach hands out so teammates can join themselves.
+    //
+    // The SQL default is what makes this column safe to add to a populated
+    // table: without one, `drizzle-kit push --force` cannot satisfy NOT NULL
+    // and silently TRUNCATEs clubs (cascading to memberships and sponsors).
+    // Application inserts always pass generateJoinCode(); the SQL side is a
+    // backfill only, which is why it is allowed the plainer hex alphabet.
+    joinCode: varchar("join_code", { length: 12 })
+      .notNull()
+      .$defaultFn(generateJoinCode)
+      .default(sql`upper(substr(md5(random()::text), 1, 8))`),
+
+    createdByUserId: integer("created_by_user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+
     themeJson: jsonb("theme_json").$type<ClubTheme>(),
     planTier: clubPlanTierEnum("plan_tier").notNull().default("free"),
 
@@ -333,6 +355,7 @@ export const clubs = pgTable(
   },
   (t) => ({
     slugIdx: uniqueIndex("clubs_slug_key").on(t.slug),
+    joinCodeIdx: uniqueIndex("clubs_join_code_key").on(t.joinCode),
   }),
 );
 

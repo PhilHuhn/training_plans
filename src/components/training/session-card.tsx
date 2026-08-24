@@ -1,9 +1,10 @@
 'use client'
 import { useState } from 'react'
-import { Check, Pencil, Download, Bike, Waves, Dumbbell, Mountain, Ship, ChevronDown, ChevronUp, ArrowRightLeft } from 'lucide-react'
+import { Check, Pencil, Download, ChevronDown, ChevronUp, ArrowRightLeft } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { cn, workoutTypeColor, sportColor, formatDistanceKm, phaseColor, rpeColor, formatPace } from '@/lib/utils'
+import { cn, workoutTypeColor, formatDistanceKm, phaseColor, rpeColor, formatPace } from '@/lib/utils'
+import { planningSportTheme } from '@/lib/sport-theme'
 import type { WorkoutDetails, TrainingSession } from '@/lib/types'
 import { trainingApi } from '@/api/training'
 import { useUpdateSession } from '@/hooks/use-training'
@@ -198,16 +199,15 @@ export default function SessionCard({
           <Badge variant="secondary" className={cn('text-xs', workoutTypeColor(workout.type))}>
             {workout.type.replace('_', ' ')}
           </Badge>
-          {workout.sport && workout.sport !== 'running' && (
-            <Badge variant="outline" className={cn('text-xs gap-1', sportColor(workout.sport))}>
-              {workout.sport === 'cycling' && <Bike className="h-3 w-3" />}
-              {workout.sport === 'swimming' && <Waves className="h-3 w-3" />}
-              {workout.sport === 'strength' && <Dumbbell className="h-3 w-3" />}
-              {workout.sport === 'hiking' && <Mountain className="h-3 w-3" />}
-              {workout.sport === 'rowing' && <Ship className="h-3 w-3" />}
-              {workout.sport}
-            </Badge>
-          )}
+          {workout.sport && workout.sport !== 'running' && (() => {
+            const { Icon, color, label } = planningSportTheme(workout.sport)
+            return (
+              <Badge variant="outline" className="gap-1 text-xs" style={{ color }}>
+                <Icon className="h-3 w-3" />
+                {label}
+              </Badge>
+            )
+          })()}
           {workout.training_phase && (
             <Badge variant="outline" className={cn('text-[10px]', phaseColor(workout.training_phase))}>
               {workout.training_phase}

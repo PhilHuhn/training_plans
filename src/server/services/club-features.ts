@@ -18,6 +18,11 @@ export function clubFeatures(club: Pick<Club, "planTier">): {
 const HEX_COLOR = /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
 const SAFE_URL = /^https:\/\/[^\s"'<>()]+$/;
 
+/** Shared https-only guard for stored links we later render as hrefs. */
+export function isSafeExternalUrl(url: string): boolean {
+  return SAFE_URL.test(url);
+}
+
 export function sanitizeClubTheme(theme: ClubTheme | null | undefined): ClubThemeWire | null {
   if (!theme) return null;
   const out: ClubThemeWire = {};

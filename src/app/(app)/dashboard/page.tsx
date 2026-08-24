@@ -8,6 +8,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { useDashboardStats } from '@/hooks/use-activities'
 import { useCurrentUser } from '@/hooks/use-auth'
 import { formatPace } from '@/lib/utils'
+import { CHART_TOOLTIP_STYLE, SEQUENTIAL_RAMP, SPORT_COLORS } from '@/lib/sport-theme'
 import { useRouter } from 'next/navigation'
 import {
   ResponsiveContainer,
@@ -15,6 +16,7 @@ import {
   Line,
   Bar,
   BarChart,
+  Cell,
   Scatter,
   ScatterChart,
   XAxis,
@@ -31,13 +33,7 @@ const RANGES = [
   { days: 365, label: '1 year' },
 ]
 
-const tooltipStyle = {
-  fontSize: 12,
-  borderRadius: 0,
-  border: '1px solid #0A0A0A',
-  backgroundColor: '#FAF8F2',
-  fontFamily: 'inherit',
-}
+const tooltipStyle = CHART_TOOLTIP_STYLE
 
 function DeltaBadge({
   current,
@@ -339,12 +335,12 @@ export default function DashboardPage() {
                       />
                       <ReferenceLine y={0} stroke="#B5B5B5" strokeDasharray="2 2" />
                       <Bar dataKey="trimp" fill="#D8D4C8" name="trimp" />
-                      <Line type="monotone" dataKey="ctl" stroke="#0A0A0A" strokeWidth={2} dot={false} name="ctl" />
-                      <Line type="monotone" dataKey="atl" stroke="#7E1F2E" strokeWidth={1.5} dot={false} name="atl" />
+                      <Line type="monotone" dataKey="ctl" stroke={SPORT_COLORS.ink} strokeWidth={2} dot={false} name="ctl" />
+                      <Line type="monotone" dataKey="atl" stroke={SPORT_COLORS.ride} strokeWidth={1.5} dot={false} name="atl" />
                       <Line
                         type="monotone"
                         dataKey="tsb"
-                        stroke="#1F3A93"
+                        stroke={SPORT_COLORS.run}
                         strokeWidth={1.5}
                         strokeDasharray="4 3"
                         dot={false}
@@ -386,7 +382,16 @@ export default function DashboardPage() {
                           // eslint-disable-next-line @typescript-eslint/no-explicit-any
                           formatter={((value: any) => [`${Number(value ?? 0).toFixed(1)} h`, 'Time']) as never}
                         />
-                        <Bar dataKey="hours" fill="#3A3A3A" />
+                        <Bar dataKey="hours">
+                          {/* Zones are ordered, so they get a sequential ramp
+                              rather than the categorical sport palette. */}
+                          {data.zone_distribution.map((_, i) => (
+                            <Cell
+                              key={i}
+                              fill={SEQUENTIAL_RAMP[Math.min(i, SEQUENTIAL_RAMP.length - 1)]}
+                            />
+                          ))}
+                        </Bar>
                       </BarChart>
                     </ResponsiveContainer>
                   </div>
@@ -432,7 +437,7 @@ export default function DashboardPage() {
                                 : [value, name]) as never}
                             labelFormatter={() => ''}
                           />
-                          <Scatter data={data.pace_trend} fill="#1F3A93" />
+                          <Scatter data={data.pace_trend} fill={SPORT_COLORS.run} />
                         </ScatterChart>
                       </ResponsiveContainer>
                     </div>

@@ -1,18 +1,6 @@
 'use client'
 import { useState, useMemo } from 'react'
-import {
-  RefreshCw,
-  Zap,
-  Heart,
-  Link as LinkIcon,
-  Bike,
-  Waves,
-  Dumbbell,
-  Mountain,
-  Ship,
-  Footprints,
-  Timer,
-} from 'lucide-react'
+import { RefreshCw, Zap, Heart, Link as LinkIcon, Timer } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -24,15 +12,8 @@ import {
   useStravaSync,
 } from '@/hooks/use-activities'
 import { useCurrentUser } from '@/hooks/use-auth'
-import {
-  formatDistance,
-  formatDuration,
-  formatPace,
-  stravaSportLabel,
-  stravaSportHex,
-  stravaSportColor,
-  stravaSportIcon,
-} from '@/lib/utils'
+import { formatDistance, formatDuration, formatPace, stravaSportColor } from '@/lib/utils'
+import { CHART_TOOLTIP_STYLE, sportTheme } from '@/lib/sport-theme'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
 import {
@@ -104,29 +85,17 @@ export default function ActivitiesPage() {
   // Pie chart data
   const pieData = useMemo(() => {
     if (!sportStats?.sports) return []
-    return sportStats.sports.map((s) => ({
-      name: stravaSportLabel(s.sport),
-      value: s.count,
-      color: stravaSportHex(s.sport),
-    }))
+    return sportStats.sports.map((s) => {
+      const theme = sportTheme(s.sport)
+      return { name: theme.label, value: s.count, color: theme.color }
+    })
   }, [sportStats])
 
-  const sportIcon = (type: string) => {
-    const iconType = stravaSportIcon(type)
-    switch (iconType) {
-      case 'cycling':
-        return <Bike className="h-4 w-4" />
-      case 'swimming':
-        return <Waves className="h-4 w-4" />
-      case 'strength':
-        return <Dumbbell className="h-4 w-4" />
-      case 'hiking':
-        return <Mountain className="h-4 w-4" />
-      case 'rowing':
-        return <Ship className="h-4 w-4" />
-      default:
-        return <Footprints className="h-4 w-4" />
-    }
+  // Icon and tint both come from @/lib/sport-theme, so a sport reads the same
+  // in the summary tiles, the filter tabs, the list rows and the charts.
+  const sportIcon = (type: string, tinted = true) => {
+    const { Icon, color } = sportTheme(type)
+    return <Icon className="h-4 w-4" style={tinted ? { color } : undefined} />
   }
 
   return (
@@ -171,7 +140,7 @@ export default function ActivitiesPage() {
                 </div>
                 <div className="min-w-0">
                   <p className="truncate text-xs font-medium text-muted-foreground">
-                    {stravaSportLabel(s.sport)}
+                    {sportTheme(s.sport).label}
                   </p>
                   <p className="text-lg font-semibold leading-tight">{s.count}</p>
                   <p className="text-xs text-muted-foreground">
@@ -199,11 +168,11 @@ export default function ActivitiesPage() {
                     <XAxis dataKey="week" tick={{ fontSize: 11 }} />
                     <YAxis tick={{ fontSize: 11 }} width={40} />
                     <Tooltip
-                      contentStyle={{ fontSize: 12, borderRadius: 0, border: '1px solid #0A0A0A', backgroundColor: '#FAF8F2', fontFamily: 'inherit' }}
+                      contentStyle={CHART_TOOLTIP_STYLE}
                       // eslint-disable-next-line @typescript-eslint/no-explicit-any
                       formatter={((value: any, name: any) => [
                         `${Number(value ?? 0).toFixed(1)} km`,
-                        stravaSportLabel(String(name ?? '')),
+                        sportTheme(String(name ?? '')).label,
                       ]) as never}
                     />
                     {weeklySportKeys.map((sport) => (
@@ -211,7 +180,7 @@ export default function ActivitiesPage() {
                         key={sport}
                         dataKey={sport}
                         stackId="a"
-                        fill={stravaSportHex(sport)}
+                        fill={sportTheme(sport).color}
                         radius={[0, 0, 0, 0]}
                         name={sport}
                       />
@@ -246,7 +215,7 @@ export default function ActivitiesPage() {
                       ))}
                     </Pie>
                     <Tooltip
-                      contentStyle={{ fontSize: 12, borderRadius: 0, border: '1px solid #0A0A0A', backgroundColor: '#FAF8F2', fontFamily: 'inherit' }}
+                      contentStyle={CHART_TOOLTIP_STYLE}
                       // eslint-disable-next-line @typescript-eslint/no-explicit-any
                       formatter={((value: any) => [`${value ?? 0} activities`]) as never}
                     />
@@ -287,8 +256,8 @@ export default function ActivitiesPage() {
               setPage(1)
             }}
           >
-            {sportIcon(sport)}
-            {stravaSportLabel(sport)}
+            {sportIcon(sport, sportFilter !== sport)}
+            {sportTheme(sport).label}
           </Button>
         ))}
       </div>
@@ -305,7 +274,7 @@ export default function ActivitiesPage() {
           <CardContent className="flex flex-col items-center justify-center py-12 text-center">
             <Zap className="mb-3 h-10 w-10 text-muted-foreground/40" />
             <p className="text-sm text-muted-foreground">
-              {sportFilter ? `No ${stravaSportLabel(sportFilter)} activities.` : 'No activities yet.'}
+              {sportFilter ? `No ${sportTheme(sportFilter).label} activities.` : 'No activities yet.'}
             </p>
             {!sportFilter && (
               <p className="text-xs text-muted-foreground">
@@ -330,7 +299,7 @@ export default function ActivitiesPage() {
                       variant="outline"
                       className={`shrink-0 text-[10px] ${stravaSportColor(activity.activity_type)}`}
                     >
-                      {stravaSportLabel(activity.activity_type)}
+                      {sportTheme(activity.activity_type).label}
                     </Badge>
                   </div>
                   <p className="text-xs text-muted-foreground">

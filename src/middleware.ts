@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 
-const APP_PATHS = ["/dashboard", "/training", "/activities", "/competitions", "/coach", "/club", "/settings", "/changelog"];
+const APP_PATHS = ["/dashboard", "/training", "/activities", "/competitions", "/coach", "/club", "/settings", "/changelog", "/admin"];
 const AUTH_PATHS = ["/login", "/register"];
 
 export function middleware(req: NextRequest) {

@@ -35,4 +35,7 @@ services:
         sync: false
       - key: BASE_URL
         sync: false
+      # Comma-separated operator emails; grants /admin without a DB write.
+      - key: ADMIN_EMAILS
+        sync: false
     healthCheckPath: /api/health

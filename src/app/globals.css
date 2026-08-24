@@ -22,11 +22,14 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
-  --color-chart-1: var(--chart-1);
-  --color-chart-2: var(--chart-2);
-  --color-chart-3: var(--chart-3);
-  --color-chart-4: var(--chart-4);
-  --color-chart-5: var(--chart-5);
+  --color-chart-run: var(--chart-run);
+  --color-chart-ride: var(--chart-ride);
+  --color-chart-swim: var(--chart-swim);
+  --color-chart-strength: var(--chart-strength);
+  --color-chart-yoga: var(--chart-yoga);
+  --color-chart-hike: var(--chart-hike);
+  --color-chart-other: var(--chart-other);
+  --color-chart-ink: var(--chart-ink);
   --color-sidebar: var(--sidebar);
   --color-sidebar-foreground: var(--sidebar-foreground);
   --color-sidebar-primary: var(--sidebar-primary);
@@ -67,11 +70,18 @@
   --border: color-mix(in srgb, #0A0A0A 18%, transparent);
   --input: color-mix(in srgb, #0A0A0A 30%, transparent);
   --ring: #1F3A93;
-  --chart-1: #0A0A0A;
-  --chart-2: #444444;
-  --chart-3: #777777;
-  --chart-4: #AAAAAA;
-  --chart-5: #1F3A93;
+  /* Categorical figure palette. Pigments a two-colour press could actually
+     lay down on cream stock — saturated enough to separate a stacked bar,
+     muted enough not to fight the paper. Keyed by sport family, not by
+     position, so a sport keeps its colour as the chart series change. */
+  --chart-run: #1F3A93;      /* hyperref blue, shared with --primary */
+  --chart-ride: #7E1F2E;     /* maroon, shared with --accent */
+  --chart-swim: #2A6F6B;     /* verdigris */
+  --chart-strength: #9A6A1F; /* ochre */
+  --chart-yoga: #5B3A6E;     /* plum */
+  --chart-hike: #4A5D2A;     /* olive */
+  --chart-other: #55606B;    /* slate */
+  --chart-ink: #0A0A0A;      /* rules, axes, single-series figures */
   --sidebar: #F2EEE4;
   --sidebar-foreground: #0A0A0A;
   --sidebar-primary: #1F3A93;

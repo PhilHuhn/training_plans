@@ -5,6 +5,7 @@ import { requireClubMember } from "@/server/auth/club";
 import { db } from "@/server/db";
 import { clubMemberships } from "@/server/db/schema";
 import { errorJson, parseJson } from "@/server/http";
+import { countCoaches } from "@/server/services/club-membership";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -67,4 +68,23 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ sl
     role: fresh.role,
     visibility: fresh.visibility,
   });
+}
+
+/**
+ * DELETE /api/club/[slug]/membership — leave the club.
+ *
+ * The last coach is refused: without one, nobody could hand out the join code
+ * or manage roles, and the club would be stranded.
+ */
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params;
+  const ctx = await requireClubMember(req, slug);
+  if ("response" in ctx) return ctx.response;
+
+  if (ctx.membership.role === "coach" && (await countCoaches(ctx.club.id)) <= 1) {
+    return errorJson("Make someone else a coach before you leave", 422);
+  }
+
+  await db.delete(clubMemberships).where(eq(clubMemberships.id, ctx.membership.id));
+  return new NextResponse(null, { status: 204 });
 }
