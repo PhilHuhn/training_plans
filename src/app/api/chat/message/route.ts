@@ -15,6 +15,7 @@ import { requireSession } from "@/server/auth/session";
 import { errorJson, parseJson } from "@/server/http";
 import { anthropic, CLAUDE_MODEL } from "@/server/services/claude";
 import { classifyClaudeError } from "@/server/services/claude-errors";
+import { requireAiEnabled } from "@/server/services/ai-gate";
 import { formatPace } from "@/server/services/pace";
 import { buildCoachSystemPrompt } from "@/server/prompts/coach";
 
@@ -510,6 +511,10 @@ async function runToolLoop(
 export async function POST(req: NextRequest) {
   const session = await requireSession(req);
   if ("response" in session) return session.response;
+
+  // Before any credit is spent: the operator can switch the AI features off.
+  const aiGate = await requireAiEnabled();
+  if (aiGate) return aiGate.response;
 
   const parsed = await parseJson(req, Body);
   if ("response" in parsed) return parsed.response;

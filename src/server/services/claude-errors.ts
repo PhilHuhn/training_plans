@@ -16,6 +16,26 @@ export interface ClaudeFailure {
 }
 
 /**
+ * Prefix claude.ts stamps onto an upstream failure it caught and turned into a
+ * `{ data, error }` result. Its presence is how a caller tells an Anthropic
+ * failure apart from its own domain errors ("Unsupported file type", "No
+ * sessions found"), which are useful to the user and must survive untouched.
+ */
+export const UPSTREAM_ERROR_PREFIX = "Claude error: ";
+
+export function isUpstreamClaudeError(message: string): boolean {
+  return message.startsWith(UPSTREAM_ERROR_PREFIX);
+}
+
+/**
+ * Classify an error string that came back through a `{ data, error }` result
+ * rather than being thrown. Same guarantees as classifyClaudeError.
+ */
+export function classifyEngineError(message: string): ClaudeFailure {
+  return classifyClaudeError(new Error(message.replace(UPSTREAM_ERROR_PREFIX, "")));
+}
+
+/**
  * Turn an upstream Anthropic failure into something the UI can act on.
  *
  * Two things this deliberately does NOT do:

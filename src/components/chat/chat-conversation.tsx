@@ -8,6 +8,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Separator } from '@/components/ui/separator'
 import { useChatStore } from '@/stores/chat-store'
 import { useChat } from '@/hooks/use-chat'
+import { useCurrentUser } from '@/hooks/use-auth'
 import { cn } from '@/lib/utils'
 
 /**
@@ -18,6 +19,10 @@ import { cn } from '@/lib/utils'
 export default function ChatConversation({ className }: { className?: string }) {
   const { messages, isLoading } = useChatStore()
   const { sendMessage } = useChat()
+  const { data: user } = useCurrentUser()
+  // The conversation history stays readable when AI is off; only the composer
+  // is replaced, so nothing a user already wrote disappears on them.
+  const aiDisabled = user?.ai_enabled === false
   const [input, setInput] = useState('')
   const scrollRef = useRef<HTMLDivElement>(null)
 
@@ -48,10 +53,16 @@ export default function ChatConversation({ className }: { className?: string }) 
           <div className="flex h-full items-center justify-center text-center text-sm text-muted-foreground">
             <div>
               <MessageCircle className="mx-auto mb-2 h-8 w-8 opacity-50" />
-              <p>Ask me anything about your training.</p>
-              <p className="mt-1 text-xs">
-                I can help with workout plans, pacing, and recovery.
-              </p>
+              {aiDisabled ? (
+                <p>The coach is unavailable at the moment.</p>
+              ) : (
+                <>
+                  <p>Ask me anything about your training.</p>
+                  <p className="mt-1 text-xs">
+                    I can help with workout plans, pacing, and recovery.
+                  </p>
+                </>
+              )}
             </div>
           </div>
         )}
@@ -95,6 +106,13 @@ export default function ChatConversation({ className }: { className?: string }) 
 
       <Separator />
 
+      {aiDisabled ? (
+        <div className="shrink-0 p-4">
+          <p className="prose-paper border-l-2 border-foreground/25 py-1 pl-3 text-sm italic text-muted-foreground">
+            {user?.ai_disabled_notice}
+          </p>
+        </div>
+      ) : (
       <div className="shrink-0 p-4">
         <div className="flex gap-2">
           <Textarea
@@ -115,6 +133,7 @@ export default function ChatConversation({ className }: { className?: string }) 
           </Button>
         </div>
       </div>
+      )}
     </div>
   )
 }

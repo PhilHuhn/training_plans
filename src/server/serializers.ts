@@ -2,6 +2,7 @@ import "server-only";
 import type {
   Activity,
   Competition,
+  Feedback,
   TrainingSession,
 } from "@/server/db/schema";
 
@@ -79,5 +80,19 @@ export function trainingSessionResponse(s: TrainingSession) {
     notes: s.notes ?? undefined,
     created_at: isoStrict(s.createdAt),
     updated_at: isoStrict(s.updatedAt),
+  };
+}
+
+export function feedbackResponse(f: Feedback) {
+  return {
+    id: f.id,
+    category: f.category,
+    title: f.title,
+    body: f.body,
+    status: f.status,
+    admin_note: f.adminNote,
+    page_url: f.pageUrl,
+    created_at: isoStrict(f.createdAt),
+    updated_at: isoStrict(f.updatedAt),
   };
 }

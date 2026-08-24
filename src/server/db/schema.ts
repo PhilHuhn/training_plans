@@ -55,6 +55,21 @@ export const clubRoleEnum = pgEnum("club_role", ["coach", "athlete", "captain"])
 
 export const clubVisibilityEnum = pgEnum("club_visibility", ["typ_only", "full"]);
 
+export const feedbackCategoryEnum = pgEnum("feedback_category", [
+  "bug",
+  "feature",
+  "question",
+  "other",
+]);
+
+export const feedbackStatusEnum = pgEnum("feedback_status", [
+  "open",
+  "planned",
+  "in_progress",
+  "done",
+  "declined",
+]);
+
 // =====================================================================
 // Default user preferences (matches FastAPI seed)
 // =====================================================================
@@ -402,6 +417,56 @@ export const sponsors = pgTable(
   }),
 );
 
+/**
+ * Platform-wide configuration, one row per key.
+ *
+ * Deliberately key/value rather than a column per flag: the alternative is a
+ * schema change for every future switch, and `db:push` on a populated table is
+ * the riskiest operation in this repo. The shape of `value` is owned by
+ * @/server/services/app-settings, which is the only reader and writer.
+ */
+export const appSettings = pgTable("app_settings", {
+  key: varchar("key", { length: 64 }).primaryKey(),
+  value: jsonb("value").notNull(),
+
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  // Kept for the audit trail; nulled rather than cascaded so deleting an admin
+  // account does not erase the settings they last touched.
+  updatedByUserId: integer("updated_by_user_id").references(() => users.id, {
+    onDelete: "set null",
+  }),
+});
+
+export const feedback = pgTable(
+  "feedback",
+  {
+    id: serial("id").primaryKey(),
+    userId: integer("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+
+    category: feedbackCategoryEnum("category").notNull().default("other"),
+    title: varchar("title", { length: 200 }).notNull(),
+    body: text("body").notNull(),
+
+    status: feedbackStatusEnum("status").notNull().default("open"),
+    // The operator's reply. Shown to the submitter verbatim, so it is written
+    // for them, not as an internal triage note.
+    adminNote: text("admin_note"),
+
+    // Where the user was when they hit "Send feedback" — the single most useful
+    // piece of context for a bug report, and free to capture.
+    pageUrl: varchar("page_url", { length: 200 }),
+
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (t) => ({
+    userIdIdx: index("feedback_user_id_idx").on(t.userId),
+    statusIdx: index("feedback_status_idx").on(t.status),
+  }),
+);
+
 // =====================================================================
 // Relations
 // =====================================================================
@@ -413,6 +478,7 @@ export const usersRelations = relations(users, ({ many }) => ({
   uploadedPlans: many(uploadedPlans),
   zoneHistory: many(zoneHistory),
   clubMemberships: many(clubMemberships),
+  feedback: many(feedback),
 }));
 
 export const clubsRelations = relations(clubs, ({ many }) => ({
@@ -454,6 +520,10 @@ export const trainingSessionsRelations = relations(trainingSessions, ({ one }) =
   }),
 }));
 
+export const feedbackRelations = relations(feedback, ({ one }) => ({
+  user: one(users, { fields: [feedback.userId], references: [users.id] }),
+}));
+
 export const zoneHistoryRelations = relations(zoneHistory, ({ one }) => ({
   user: one(users, { fields: [zoneHistory.userId], references: [users.id] }),
 }));
@@ -482,3 +552,9 @@ export type Sponsor = typeof sponsors.$inferSelect;
 export type NewSponsor = typeof sponsors.$inferInsert;
 export type ClubRole = ClubMembership["role"];
 export type ClubVisibility = ClubMembership["visibility"];
+export type AppSetting = typeof appSettings.$inferSelect;
+export type NewAppSetting = typeof appSettings.$inferInsert;
+export type Feedback = typeof feedback.$inferSelect;
+export type NewFeedback = typeof feedback.$inferInsert;
+export type FeedbackCategory = Feedback["category"];
+export type FeedbackStatus = Feedback["status"];

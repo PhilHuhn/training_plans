@@ -11,6 +11,7 @@ import SessionModal from '@/components/training/session-modal'
 import GenerateModal from '@/components/training/generate-modal'
 import IcsToolbar from '@/components/training/ics-toolbar'
 import { useTrainingRange } from '@/hooks/use-training'
+import { useCurrentUser } from '@/hooks/use-auth'
 import { getWeekStart, addDays, formatDateShort } from '@/lib/utils'
 import type { TrainingSession } from '@/lib/types'
 
@@ -21,6 +22,8 @@ const VIEW_STORAGE_KEY = 'training-view-mode'
 
 export default function TrainingPage() {
   const router = useRouter()
+  const { data: user } = useCurrentUser()
+  const aiDisabled = user?.ai_enabled === false
   const pathname = usePathname() ?? '/training'
   const searchParams = useSearchParams()
 
@@ -180,7 +183,13 @@ export default function TrainingPage() {
 
           <IcsToolbar start={rangeStart} end={rangeEnd} />
 
-          <Button variant="outline" size="sm" onClick={() => setGenerateOpen(true)}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setGenerateOpen(true)}
+            disabled={aiDisabled}
+            title={aiDisabled ? (user?.ai_disabled_notice ?? undefined) : undefined}
+          >
             <Sparkles className="mr-1.5 h-3.5 w-3.5 text-violet-500" />
             AI Plan
           </Button>

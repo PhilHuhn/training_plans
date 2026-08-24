@@ -1,6 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { requireSession } from "@/server/auth/session";
 import { errorJson } from "@/server/http";
+import { requireAiEnabled } from "@/server/services/ai-gate";
+import { classifyEngineError, isUpstreamClaudeError } from "@/server/services/claude-errors";
 import { processUploadedPlan } from "@/server/services/document-parser";
 
 export const runtime = "nodejs";
@@ -20,6 +22,10 @@ const ALLOWED_EXT = [".pdf", ".docx", ".doc", ".txt", ".md"];
 export async function POST(req: NextRequest) {
   const session = await requireSession(req);
   if ("response" in session) return session.response;
+
+  // Before any credit is spent: the operator can switch the AI features off.
+  const aiGate = await requireAiEnabled();
+  if (aiGate) return aiGate.response;
 
   let formData: FormData;
   try {
@@ -55,6 +61,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(result, { status: 201 });
   } catch (err) {
     console.error("[upload-plan] error:", err);
-    return errorJson(err instanceof Error ? err.message : "Failed to process plan", 400);
+    const message = err instanceof Error ? err.message : "";
+    // "Unsupported file type" and the like are the user's problem to fix and
+    // must survive; only an upstream Anthropic failure gets rewritten.
+    if (isUpstreamClaudeError(message)) {
+      const failure = classifyEngineError(message);
+      return errorJson(failure.detail, failure.status);
+    }
+    return errorJson(message || "Failed to process plan", 400);
   }
 }
