@@ -12,6 +12,27 @@ function useInvalidateAdmin() {
   }
 }
 
+export function useAiSettings() {
+  return useQuery({
+    queryKey: ['admin', 'ai-settings'],
+    queryFn: () => adminApi.getAiSettings().then((r) => r.data),
+    retry: false,
+  })
+}
+
+export function useUpdateAiSettings() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (body: { enabled?: boolean; notice?: string }) =>
+      adminApi.updateAiSettings(body).then((r) => r.data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'ai-settings'] })
+      // The flag rides on /api/auth/me, so every AI affordance re-reads it.
+      queryClient.invalidateQueries({ queryKey: ['currentUser'] })
+    },
+  })
+}
+
 export function useAdminUsers() {
   return useQuery({
     queryKey: ['admin', 'users'],

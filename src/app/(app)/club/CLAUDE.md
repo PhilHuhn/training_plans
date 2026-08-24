@@ -29,6 +29,9 @@ settings page renders one card per membership. Don't reintroduce a
 | `DELETE /api/club/[slug]/membership` | `requireClubMember` | leave the club; the last coach is refused |
 | `GET|PATCH|POST|DELETE /api/admin/**` | `requireAdmin` | platform operator; bypasses the coach-only role gate by design |
 
+Settings is tabbed (Account · Training · Coach · Club · Feedback); the club card lives in the
+Club tab and still renders nothing when the user has no memberships.
+
 Auth helpers live in `@/server/auth/club.ts` (`requireClubMember`,
 `requireClubRole`) and mirror the `requireSession` union shape
 (`{...} | { response }`). The JWT is untouched — membership is resolved

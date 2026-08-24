@@ -95,6 +95,33 @@ export function priorityColor(priority: string): string {
   return priority === 'A' ? monoChipAccent : monoChip
 }
 
+export function feedbackStatusLabel(status: string): string {
+  const labels: Record<string, string> = {
+    open: 'Open',
+    planned: 'Planned',
+    in_progress: 'In progress',
+    done: 'Done',
+    declined: "Won't do",
+  }
+  return labels[status] ?? status
+}
+
+export function feedbackStatusColor(status: string): string {
+  // Only a finished item is emphasized; everything else stays the plain chip,
+  // matching priorityColor's "one status earns the accent" rule.
+  return status === 'done' ? monoChipAccent : monoChip
+}
+
+export function feedbackCategoryLabel(category: string): string {
+  const labels: Record<string, string> = {
+    bug: 'Bug',
+    feature: 'Feature request',
+    question: 'Question',
+    other: 'Other',
+  }
+  return labels[category] ?? category
+}
+
 export function phaseColor(_phase: string): string {
   return monoChip
 }

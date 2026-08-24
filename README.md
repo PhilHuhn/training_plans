@@ -31,6 +31,21 @@ controls for club roles, member visibility, club tier and the donation link.
 Admins can also grant admin to other accounts (stored as `users.is_admin`); the
 env var is the bootstrap and stays the way back in if the flag is ever lost.
 
+## Feedback
+
+Anyone can report a bug or request a feature from the **Send feedback** button in the app
+header, or under Settings › Feedback. Submissions land in the admin dashboard with a status
+(Open · Planned · In progress · Done · Won't do); the note an admin writes against an item is
+shown back to the person who sent it, so they can see what came of it.
+
+## Turning AI off
+
+The coach, plan generation, plan parsing and the Strava profile summary all call the Claude
+API. Admins can switch them off from the **AI features** card in `/admin` — every
+credit-spending route then answers with an operator-authored notice instead, and the rest of
+the app is unaffected. Clearing `ANTHROPIC_API_KEY` has the same effect and overrides the
+toggle.
+
 ## Pricing
 
 Everything is **free to use** today — no paid tier, no usage limits.

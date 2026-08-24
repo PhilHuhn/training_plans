@@ -4,6 +4,7 @@ import { db } from "@/server/db";
 import { activities, users, type User, type UserPreferences } from "@/server/db/schema";
 import { env } from "@/server/env";
 import { generateText } from "@/server/services/claude";
+import { aiAvailability } from "@/server/services/app-settings";
 
 export const STRAVA_AUTH_URL = "https://www.strava.com/oauth/authorize";
 export const STRAVA_TOKEN_URL = "https://www.strava.com/oauth/token";
@@ -390,11 +391,16 @@ export async function generateUserProfileSummary(user: User): Promise<string> {
     `5. Any notable strengths or areas for improvement\n\n` +
     `Keep it concise and actionable for training recommendations. Do NOT use any markdown formatting like **bold** or *italic*. Write plain text only. Do NOT include any pleasantries or preamble - just the profile summary.`;
 
-  try {
-    const text = await generateText(prompt, 400);
-    if (text.trim()) return text.trim();
-  } catch (err) {
-    console.warn("[strava] Claude profile-summary failed; using fallback:", err);
+  // Syncing must keep working when AI is off, so this degrades rather than
+  // failing: the deterministic fallback below is always a valid summary. The
+  // check is what stops a sync from silently spending credit.
+  if ((await aiAvailability()).available) {
+    try {
+      const text = await generateText(prompt, 400);
+      if (text.trim()) return text.trim();
+    } catch (err) {
+      console.warn("[strava] Claude profile-summary failed; using fallback:", err);
+    }
   }
 
   return fallbackProfileLine({

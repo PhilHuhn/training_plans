@@ -109,6 +109,8 @@ Tests run with **Vitest**: `npm run test` (engine guardrails, serializers, ics).
 
 Single canonical source: `src/server/db/schema.ts`. Nine tables, all keyed by `serial id`:
 
+- **appSettings** — key (PK, varchar 64), value (jsonb), updatedAt, updatedByUserId FK (set null). Platform-wide config, one row per key; today only `"ai"`. Owned by `@/server/services/app-settings`.
+- **feedback** — userId FK cascade, category (pgEnum bug/feature/question/other), title, body, status (pgEnum open/planned/in_progress/done/declined, default open), adminNote (shown to the submitter), pageUrl, createdAt/updatedAt; indexes on userId and status
 - **users** — email (unique), passwordHash, name, **isAdmin** (boolean, default false — platform operator, not a club role), Strava tokens + athleteId (unique), profileSummary (text, AI-generated post-sync), preferences (jsonb with default seed for HR/pace zones, max_hr, resting_hr)
 - **activities** — userId FK, stravaId (unique), name, activityType, distance, duration, elevationGain, calories, avgHeartRate, maxHeartRate, avgPace (sec/km), startDate (indexed), rawData + lapsData (jsonb)
 - **competitions** — userId FK, name, raceType (pgEnum 5K/10K/HM/M/50K/100K/50M/100M/OTHER), raceDate (indexed), distance, location, goalTime, goalPace, priority (pgEnum A/B/C, default B), notes
@@ -158,6 +160,7 @@ Defined and validated in `src/server/env.ts` (zod). The loader falls back to `.e
 | `ANTHROPIC_API_KEY` | Claude API |
 | `BASE_URL` | Public origin used for the Strava redirect URI |
 | `ADMIN_EMAILS` | Comma-separated platform-operator emails; grants `/admin` without a DB flag |
+| `ANTHROPIC_API_KEY` | Claude API. **Empty disables every AI feature**, whatever the admin toggle says |
 
 ## Development workflow
 
@@ -173,6 +176,8 @@ Defined and validated in `src/server/env.ts` (zod). The loader falls back to `.e
 - Server-only modules: import `"server-only"` at the top to enforce.
 - Route handlers: `export const runtime = "nodejs"; export const dynamic = "force-dynamic";` to opt out of static prerender.
 - Auth: every gated route uses `requireSession(req)` which returns `{user}` or `{response}` (a 401 NextResponse) — pattern is `if ("response" in session) return session.response`. Club-scoped routes use `requireClubMember` / `requireClubRole` (`@/server/auth/club`); `/api/admin/**` uses `requireAdmin` (`@/server/auth/admin`), which is the real gate — `middleware.ts` only checks that a cookie is present.
+- **AI features are gated, not assumed.** Five routes spend Anthropic credit: `chat/message`, `training/generate-recommendations`, `training/convert-session`, `training/upload-plan`, and `strava/sync` (the profile summary). Each of the first four starts with `requireAiEnabled()` (`@/server/services/ai-gate`), which answers **503 + the operator's notice** — the same contract `classifyClaudeError` uses, so `use-chat.ts` renders it unchanged. `strava/sync` degrades instead: it skips the summary and keeps the deterministic `fallbackProfileLine`. Never answer 401 from an AI failure — the axios interceptor would sign every athlete out. Any new Claude call site needs the same gate.
+- **Never forward an upstream Claude message to the browser.** `claude.ts` stamps `Claude error: ` onto failures it catches; `isUpstreamClaudeError` / `classifyEngineError` (`@/server/services/claude-errors`) turn those into a safe `detail` while leaving the app's own messages ("Unsupported file type") intact. The raw text goes to the server log.
 - Sport colours and icons: one map, `@/lib/sport-theme`. Charts, badges, filter tabs and session cards all read `sportTheme(stravaType)` / `planningSportTheme(sport)`; the `--chart-*` tokens in `globals.css` mirror `SPORT_COLORS`. Don't re-derive a per-sport colour or icon anywhere else.
 - Wire format: TypeScript types in `src/lib/types.ts` are the canonical client contract. Server response builders in `src/server/serializers.ts` produce that exact shape from Drizzle rows.
 - Style: LaTeX-document tokens in `globals.css`. Hairline borders, italic small-caps for status, justified body text via `.prose-paper`. Avoid bringing back the old neo-brutalist `border-2 border-[#092B37]` / `shadow-brutal` classes.

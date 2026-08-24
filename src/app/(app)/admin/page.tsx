@@ -1,6 +1,6 @@
 'use client'
 import { useMemo, useState } from 'react'
-import { ShieldCheck, Trash2 } from 'lucide-react'
+import { ShieldCheck, Sparkles, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -11,15 +11,31 @@ import {
   useAdminRemoveMembership,
   useAdminUpdateMembership,
   useAdminUsers,
+  useAiSettings,
   useSetUserAdmin,
+  useUpdateAiSettings,
   useUpdateClubAdmin,
 } from '@/hooks/use-admin'
-import type { AdminUserWire, ClubRole, ClubVisibility } from '@/lib/types'
+import {
+  useAdminFeedback,
+  useDeleteFeedback,
+  useUpdateFeedback,
+} from '@/hooks/use-feedback'
+import type { AdminUserWire, ClubRole, ClubVisibility, FeedbackStatus } from '@/lib/types'
+import { feedbackCategoryLabel } from '@/lib/utils'
 
 const ROLES: ClubRole[] = ['coach', 'captain', 'athlete']
 const VISIBILITIES: [ClubVisibility, string][] = [
   ['typ_only', 'Type only'],
   ['full', 'Everything'],
+]
+
+const FEEDBACK_STATUSES: [FeedbackStatus, string][] = [
+  ['open', 'Open'],
+  ['planned', 'Planned'],
+  ['in_progress', 'In progress'],
+  ['done', 'Done'],
+  ['declined', "Won't do"],
 ]
 
 function apiMessage(err: unknown, fallback: string): string {
@@ -43,6 +59,11 @@ export default function AdminPage() {
   const updateMembership = useAdminUpdateMembership()
   const addMembership = useAdminAddMembership()
   const removeMembership = useAdminRemoveMembership()
+  const aiSettings = useAiSettings()
+  const updateAiSettings = useUpdateAiSettings()
+  const adminFeedback = useAdminFeedback()
+  const updateFeedback = useUpdateFeedback()
+  const deleteFeedback = useDeleteFeedback()
 
   const [addTo, setAddTo] = useState<Record<number, string>>({})
 
@@ -103,6 +124,78 @@ export default function AdminPage() {
 
   return (
     <div className="mx-auto max-w-6xl space-y-6 px-4 py-6 lg:px-8">
+      {/* AI features */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Sparkles className="h-4 w-4" />
+            AI features
+          </CardTitle>
+          <CardDescription>
+            The coach, plan generation, plan parsing and the Strava profile summary all run on
+            Claude. Switching this off stops every one of them from spending credit — the rest
+            of the app is unaffected.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex border border-foreground/20">
+              {([true, false] as const).map((value) => (
+                <button
+                  key={String(value)}
+                  onClick={() =>
+                    mutate(
+                      updateAiSettings.mutate,
+                      { enabled: value },
+                      value ? 'AI features are on' : 'AI features are off',
+                      'Could not change the AI setting',
+                    )
+                  }
+                  disabled={updateAiSettings.isPending}
+                  className={
+                    aiSettings.data?.enabled === value
+                      ? 'bg-foreground px-3 py-1.5 text-xs text-background'
+                      : 'px-3 py-1.5 text-xs text-foreground/70 transition-colors hover:text-foreground'
+                  }
+                >
+                  {value ? 'On' : 'Off'}
+                </button>
+              ))}
+            </div>
+            <span className="text-xs italic text-muted-foreground">
+              {aiSettings.data?.effective
+                ? 'Users can use the AI features.'
+                : 'Users see the notice below instead.'}
+            </span>
+          </div>
+
+          {aiSettings.data && !aiSettings.data.api_key_configured && (
+            <p className="border-l-2 border-destructive py-1 pl-3 text-sm text-destructive">
+              No ANTHROPIC_API_KEY is set, so AI is off regardless of this switch.
+            </p>
+          )}
+
+          <div className="space-y-1.5">
+            <p className="smallcaps text-xs italic text-muted-foreground">
+              What users see while it is off
+            </p>
+            <SavedTextField
+              key={aiSettings.data?.notice ?? ''}
+              value={aiSettings.data?.notice ?? ''}
+              className="w-full max-w-xl"
+              onSave={(notice) =>
+                mutate(
+                  updateAiSettings.mutate,
+                  { notice },
+                  'Notice saved',
+                  'Could not save the notice',
+                )
+              }
+            />
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Users */}
       <Card>
         <CardHeader>
@@ -300,12 +393,14 @@ export default function AdminPage() {
                     </select>
                   </td>
                   <td className="py-2">
-                    <DonationUrlField
+                    <SavedTextField
+                      key={c.donation_url ?? ''}
                       value={c.donation_url}
+                      placeholder="https://ko-fi.com/…"
                       onSave={(url) =>
                         mutate(
                           updateClub.mutate,
-                          { clubId: c.id, donation_url: url },
+                          { clubId: c.id, donation_url: url || null },
                           'Donation link saved',
                           'Could not save the donation link',
                         )
@@ -318,17 +413,139 @@ export default function AdminPage() {
           </table>
         </CardContent>
       </Card>
+
+      {/* Feedback */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Feedback</CardTitle>
+          <CardDescription>
+            {adminFeedback.data?.length ?? 0} submissions. The note you write here is shown to
+            the person who sent it, under Settings &rsaquo; Feedback.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="overflow-x-auto">
+          {adminFeedback.data?.length === 0 ? (
+            <p className="py-6 text-center text-sm text-muted-foreground">
+              No feedback yet.
+            </p>
+          ) : (
+            <table className="w-full min-w-[52rem] text-sm">
+              <thead>
+                <tr className="booktabs-top booktabs-mid">
+                  <th className="py-2 text-left smallcaps font-normal">From</th>
+                  <th className="py-2 text-left smallcaps font-normal">Report</th>
+                  <th className="py-2 text-left smallcaps font-normal">Status</th>
+                  <th className="py-2 text-left smallcaps font-normal">Your reply</th>
+                  <th className="py-2" />
+                </tr>
+              </thead>
+              <tbody>
+                {adminFeedback.data?.map((f) => (
+                  <tr key={f.id} className="booktabs-mid align-top">
+                    <td className="py-2 pr-4">
+                      <div>{f.user_name}</div>
+                      <div className="text-xs italic text-muted-foreground">{f.user_email}</div>
+                      <div className="text-xs tabular-nums text-muted-foreground">
+                        {f.created_at.slice(0, 10)}
+                      </div>
+                    </td>
+                    <td className="max-w-md py-2 pr-4">
+                      <div className="flex items-baseline gap-2">
+                        <span className="smallcaps text-xs italic text-muted-foreground">
+                          {feedbackCategoryLabel(f.category)}
+                        </span>
+                        <span>{f.title}</span>
+                      </div>
+                      <p className="mt-1 whitespace-pre-wrap text-xs text-muted-foreground">
+                        {f.body}
+                      </p>
+                      {f.page_url && (
+                        <p className="mt-1 font-mono text-xs text-muted-foreground">
+                          {f.page_url}
+                        </p>
+                      )}
+                    </td>
+                    <td className="py-2 pr-4">
+                      <select
+                        className={selectClass}
+                        value={f.status}
+                        onChange={(e) =>
+                          mutate(
+                            updateFeedback.mutate,
+                            { id: f.id, status: e.target.value as FeedbackStatus },
+                            'Status updated',
+                            'Could not update the status',
+                          )
+                        }
+                      >
+                        {FEEDBACK_STATUSES.map(([value, label]) => (
+                          <option key={value} value={value}>
+                            {label}
+                          </option>
+                        ))}
+                      </select>
+                    </td>
+                    <td className="py-2 pr-4">
+                      <SavedTextField
+                        key={f.admin_note ?? ''}
+                        value={f.admin_note ?? ''}
+                        placeholder="Shown to the submitter…"
+                        className="w-48"
+                        onSave={(admin_note) =>
+                          mutate(
+                            updateFeedback.mutate,
+                            { id: f.id, admin_note },
+                            'Reply saved',
+                            'Could not save the reply',
+                          )
+                        }
+                      />
+                    </td>
+                    <td className="py-2">
+                      <button
+                        aria-label={`Delete feedback from ${f.user_name}`}
+                        className="text-muted-foreground transition-colors hover:text-accent"
+                        onClick={() => {
+                          if (!confirm(`Delete this feedback from ${f.user_name}?`)) return
+                          mutate(
+                            deleteFeedback.mutate,
+                            f.id,
+                            'Feedback deleted',
+                            'Could not delete the feedback',
+                          )
+                        }}
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </CardContent>
+      </Card>
     </div>
   )
 }
 
-/** Inline editor that only fires a mutation when the value actually changed. */
-function DonationUrlField({
+/**
+ * Inline text editor that only fires a mutation when the value actually
+ * changed — a stray focus/blur should not cost a request or a toast.
+ *
+ * `key` is set to the saved value by callers so the draft resets when the row
+ * refetches after a successful save.
+ */
+function SavedTextField({
   value,
   onSave,
+  placeholder,
+  className = 'w-52',
 }: {
   value: string | null
-  onSave: (url: string | null) => void
+  onSave: (next: string) => void
+  placeholder?: string
+  className?: string
 }) {
   const [draft, setDraft] = useState(value ?? '')
 
@@ -337,15 +554,15 @@ function DonationUrlField({
       <input
         value={draft}
         onChange={(e) => setDraft(e.target.value)}
-        placeholder="https://ko-fi.com/…"
-        className="w-52 border border-foreground/20 bg-transparent px-1.5 py-0.5 text-xs focus:outline-none focus:ring-1 focus:ring-ring"
+        placeholder={placeholder}
+        className={`${className} border border-foreground/20 bg-transparent px-1.5 py-0.5 text-xs focus:outline-none focus:ring-1 focus:ring-ring`}
       />
       <Button
         variant="outline"
         size="sm"
         className="h-6 px-2 text-xs"
         disabled={draft === (value ?? '')}
-        onClick={() => onSave(draft.trim() || null)}
+        onClick={() => onSave(draft.trim())}
       >
         Save
       </Button>

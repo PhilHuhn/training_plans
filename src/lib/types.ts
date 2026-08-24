@@ -6,6 +6,10 @@ export interface User {
   preferences: UserPreferences
   strava_connected: boolean
   is_admin: boolean
+  /** False when the operator switched AI off or no API key is configured. */
+  ai_enabled: boolean
+  /** What to show where an AI feature would have been. Null when enabled. */
+  ai_disabled_notice: string | null
   profile_summary?: string | null
   coach_instructions?: string | null
   athlete_profile?: string | null
@@ -398,6 +402,45 @@ export interface AdminUserWire {
   /** True when admin comes from ADMIN_EMAILS, which the dashboard cannot revoke. */
   admin_via_env: boolean
   memberships: AdminMembershipWire[]
+}
+
+export interface AiSettingsWire {
+  enabled: boolean
+  notice: string
+  api_key_configured: boolean
+  /** enabled AND a key is present — what users actually experience. */
+  effective: boolean
+}
+
+// Feedback types
+export type FeedbackCategory = 'bug' | 'feature' | 'question' | 'other'
+export type FeedbackStatus = 'open' | 'planned' | 'in_progress' | 'done' | 'declined'
+
+export interface FeedbackItem {
+  id: number
+  category: FeedbackCategory
+  title: string
+  body: string
+  status: FeedbackStatus
+  /** The operator's reply, shown to the submitter. */
+  admin_note: string | null
+  page_url: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface FeedbackCreate {
+  category: FeedbackCategory
+  title: string
+  body: string
+  page_url?: string | null
+}
+
+/** A submission as the admin dashboard sees it — adds who sent it. */
+export interface AdminFeedbackWire extends FeedbackItem {
+  user_id: number
+  user_name: string
+  user_email: string
 }
 
 export interface AdminClubWire {

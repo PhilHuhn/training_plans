@@ -2,6 +2,7 @@
 import { Menu, PanelRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import FeedbackDialog from '@/components/feedback/feedback-dialog'
 import { useCurrentUser } from '@/hooks/use-auth'
 import { useChatStore } from '@/stores/chat-store'
 
@@ -15,6 +16,8 @@ interface HeaderProps {
 export default function Header({ title, section, onMenuClick }: HeaderProps) {
   const { data: user } = useCurrentUser()
   const toggleChat = useChatStore((s) => s.toggleOpen)
+  // The panel stays in place when AI is off; the control just cannot be opened.
+  const aiDisabled = user?.ai_enabled === false
 
   return (
     <header className="frosted sticky top-0 z-30 flex h-16 flex-shrink-0 items-center gap-4 border-b border-foreground/15 px-4 lg:px-7">
@@ -39,11 +42,15 @@ export default function Header({ title, section, onMenuClick }: HeaderProps) {
           </Badge>
         )}
 
+        <FeedbackDialog />
+
         <Button
           variant="outline"
           size="icon-sm"
           onClick={toggleChat}
+          disabled={aiDisabled}
           aria-label="Toggle coach panel"
+          title={aiDisabled ? (user?.ai_disabled_notice ?? undefined) : 'Toggle coach panel'}
         >
           <PanelRight className="h-[15px] w-[15px]" />
         </Button>

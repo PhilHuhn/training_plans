@@ -9,7 +9,12 @@ import { Label } from '@/components/ui/label'
 import { Separator } from '@/components/ui/separator'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
+import Link from 'next/link'
 import ClubSettingsCard from '@/components/club/club-settings-card'
+import FeedbackForm from '@/components/feedback/feedback-form'
+import FeedbackList from '@/components/feedback/feedback-list'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { useMyClubs } from '@/hooks/use-club'
 import { useCurrentUser, useLogout } from '@/hooks/use-auth'
 import { useZoneHistory, useRevertZones } from '@/hooks/use-settings'
 import { stravaApi } from '@/api/strava'
@@ -93,6 +98,11 @@ function updateIntZoneMax(
 
 export default function SettingsPage() {
   const { data: user } = useCurrentUser()
+  // Plan parsing and the coach both run on Claude, so both follow the switch.
+  const aiDisabled = user?.ai_enabled === false
+  const { data: memberships } = useMyClubs()
+  const hasClub = (memberships?.length ?? 0) > 0
+  const [tab, setTab] = useState('account')
   const logout = useLogout()
   const queryClient = useQueryClient()
   const searchParams = useSearchParams()
@@ -494,569 +504,635 @@ export default function SettingsPage() {
   const stravaConnected = user?.strava_connected
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
-      {/* Strava */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Strava Connection</CardTitle>
-          <CardDescription>Sync your activities from Strava</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {user?.strava_connected ? (
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Badge variant="secondary" className="gap-1.5">
-                  <span className="h-1.5 w-1.5 rounded-none bg-emerald-500" />
-                  Connected
-                </Badge>
-              </div>
-              <Button variant="outline" size="sm" onClick={disconnectStrava}>
-                <Unlink className="mr-1.5 h-3.5 w-3.5" />
-                Disconnect
-              </Button>
-            </div>
-          ) : (
-            <Button size="sm" onClick={connectStrava} disabled={stravaLoading}>
-              <Link2 className="mr-1.5 h-3.5 w-3.5" />
-              {stravaLoading ? 'Connecting...' : 'Connect Strava'}
-            </Button>
-          )}
-        </CardContent>
-      </Card>
+    <div className="mx-auto max-w-2xl">
+      <Tabs value={tab} onValueChange={setTab}>
+        <TabsList className="w-full">
+          <TabsTrigger value="account" className="flex-1">Account</TabsTrigger>
+          <TabsTrigger value="training" className="flex-1">Training</TabsTrigger>
+          <TabsTrigger value="coach" className="flex-1">Coach</TabsTrigger>
+          <TabsTrigger value="club" className="flex-1">Club</TabsTrigger>
+          <TabsTrigger value="feedback" className="flex-1">Feedback</TabsTrigger>
+        </TabsList>
 
-      {/* Coach configuration */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Coach</CardTitle>
-          <CardDescription>
-            Persona and athlete profile for the AI coach (chat panel and Coach page)
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-1.5">
-            <Label>Coach Instructions</Label>
-            <p className="text-xs text-muted-foreground">
-              Defines how your coach communicates and trains you (methodology, tone, what to
-              push back on).
-            </p>
-            <textarea
-              className="w-full border border-foreground/20 bg-transparent p-2 font-mono text-xs leading-relaxed outline-none focus:border-foreground/50"
-              rows={10}
-              value={coachInstructions}
-              onChange={(e) => setCoachInstructions(e.target.value)}
-              placeholder="Paste your coaching persona / project instructions here…"
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label>Athlete Profile</Label>
-            <p className="text-xs text-muted-foreground">
-              Living document — your coach updates this from chat when new facts emerge
-              (injuries, PRs, learnings). Review and edit here.
-            </p>
-            <textarea
-              className="w-full border border-foreground/20 bg-transparent p-2 font-mono text-xs leading-relaxed outline-none focus:border-foreground/50"
-              rows={14}
-              value={athleteProfile}
-              onChange={(e) => setAthleteProfile(e.target.value)}
-              placeholder="Paste your athlete profile here…"
-            />
-          </div>
-          <Button size="sm" onClick={saveCoach} disabled={coachSaving}>
-            <Save className="mr-1.5 h-3.5 w-3.5" />
-            {coachSaving ? 'Saving…' : 'Save Coach Settings'}
-          </Button>
-        </CardContent>
-      </Card>
-
-      {/* Club membership (renders nothing for solo users) */}
-      <ClubSettingsCard />
-
-      {/* Runner Profile */}
-      {user?.profile_summary && (
+        <TabsContent value="account" className="space-y-6 pt-6">
+        {/* Strava */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Runner Profile</CardTitle>
-            <CardDescription>AI-generated summary based on your activities</CardDescription>
+            <CardTitle className="text-base">Strava Connection</CardTitle>
+            <CardDescription>Sync your activities from Strava</CardDescription>
           </CardHeader>
           <CardContent>
-            <p className="text-sm leading-relaxed text-muted-foreground whitespace-pre-wrap">
-              {user.profile_summary}
-            </p>
+            {user?.strava_connected ? (
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Badge variant="secondary" className="gap-1.5">
+                    <span className="h-1.5 w-1.5 rounded-none bg-emerald-500" />
+                    Connected
+                  </Badge>
+                </div>
+                <Button variant="outline" size="sm" onClick={disconnectStrava}>
+                  <Unlink className="mr-1.5 h-3.5 w-3.5" />
+                  Disconnect
+                </Button>
+              </div>
+            ) : (
+              <Button size="sm" onClick={connectStrava} disabled={stravaLoading}>
+                <Link2 className="mr-1.5 h-3.5 w-3.5" />
+                {stravaLoading ? 'Connecting...' : 'Connect Strava'}
+              </Button>
+            )}
           </CardContent>
         </Card>
-      )}
 
-      {/* ════════════════ Training Zones ════════════════ */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Training Zones</CardTitle>
-          <CardDescription>Heart rate, pace and power zones for training</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          {/* ── Heart Rate Zones (5) ── */}
-          <div>
-            <div className="mb-3 flex items-center justify-between">
-              <h4 className="text-sm font-medium">Heart Rate Zones</h4>
-              <div className="flex gap-1.5">
-                <Button variant="outline" size="sm" onClick={calcHrZones}>
-                  <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
-                  Calc Zones
-                </Button>
-                {stravaConnected && (
-                  <Button variant="outline" size="sm" onClick={estimateHr} disabled={hrEstimating}>
-                    <Zap className={`mr-1.5 h-3.5 w-3.5 ${hrEstimating ? 'animate-pulse' : ''}`} />
-                    {hrEstimating ? 'Estimating...' : 'Estimate'}
+        {/* Account */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Account</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label>Name</Label>
+                <Input value={name} onChange={(e) => setName(e.target.value)} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Email</Label>
+                <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+              </div>
+            </div>
+            <Button size="sm" onClick={saveAccount}>
+              <Save className="mr-1.5 h-3.5 w-3.5" />
+              Update Account
+            </Button>
+          </CardContent>
+        </Card>
+
+        {/* Password */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Change Password</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="space-y-1.5">
+              <Label>Current Password</Label>
+              <Input type="password" value={currentPw} onChange={(e) => setCurrentPw(e.target.value)} />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label>New Password</Label>
+                <Input type="password" value={newPw} onChange={(e) => setNewPw(e.target.value)} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Confirm</Label>
+                <Input type="password" value={confirmPw} onChange={(e) => setConfirmPw(e.target.value)} />
+              </div>
+            </div>
+            <Button size="sm" onClick={changePassword} disabled={!currentPw || !newPw}>
+              Change Password
+            </Button>
+          </CardContent>
+        </Card>
+
+        {/* Logout */}
+        <Card>
+          <CardContent className="p-4">
+            <Button variant="outline" onClick={logout} className="w-full text-destructive hover:text-destructive">
+              Sign Out
+            </Button>
+          </CardContent>
+        </Card>
+        </TabsContent>
+
+        <TabsContent value="training" className="space-y-6 pt-6">
+        {/* ════════════════ Training Zones ════════════════ */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Training Zones</CardTitle>
+            <CardDescription>Heart rate, pace and power zones for training</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {/* ── Heart Rate Zones (5) ── */}
+            <div>
+              <div className="mb-3 flex items-center justify-between">
+                <h4 className="text-sm font-medium">Heart Rate Zones</h4>
+                <div className="flex gap-1.5">
+                  <Button variant="outline" size="sm" onClick={calcHrZones}>
+                    <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
+                    Calc Zones
                   </Button>
-                )}
+                  {stravaConnected && (
+                    <Button variant="outline" size="sm" onClick={estimateHr} disabled={hrEstimating}>
+                      <Zap className={`mr-1.5 h-3.5 w-3.5 ${hrEstimating ? 'animate-pulse' : ''}`} />
+                      {hrEstimating ? 'Estimating...' : 'Estimate'}
+                    </Button>
+                  )}
+                </div>
               </div>
-            </div>
-            <div className="mb-3 grid grid-cols-3 gap-3">
-              <div className="space-y-1.5">
-                <Label className="text-xs">Max HR</Label>
-                <Input
-                  type="number"
-                  className="h-8 text-xs"
-                  value={maxHr}
-                  onChange={(e) => setMaxHr(e.target.value)}
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs">Resting HR</Label>
-                <Input
-                  type="number"
-                  className="h-8 text-xs"
-                  value={restingHr}
-                  onChange={(e) => setRestingHr(e.target.value)}
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs">Threshold HR</Label>
-                <Input
-                  type="number"
-                  className="h-8 text-xs"
-                  placeholder="optional"
-                  value={thresholdHr}
-                  onChange={(e) => setThresholdHr(e.target.value)}
-                />
-              </div>
-            </div>
-            {stravaConnected && (
-              <label className="mb-3 flex cursor-pointer items-center gap-2 text-xs text-muted-foreground">
-                <input
-                  type="checkbox"
-                  className="h-3.5 w-3.5 accent-foreground"
-                  checked={keepHrAnchors}
-                  onChange={(e) => setKeepHrAnchors(e.target.checked)}
-                />
-                Keep my Max/Resting/Threshold when estimating (re-derive zones only)
-              </label>
-            )}
-            {hrEstimateHint && (
-              <p className="mb-3 text-xs italic text-muted-foreground">{hrEstimateHint}</p>
-            )}
-            <div className="space-y-2">
-              {HR_ZONES.map(({ key, label }, i) => (
-                <div key={key} className="grid grid-cols-[140px_1fr_1fr] items-center gap-2">
-                  <Label className="text-xs">{label}</Label>
+              <div className="mb-3 grid grid-cols-3 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Max HR</Label>
                   <Input
                     type="number"
                     className="h-8 text-xs"
-                    placeholder="Min"
-                    value={hrZones[key]?.min || ''}
-                    disabled={i > 0}
-                    onChange={(e) =>
-                      setHrZones({
-                        ...hrZones,
-                        [key]: { ...hrZones[key], min: parseInt(e.target.value) || 0 },
-                      })
-                    }
-                  />
-                  <Input
-                    type="number"
-                    className="h-8 text-xs"
-                    placeholder="Max"
-                    value={hrZones[key]?.max || ''}
-                    onChange={(e) =>
-                      updateIntZoneMax(hrZones, setHrZones, HR_ZONE_KEYS, key, parseInt(e.target.value) || 0, 1)
-                    }
+                    value={maxHr}
+                    onChange={(e) => setMaxHr(e.target.value)}
                   />
                 </div>
-              ))}
-            </div>
-          </div>
-
-          <Separator />
-
-          {/* ── Pace Zones (6) ── */}
-          <div>
-            <div className="mb-3 flex items-center justify-between">
-              <h4 className="text-sm font-medium">Pace Zones (min/km)</h4>
-              {stravaConnected && (
-                <Button variant="outline" size="sm" onClick={estimatePace} disabled={paceEstimating}>
-                  <Zap className={`mr-1.5 h-3.5 w-3.5 ${paceEstimating ? 'animate-pulse' : ''}`} />
-                  {paceEstimating ? 'Estimating...' : 'Estimate'}
-                </Button>
-              )}
-            </div>
-            <div className="mb-3 grid grid-cols-[1fr_auto] items-end gap-3">
-              <div className="space-y-1.5">
-                <Label className="text-xs">Threshold Pace (m:ss per km)</Label>
-                <Input
-                  className="h-8 text-xs"
-                  placeholder="e.g. 4:30"
-                  value={thresholdPace}
-                  onChange={(e) => setThresholdPace(e.target.value)}
-                  onBlur={() => {
-                    const tp = parsePace(thresholdPace)
-                    if (tp > 0) setThresholdPace(fmtPace(tp))
-                  }}
-                />
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Resting HR</Label>
+                  <Input
+                    type="number"
+                    className="h-8 text-xs"
+                    value={restingHr}
+                    onChange={(e) => setRestingHr(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Threshold HR</Label>
+                  <Input
+                    type="number"
+                    className="h-8 text-xs"
+                    placeholder="optional"
+                    value={thresholdHr}
+                    onChange={(e) => setThresholdHr(e.target.value)}
+                  />
+                </div>
               </div>
-              <Button variant="outline" size="sm" className="h-8 text-xs" onClick={calcPaceZones}>
-                <RefreshCw className="mr-1 h-3 w-3" />
-                Calc Zones
-              </Button>
-            </div>
-            <p className="mb-2 text-[11px] text-muted-foreground">
-              Slower pace = higher number. Z1 is slowest, Z6 is fastest.
-            </p>
-            {paceEstimateHint && (
-              <p className="mb-2 text-xs italic text-muted-foreground">{paceEstimateHint}</p>
-            )}
-            <div className="space-y-2">
-              {PACE_ZONES.map(({ key, label }, i) => {
-                const minRawKey = `${key}_min`
-                const maxRawKey = `${key}_max`
-                return (
+              {stravaConnected && (
+                <label className="mb-3 flex cursor-pointer items-center gap-2 text-xs text-muted-foreground">
+                  <input
+                    type="checkbox"
+                    className="h-3.5 w-3.5 accent-foreground"
+                    checked={keepHrAnchors}
+                    onChange={(e) => setKeepHrAnchors(e.target.checked)}
+                  />
+                  Keep my Max/Resting/Threshold when estimating (re-derive zones only)
+                </label>
+              )}
+              {hrEstimateHint && (
+                <p className="mb-3 text-xs italic text-muted-foreground">{hrEstimateHint}</p>
+              )}
+              <div className="space-y-2">
+                {HR_ZONES.map(({ key, label }, i) => (
                   <div key={key} className="grid grid-cols-[140px_1fr_1fr] items-center gap-2">
                     <Label className="text-xs">{label}</Label>
                     <Input
+                      type="number"
                       className="h-8 text-xs"
-                      placeholder="Slow (m:ss)"
-                      value={
-                        paceFieldFocused === minRawKey
-                          ? paceRawValues[minRawKey] ?? ''
-                          : paceZones[key]?.min
-                            ? fmtPace(paceZones[key].min)
-                            : ''
-                      }
+                      placeholder="Min"
+                      value={hrZones[key]?.min || ''}
                       disabled={i > 0}
-                      onFocus={() => {
-                        setPaceFieldFocused(minRawKey)
-                        if (paceZones[key]?.min && !paceRawValues[minRawKey]) {
-                          setPaceRawValues((prev) => ({ ...prev, [minRawKey]: fmtPace(paceZones[key].min) }))
-                        }
-                      }}
                       onChange={(e) =>
-                        setPaceRawValues((prev) => ({ ...prev, [minRawKey]: e.target.value }))
+                        setHrZones({
+                          ...hrZones,
+                          [key]: { ...hrZones[key], min: parseInt(e.target.value) || 0 },
+                        })
                       }
-                      onBlur={() => {
-                        commitPaceValue(key, 'min')
-                        setPaceFieldFocused(null)
-                      }}
                     />
                     <Input
+                      type="number"
                       className="h-8 text-xs"
-                      placeholder="Fast (m:ss)"
-                      value={
-                        paceFieldFocused === maxRawKey
-                          ? paceRawValues[maxRawKey] ?? ''
-                          : paceZones[key]?.max
-                            ? fmtPace(paceZones[key].max)
-                            : ''
-                      }
-                      onFocus={() => {
-                        setPaceFieldFocused(maxRawKey)
-                        if (paceZones[key]?.max && !paceRawValues[maxRawKey]) {
-                          setPaceRawValues((prev) => ({ ...prev, [maxRawKey]: fmtPace(paceZones[key].max) }))
-                        }
-                      }}
+                      placeholder="Max"
+                      value={hrZones[key]?.max || ''}
                       onChange={(e) =>
-                        setPaceRawValues((prev) => ({ ...prev, [maxRawKey]: e.target.value }))
+                        updateIntZoneMax(hrZones, setHrZones, HR_ZONE_KEYS, key, parseInt(e.target.value) || 0, 1)
                       }
-                      onBlur={() => {
-                        commitPaceValue(key, 'max')
-                        setPaceFieldFocused(null)
-                      }}
                     />
                   </div>
-                )
-              })}
-            </div>
-          </div>
-
-          <Separator />
-
-          {/* ── Cycling Power Zones (7) ── */}
-          <div>
-            <div className="mb-3 flex items-center justify-between">
-              <h4 className="text-sm font-medium">Cycling Power Zones</h4>
-              {stravaConnected && (
-                <Button variant="outline" size="sm" onClick={estimatePower} disabled={powerEstimating}>
-                  <Zap className={`mr-1.5 h-3.5 w-3.5 ${powerEstimating ? 'animate-pulse' : ''}`} />
-                  {powerEstimating ? 'Estimating...' : 'Estimate'}
-                </Button>
-              )}
-            </div>
-            <div className="mb-3 grid grid-cols-[1fr_auto] items-end gap-3">
-              <div className="space-y-1.5">
-                <Label className="text-xs">FTP (watts)</Label>
-                <Input
-                  type="number"
-                  className="h-8 text-xs"
-                  placeholder="e.g. 250"
-                  value={ftp}
-                  onChange={(e) => setFtp(e.target.value)}
-                />
+                ))}
               </div>
-              <Button variant="outline" size="sm" className="h-8 text-xs" onClick={calculatePowerFromFtp}>
-                <RefreshCw className="mr-1 h-3 w-3" />
-                Calc Zones
-              </Button>
             </div>
-            <div className="space-y-2">
-              {POWER_ZONES.map(({ key, label }, i) => (
-                <div key={key} className="grid grid-cols-[140px_1fr_1fr] items-center gap-2">
-                  <Label className="text-xs">{label}</Label>
+
+            <Separator />
+
+            {/* ── Pace Zones (6) ── */}
+            <div>
+              <div className="mb-3 flex items-center justify-between">
+                <h4 className="text-sm font-medium">Pace Zones (min/km)</h4>
+                {stravaConnected && (
+                  <Button variant="outline" size="sm" onClick={estimatePace} disabled={paceEstimating}>
+                    <Zap className={`mr-1.5 h-3.5 w-3.5 ${paceEstimating ? 'animate-pulse' : ''}`} />
+                    {paceEstimating ? 'Estimating...' : 'Estimate'}
+                  </Button>
+                )}
+              </div>
+              <div className="mb-3 grid grid-cols-[1fr_auto] items-end gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Threshold Pace (m:ss per km)</Label>
                   <Input
-                    type="number"
                     className="h-8 text-xs"
-                    placeholder="Min W"
-                    value={cyclingPowerZones[key]?.min || ''}
-                    disabled={i > 0}
-                    onChange={(e) =>
-                      setCyclingPowerZones({
-                        ...cyclingPowerZones,
-                        [key]: { ...cyclingPowerZones[key], min: parseInt(e.target.value) || 0 },
-                      })
-                    }
-                  />
-                  <Input
-                    type="number"
-                    className="h-8 text-xs"
-                    placeholder="Max W"
-                    value={cyclingPowerZones[key]?.max || ''}
-                    onChange={(e) =>
-                      updateIntZoneMax(
-                        cyclingPowerZones,
-                        setCyclingPowerZones,
-                        POWER_ZONE_KEYS,
-                        key,
-                        parseInt(e.target.value) || 0,
-                        1,
-                      )
-                    }
+                    placeholder="e.g. 4:30"
+                    value={thresholdPace}
+                    onChange={(e) => setThresholdPace(e.target.value)}
+                    onBlur={() => {
+                      const tp = parsePace(thresholdPace)
+                      if (tp > 0) setThresholdPace(fmtPace(tp))
+                    }}
                   />
                 </div>
-              ))}
-            </div>
-          </div>
-
-          <Button size="sm" onClick={saveZones} disabled={zonesLoading}>
-            <Save className="mr-1.5 h-3.5 w-3.5" />
-            Save Zones
-          </Button>
-        </CardContent>
-      </Card>
-
-      {/* Zone History */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-base">
-            <History className="h-4 w-4" />
-            Zone History
-          </CardTitle>
-          <CardDescription>See how your training zones evolved over time</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {historyLoading ? (
-            <div className="space-y-3">
-              {Array.from({ length: 3 }).map((_, i) => (
-                <Skeleton key={i} className="h-16 w-full" />
-              ))}
-            </div>
-          ) : !zoneHistory || zoneHistory.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              No zone history yet. Save or estimate your zones to start tracking changes.
-            </p>
-          ) : (
-            <div className="space-y-2">
-              {zoneHistory.map((entry, index) => {
-                const isLatest = index === 0
-                const date = entry.calculated_at
-                  ? new Date(entry.calculated_at).toLocaleDateString('en-US', {
-                      month: 'short',
-                      day: 'numeric',
-                      year: 'numeric',
-                      hour: '2-digit',
-                      minute: '2-digit',
-                    })
-                  : 'Unknown date'
-
-                const sourceLabel =
-                  entry.source === 'strava_estimate'
-                    ? 'Strava Estimate'
-                    : entry.source === 'reverted'
-                      ? 'Reverted'
-                      : 'Manual'
-
-                const sourceColor = 'bg-transparent text-foreground border border-foreground/40 italic smallcaps'
-
-                // Build compact summary
-                const parts: string[] = []
-                if (entry.max_hr) parts.push(`Max HR: ${entry.max_hr}`)
-                if (entry.hr_zones?.zone1 && entry.hr_zones?.zone5) {
-                  parts.push(`HR: ${entry.hr_zones.zone1.min}–${entry.hr_zones.zone5.max}`)
-                }
-                if (entry.threshold_pace) {
-                  const mins = Math.floor(entry.threshold_pace / 60)
-                  const secs = Math.floor(entry.threshold_pace % 60)
-                  parts.push(`Threshold: ${mins}:${String(secs).padStart(2, '0')}/km`)
-                }
-                if (entry.ftp) parts.push(`FTP: ${entry.ftp}W`)
-
-                return (
-                  <div
-                    key={entry.id}
-                    className={`flex items-start justify-between rounded-none border-y border-foreground/20 p-3 ${
-                      isLatest ? 'border-y-2 border-foreground' : ''
-                    }`}
-                  >
-                    <div className="min-w-0 flex-1 space-y-1">
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs text-muted-foreground">{date}</span>
-                        <Badge
-                          variant="secondary"
-                          className={`text-[10px] px-1.5 py-0 ${sourceColor}`}
-                        >
-                          {sourceLabel}
-                        </Badge>
-                        {entry.source === 'strava_estimate' && entry.activities_analyzed && (
-                          <span className="text-[10px] text-muted-foreground">
-                            ({entry.activities_analyzed} activities)
-                          </span>
-                        )}
-                        {isLatest && (
-                          <Badge variant="outline" className="text-[10px] px-1.5 py-0">
-                            Current
-                          </Badge>
-                        )}
-                      </div>
-                      <p className="text-xs text-muted-foreground truncate">
-                        {parts.length > 0 ? parts.join(' · ') : 'No zone data'}
-                      </p>
-                    </div>
-                    {!isLatest && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="ml-2 h-7 shrink-0 text-xs"
-                        disabled={revertZones.isPending}
-                        onClick={() => {
-                          revertZones.mutate(entry.id, {
-                            onSuccess: () => {
-                              toast.success('Zones reverted successfully')
-                            },
-                            onError: () => {
-                              toast.error('Failed to revert zones')
-                            },
-                          })
+                <Button variant="outline" size="sm" className="h-8 text-xs" onClick={calcPaceZones}>
+                  <RefreshCw className="mr-1 h-3 w-3" />
+                  Calc Zones
+                </Button>
+              </div>
+              <p className="mb-2 text-[11px] text-muted-foreground">
+                Slower pace = higher number. Z1 is slowest, Z6 is fastest.
+              </p>
+              {paceEstimateHint && (
+                <p className="mb-2 text-xs italic text-muted-foreground">{paceEstimateHint}</p>
+              )}
+              <div className="space-y-2">
+                {PACE_ZONES.map(({ key, label }, i) => {
+                  const minRawKey = `${key}_min`
+                  const maxRawKey = `${key}_max`
+                  return (
+                    <div key={key} className="grid grid-cols-[140px_1fr_1fr] items-center gap-2">
+                      <Label className="text-xs">{label}</Label>
+                      <Input
+                        className="h-8 text-xs"
+                        placeholder="Slow (m:ss)"
+                        value={
+                          paceFieldFocused === minRawKey
+                            ? paceRawValues[minRawKey] ?? ''
+                            : paceZones[key]?.min
+                              ? fmtPace(paceZones[key].min)
+                              : ''
+                        }
+                        disabled={i > 0}
+                        onFocus={() => {
+                          setPaceFieldFocused(minRawKey)
+                          if (paceZones[key]?.min && !paceRawValues[minRawKey]) {
+                            setPaceRawValues((prev) => ({ ...prev, [minRawKey]: fmtPace(paceZones[key].min) }))
+                          }
                         }}
-                      >
-                        <RotateCcw className="mr-1 h-3 w-3" />
-                        Revert
-                      </Button>
-                    )}
+                        onChange={(e) =>
+                          setPaceRawValues((prev) => ({ ...prev, [minRawKey]: e.target.value }))
+                        }
+                        onBlur={() => {
+                          commitPaceValue(key, 'min')
+                          setPaceFieldFocused(null)
+                        }}
+                      />
+                      <Input
+                        className="h-8 text-xs"
+                        placeholder="Fast (m:ss)"
+                        value={
+                          paceFieldFocused === maxRawKey
+                            ? paceRawValues[maxRawKey] ?? ''
+                            : paceZones[key]?.max
+                              ? fmtPace(paceZones[key].max)
+                              : ''
+                        }
+                        onFocus={() => {
+                          setPaceFieldFocused(maxRawKey)
+                          if (paceZones[key]?.max && !paceRawValues[maxRawKey]) {
+                            setPaceRawValues((prev) => ({ ...prev, [maxRawKey]: fmtPace(paceZones[key].max) }))
+                          }
+                        }}
+                        onChange={(e) =>
+                          setPaceRawValues((prev) => ({ ...prev, [maxRawKey]: e.target.value }))
+                        }
+                        onBlur={() => {
+                          commitPaceValue(key, 'max')
+                          setPaceFieldFocused(null)
+                        }}
+                      />
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+
+            <Separator />
+
+            {/* ── Cycling Power Zones (7) ── */}
+            <div>
+              <div className="mb-3 flex items-center justify-between">
+                <h4 className="text-sm font-medium">Cycling Power Zones</h4>
+                {stravaConnected && (
+                  <Button variant="outline" size="sm" onClick={estimatePower} disabled={powerEstimating}>
+                    <Zap className={`mr-1.5 h-3.5 w-3.5 ${powerEstimating ? 'animate-pulse' : ''}`} />
+                    {powerEstimating ? 'Estimating...' : 'Estimate'}
+                  </Button>
+                )}
+              </div>
+              <div className="mb-3 grid grid-cols-[1fr_auto] items-end gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs">FTP (watts)</Label>
+                  <Input
+                    type="number"
+                    className="h-8 text-xs"
+                    placeholder="e.g. 250"
+                    value={ftp}
+                    onChange={(e) => setFtp(e.target.value)}
+                  />
+                </div>
+                <Button variant="outline" size="sm" className="h-8 text-xs" onClick={calculatePowerFromFtp}>
+                  <RefreshCw className="mr-1 h-3 w-3" />
+                  Calc Zones
+                </Button>
+              </div>
+              <div className="space-y-2">
+                {POWER_ZONES.map(({ key, label }, i) => (
+                  <div key={key} className="grid grid-cols-[140px_1fr_1fr] items-center gap-2">
+                    <Label className="text-xs">{label}</Label>
+                    <Input
+                      type="number"
+                      className="h-8 text-xs"
+                      placeholder="Min W"
+                      value={cyclingPowerZones[key]?.min || ''}
+                      disabled={i > 0}
+                      onChange={(e) =>
+                        setCyclingPowerZones({
+                          ...cyclingPowerZones,
+                          [key]: { ...cyclingPowerZones[key], min: parseInt(e.target.value) || 0 },
+                        })
+                      }
+                    />
+                    <Input
+                      type="number"
+                      className="h-8 text-xs"
+                      placeholder="Max W"
+                      value={cyclingPowerZones[key]?.max || ''}
+                      onChange={(e) =>
+                        updateIntZoneMax(
+                          cyclingPowerZones,
+                          setCyclingPowerZones,
+                          POWER_ZONE_KEYS,
+                          key,
+                          parseInt(e.target.value) || 0,
+                          1,
+                        )
+                      }
+                    />
                   </div>
-                )
-              })}
+                ))}
+              </div>
             </div>
-          )}
-        </CardContent>
-      </Card>
 
-      {/* Upload Plan */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Upload Training Plan</CardTitle>
-          <CardDescription>Upload a PDF, Word, or text file with your training plan</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center gap-3">
-            <Input
-              ref={fileRef}
-              type="file"
-              accept=".pdf,.docx,.txt,.md"
-              onChange={handleUpload}
-              disabled={uploading}
-            />
-            {uploading && (
-              <Badge variant="secondary">
-                <Upload className="mr-1 h-3 w-3 animate-pulse" />
-                Parsing...
-              </Badge>
+            <Button size="sm" onClick={saveZones} disabled={zonesLoading}>
+              <Save className="mr-1.5 h-3.5 w-3.5" />
+              Save Zones
+            </Button>
+          </CardContent>
+        </Card>
+
+        {/* Zone History */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <History className="h-4 w-4" />
+              Zone History
+            </CardTitle>
+            <CardDescription>See how your training zones evolved over time</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {historyLoading ? (
+              <div className="space-y-3">
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <Skeleton key={i} className="h-16 w-full" />
+                ))}
+              </div>
+            ) : !zoneHistory || zoneHistory.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                No zone history yet. Save or estimate your zones to start tracking changes.
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {zoneHistory.map((entry, index) => {
+                  const isLatest = index === 0
+                  const date = entry.calculated_at
+                    ? new Date(entry.calculated_at).toLocaleDateString('en-US', {
+                        month: 'short',
+                        day: 'numeric',
+                        year: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })
+                    : 'Unknown date'
+
+                  const sourceLabel =
+                    entry.source === 'strava_estimate'
+                      ? 'Strava Estimate'
+                      : entry.source === 'reverted'
+                        ? 'Reverted'
+                        : 'Manual'
+
+                  const sourceColor = 'bg-transparent text-foreground border border-foreground/40 italic smallcaps'
+
+                  // Build compact summary
+                  const parts: string[] = []
+                  if (entry.max_hr) parts.push(`Max HR: ${entry.max_hr}`)
+                  if (entry.hr_zones?.zone1 && entry.hr_zones?.zone5) {
+                    parts.push(`HR: ${entry.hr_zones.zone1.min}–${entry.hr_zones.zone5.max}`)
+                  }
+                  if (entry.threshold_pace) {
+                    const mins = Math.floor(entry.threshold_pace / 60)
+                    const secs = Math.floor(entry.threshold_pace % 60)
+                    parts.push(`Threshold: ${mins}:${String(secs).padStart(2, '0')}/km`)
+                  }
+                  if (entry.ftp) parts.push(`FTP: ${entry.ftp}W`)
+
+                  return (
+                    <div
+                      key={entry.id}
+                      className={`flex items-start justify-between rounded-none border-y border-foreground/20 p-3 ${
+                        isLatest ? 'border-y-2 border-foreground' : ''
+                      }`}
+                    >
+                      <div className="min-w-0 flex-1 space-y-1">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-muted-foreground">{date}</span>
+                          <Badge
+                            variant="secondary"
+                            className={`text-[10px] px-1.5 py-0 ${sourceColor}`}
+                          >
+                            {sourceLabel}
+                          </Badge>
+                          {entry.source === 'strava_estimate' && entry.activities_analyzed && (
+                            <span className="text-[10px] text-muted-foreground">
+                              ({entry.activities_analyzed} activities)
+                            </span>
+                          )}
+                          {isLatest && (
+                            <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+                              Current
+                            </Badge>
+                          )}
+                        </div>
+                        <p className="text-xs text-muted-foreground truncate">
+                          {parts.length > 0 ? parts.join(' · ') : 'No zone data'}
+                        </p>
+                      </div>
+                      {!isLatest && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="ml-2 h-7 shrink-0 text-xs"
+                          disabled={revertZones.isPending}
+                          onClick={() => {
+                            revertZones.mutate(entry.id, {
+                              onSuccess: () => {
+                                toast.success('Zones reverted successfully')
+                              },
+                              onError: () => {
+                                toast.error('Failed to revert zones')
+                              },
+                            })
+                          }}
+                        >
+                          <RotateCcw className="mr-1 h-3 w-3" />
+                          Revert
+                        </Button>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
             )}
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
 
-      {/* Account */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Account</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label>Name</Label>
-              <Input value={name} onChange={(e) => setName(e.target.value)} />
+        {/* Upload Plan */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Upload Training Plan</CardTitle>
+            <CardDescription>Upload a PDF, Word, or text file with your training plan</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {aiDisabled && (
+              <p className="mb-3 border-l-2 border-foreground/25 py-1 pl-3 text-sm italic text-muted-foreground">
+                {user?.ai_disabled_notice}
+              </p>
+            )}
+            <div className="flex items-center gap-3">
+              <Input
+                ref={fileRef}
+                type="file"
+                accept=".pdf,.docx,.txt,.md"
+                onChange={handleUpload}
+                disabled={uploading || aiDisabled}
+              />
+              {uploading && (
+                <Badge variant="secondary">
+                  <Upload className="mr-1 h-3 w-3 animate-pulse" />
+                  Parsing...
+                </Badge>
+              )}
             </div>
-            <div className="space-y-1.5">
-              <Label>Email</Label>
-              <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
-            </div>
-          </div>
-          <Button size="sm" onClick={saveAccount}>
-            <Save className="mr-1.5 h-3.5 w-3.5" />
-            Update Account
-          </Button>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+        </TabsContent>
 
-      {/* Password */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Change Password</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="space-y-1.5">
-            <Label>Current Password</Label>
-            <Input type="password" value={currentPw} onChange={(e) => setCurrentPw(e.target.value)} />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
+        <TabsContent value="coach" className="space-y-6 pt-6">
+        {/* Coach configuration */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Coach</CardTitle>
+            <CardDescription>
+              Persona and athlete profile for the AI coach (chat panel and Coach page)
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
             <div className="space-y-1.5">
-              <Label>New Password</Label>
-              <Input type="password" value={newPw} onChange={(e) => setNewPw(e.target.value)} />
+              <Label>Coach Instructions</Label>
+              <p className="text-xs text-muted-foreground">
+                Defines how your coach communicates and trains you (methodology, tone, what to
+                push back on).
+              </p>
+              <textarea
+                className="w-full border border-foreground/20 bg-transparent p-2 font-mono text-xs leading-relaxed outline-none focus:border-foreground/50"
+                rows={10}
+                value={coachInstructions}
+                onChange={(e) => setCoachInstructions(e.target.value)}
+                placeholder="Paste your coaching persona / project instructions here…"
+              />
             </div>
             <div className="space-y-1.5">
-              <Label>Confirm</Label>
-              <Input type="password" value={confirmPw} onChange={(e) => setConfirmPw(e.target.value)} />
+              <Label>Athlete Profile</Label>
+              <p className="text-xs text-muted-foreground">
+                Living document — your coach updates this from chat when new facts emerge
+                (injuries, PRs, learnings). Review and edit here.
+              </p>
+              <textarea
+                className="w-full border border-foreground/20 bg-transparent p-2 font-mono text-xs leading-relaxed outline-none focus:border-foreground/50"
+                rows={14}
+                value={athleteProfile}
+                onChange={(e) => setAthleteProfile(e.target.value)}
+                placeholder="Paste your athlete profile here…"
+              />
             </div>
-          </div>
-          <Button size="sm" onClick={changePassword} disabled={!currentPw || !newPw}>
-            Change Password
-          </Button>
-        </CardContent>
-      </Card>
+            <Button size="sm" onClick={saveCoach} disabled={coachSaving}>
+              <Save className="mr-1.5 h-3.5 w-3.5" />
+              {coachSaving ? 'Saving…' : 'Save Coach Settings'}
+            </Button>
+          </CardContent>
+        </Card>
 
-      {/* Logout */}
-      <Card>
-        <CardContent className="p-4">
-          <Button variant="outline" onClick={logout} className="w-full text-destructive hover:text-destructive">
-            Sign Out
-          </Button>
-        </CardContent>
-      </Card>
+        {/* Runner Profile */}
+        {user?.profile_summary && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Runner Profile</CardTitle>
+              <CardDescription>AI-generated summary based on your activities</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm leading-relaxed text-muted-foreground whitespace-pre-wrap">
+                {user.profile_summary}
+              </p>
+            </CardContent>
+          </Card>
+        )}
+        </TabsContent>
+
+        <TabsContent value="club" className="space-y-6 pt-6">
+        {/* Club membership (renders nothing for solo users) */}
+        <ClubSettingsCard />
+        {!hasClub && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Club</CardTitle>
+              <CardDescription>You are not in a club yet.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground">
+                Start one or join with a code from the{' '}
+                <Link href="/club" className="underline">
+                  Club page
+                </Link>
+                . Membership settings show up here once you are in.
+              </p>
+            </CardContent>
+          </Card>
+        )}
+        </TabsContent>
+
+        <TabsContent value="feedback" className="space-y-6 pt-6">
+        {/* Feedback */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Send feedback</CardTitle>
+            <CardDescription>
+              Found a bug, or missing something? Tell me here — everything is free to use, and
+              what people report is what gets built next.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <FeedbackForm />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Your submissions</CardTitle>
+            <CardDescription>What happened to everything you have sent.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <FeedbackList />
+          </CardContent>
+        </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   )
 }

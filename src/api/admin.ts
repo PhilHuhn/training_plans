@@ -1,6 +1,7 @@
 import apiClient from './client'
 import type {
   AdminClubWire,
+  AiSettingsWire,
   AdminUserWire,
   ClubPlanTier,
   ClubRole,
@@ -13,6 +14,11 @@ export interface MembershipTarget {
 }
 
 export const adminApi = {
+  getAiSettings: () => apiClient.get<AiSettingsWire>('/admin/settings/ai'),
+
+  updateAiSettings: (body: { enabled?: boolean; notice?: string }) =>
+    apiClient.patch<AiSettingsWire>('/admin/settings/ai', body),
+
   getUsers: () => apiClient.get<{ users: AdminUserWire[] }>('/admin/users'),
 
   getClubs: () => apiClient.get<{ clubs: AdminClubWire[] }>('/admin/clubs'),
