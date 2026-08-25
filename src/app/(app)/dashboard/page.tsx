@@ -8,6 +8,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { useDashboardStats } from '@/hooks/use-activities'
 import { useCurrentUser } from '@/hooks/use-auth'
 import { formatPace } from '@/lib/utils'
+import { splitForChart } from '@/lib/load-series'
 import { CHART_TOOLTIP_STYLE, SEQUENTIAL_RAMP, SPORT_COLORS } from '@/lib/sport-theme'
 import { useRouter } from 'next/navigation'
 import {
@@ -24,6 +25,8 @@ import {
   Tooltip,
   Legend,
   ReferenceLine,
+  ReferenceArea,
+  ReferenceDot,
 } from 'recharts'
 
 const RANGES = [
@@ -110,6 +113,27 @@ function formHeadline(latest: DashboardLoadPoint | null): string {
   return 'Fatigue is well ahead of fitness. Back off before it costs you.'
 }
 
+/**
+ * A race marker.
+ *
+ * Recharts injects cx/cy into whatever element is handed to ReferenceDot's
+ * `shape`, so the diamond is drawn as an explicit path rather than named — the
+ * library has no built-in diamond for reference dots. A-races are filled, the
+ * rest hollow, so priority reads without a legend.
+ */
+function RaceDiamond({ cx, cy, filled }: { cx?: number; cy?: number; filled?: boolean }) {
+  if (cx == null || cy == null) return null
+  const r = 5
+  return (
+    <path
+      d={`M ${cx} ${cy - r} L ${cx + r} ${cy} L ${cx} ${cy + r} L ${cx - r} ${cy} Z`}
+      fill={filled ? SPORT_COLORS.run : '#FAF8F2'}
+      stroke={SPORT_COLORS.run}
+      strokeWidth={1.5}
+    />
+  )
+}
+
 function formatDay(dateStr: string): string {
   const d = new Date(dateStr + 'T00:00:00')
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
@@ -122,7 +146,20 @@ export default function DashboardPage() {
   const router = useRouter()
 
   const load = data?.load ?? []
-  const latest = load.length > 0 ? load[load.length - 1] : null
+  const races = data?.races ?? []
+
+  // The last *measured* day, not the last point — `load` now runs a week past
+  // today, and the band beside it says "today". Reading the end of the array
+  // would quietly report the forecast as fact.
+  const measured = load.filter((p) => !p.projected)
+  const latest = measured.length > 0 ? measured[measured.length - 1] : null
+  const today = latest?.date ?? null
+
+  // Recharts cannot dash part of a line, so the projection is a second series;
+  // splitForChart writes the boundary day to both so they meet. See @/lib/load-series.
+  const chartData = splitForChart(load)
+  const forecastFrom = load.find((p) => p.projected)?.date ?? null
+  const forecastTo = load.length > 0 ? load[load.length - 1].date : null
   const hasActivities = (data?.summary.count ?? 0) > 0
 
   const rangeLabel = RANGES.find((r) => r.days === days)?.label ?? `${days} days`
@@ -296,7 +333,7 @@ export default function DashboardPage() {
               <CardContent>
                 <div className="h-[280px]">
                   <ResponsiveContainer width="100%" height="100%">
-                    <ComposedChart data={load} margin={{ top: 5, right: 5, bottom: 5, left: 0 }}>
+                    <ComposedChart data={chartData} margin={{ top: 5, right: 5, bottom: 5, left: 0 }}>
                       <XAxis
                         dataKey="date"
                         tick={{ fontSize: 11 }}
@@ -307,21 +344,52 @@ export default function DashboardPage() {
                       <Tooltip
                         contentStyle={tooltipStyle}
                         labelFormatter={(l) => formatDay(String(l))}
+                        // The projected series are separate keys, so they need
+                        // their own labels — without them the tooltip prints
+                        // "ctl_projected" on every day of the forecast. They are
+                        // marked "(planned)" rather than sharing a label, so a
+                        // hovered number is never mistaken for a measurement.
                         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                        formatter={((value: any, name: any) => {
+                        formatter={((value: any, name: any, item: any) => {
+                          const key = String(name)
+                          // On the boundary day both halves carry the same value
+                          // so the lines meet; showing both would list every
+                          // metric twice. The measured one wins there.
+                          if (key.endsWith('_projected') && !item?.payload?.projected) return null
                           const labels: Record<string, string> = {
                             ctl: 'Fitness (CTL)',
                             atl: 'Fatigue (ATL)',
                             tsb: 'Form (TSB)',
                             trimp: 'Daily TRIMP',
+                            ctl_projected: 'Fitness (planned)',
+                            atl_projected: 'Fatigue (planned)',
+                            tsb_projected: 'Form (planned)',
                           }
-                          return [Number(value ?? 0).toFixed(1), labels[String(name)] ?? name]
+                          const label = labels[key] ?? key
+                          const suffix =
+                            key === 'trimp' && item?.payload?.projected ? ' (planned)' : ''
+                          return [Number(value ?? 0).toFixed(1), `${label}${suffix}`]
                         }) as never}
                       />
                       <Legend
                         iconType="plainline"
                         iconSize={12}
                         wrapperStyle={{ fontSize: 11 }}
+                        // Spelled out rather than inferred from the series.
+                        // `legendType="none"` on the projected lines does not
+                        // keep them out of this build's legend, and letting it
+                        // default lists "ctl_projected" and friends — six raw
+                        // field names for three metrics.
+                        //
+                        // The nested `payload` is required, not decoration: the
+                        // plainline icon reads `entry.payload.strokeDasharray`,
+                        // and a synthetic entry without it throws.
+                        payload={[
+                          { value: 'trimp', type: 'rect', color: '#D8D4C8', payload: { strokeDasharray: '' } },
+                          { value: 'ctl', type: 'plainline', color: SPORT_COLORS.ink, payload: { strokeDasharray: '' } },
+                          { value: 'atl', type: 'plainline', color: SPORT_COLORS.ride, payload: { strokeDasharray: '' } },
+                          { value: 'tsb', type: 'plainline', color: SPORT_COLORS.run, payload: { strokeDasharray: '4 3' } },
+                        ] as never}
                         // eslint-disable-next-line @typescript-eslint/no-explicit-any
                         formatter={((value: any) => {
                           const labels: Record<string, string> = {
@@ -333,8 +401,43 @@ export default function DashboardPage() {
                           return labels[String(value)] ?? value
                         }) as never}
                       />
+
+                      {/* The forecast window, washed so the eye reads it as
+                          "not measured yet" before reading any line style. */}
+                      {forecastFrom && forecastTo && (
+                        <ReferenceArea
+                          x1={forecastFrom}
+                          x2={forecastTo}
+                          fill={SPORT_COLORS.ink}
+                          fillOpacity={0.045}
+                        />
+                      )}
+                      {today && (
+                        <ReferenceLine
+                          x={today}
+                          stroke="#8A8A8A"
+                          strokeDasharray="3 3"
+                          label={{ value: 'today', position: 'insideTopLeft', fontSize: 10, fill: '#8A8A8A' }}
+                        />
+                      )}
+
+                      {/* A-races get a full line; every race gets a diamond. A
+                          season of C-races would otherwise stripe the chart. */}
+                      {races
+                        .filter((r) => r.priority === 'A')
+                        .map((r) => (
+                          <ReferenceLine
+                            key={`line-${r.id}`}
+                            x={r.date}
+                            stroke={SPORT_COLORS.run}
+                            strokeOpacity={0.5}
+                            strokeDasharray="2 3"
+                          />
+                        ))}
+
                       <ReferenceLine y={0} stroke="#B5B5B5" strokeDasharray="2 2" />
                       <Bar dataKey="trimp" fill="#D8D4C8" name="trimp" />
+
                       <Line type="monotone" dataKey="ctl" stroke={SPORT_COLORS.ink} strokeWidth={2} dot={false} name="ctl" />
                       <Line type="monotone" dataKey="atl" stroke={SPORT_COLORS.ride} strokeWidth={1.5} dot={false} name="atl" />
                       <Line
@@ -346,12 +449,33 @@ export default function DashboardPage() {
                         dot={false}
                         name="tsb"
                       />
+
+                      {/* Projected twins. Finer dots and reduced opacity keep
+                          them subordinate to the measured lines — and distinct
+                          from Form, which is dashed for its own reasons. */}
+                      <Line type="monotone" dataKey="ctl_projected" stroke={SPORT_COLORS.ink} strokeWidth={2} strokeDasharray="1 3" strokeOpacity={0.65} dot={false} legendType="none" name="ctl_projected" />
+                      <Line type="monotone" dataKey="atl_projected" stroke={SPORT_COLORS.ride} strokeWidth={1.5} strokeDasharray="1 3" strokeOpacity={0.65} dot={false} legendType="none" name="atl_projected" />
+                      <Line type="monotone" dataKey="tsb_projected" stroke={SPORT_COLORS.run} strokeWidth={1.5} strokeDasharray="1 3" strokeOpacity={0.65} dot={false} legendType="none" name="tsb_projected" />
+
+                      {/* Race diamonds, pinned to the axis so they read as dates
+                          rather than as values on any one curve. */}
+                      {races.map((r) => (
+                        <ReferenceDot
+                          key={`dot-${r.id}`}
+                          x={r.date}
+                          y={0}
+                          shape={<RaceDiamond filled={r.priority === 'A'} />}
+                          ifOverflow="extendDomain"
+                        />
+                      ))}
                     </ComposedChart>
                   </ResponsiveContainer>
                 </div>
                 <p className="mt-2 text-xs italic text-muted-foreground">
                   Banister TRIMP with 42-day (fitness) and 7-day (fatigue) exponential averages. Positive
                   form means fresh; strongly negative form indicates accumulated fatigue.
+                  {forecastFrom && ' The shaded tail is a projection from your planned sessions, not a measurement — it assumes you train the plan as written.'}
+                  {races.length > 0 && ' Diamonds mark races; A-races also get a vertical line.'}
                 </p>
               </CardContent>
             </Card>

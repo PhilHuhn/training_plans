@@ -1,10 +1,11 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { and, asc, eq, gte } from "drizzle-orm";
+import { and, asc, eq, gte, lte } from "drizzle-orm";
 import { db } from "@/server/db";
-import { activities } from "@/server/db/schema";
+import { activities, competitions, trainingSessions } from "@/server/db/schema";
 import type { UserPreferences } from "@/server/db/schema";
 import { requireSession } from "@/server/auth/session";
-import { calculateTrimp } from "@/server/services/training-load";
+import { buildLoadSeries, isoDay } from "@/lib/load-series";
+import { calculateTrimp, estimatePlannedLoad } from "@/server/services/training-load";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -13,7 +14,33 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 // CTL uses a 42-day exponential decay; seed it with data from before the
 // requested window so the curve doesn't start at zero.
 const CTL_WARMUP_DAYS = 42;
+// How far past today the curve is projected from planned sessions.
+const FORECAST_DAYS = 7;
 const RUN_TYPES = new Set(["Run", "TrailRun", "VirtualRun"]);
+
+/**
+ * The load a planned session is expected to cost.
+ *
+ * The generator writes `estimated_load` onto the workout, so prefer it. When it
+ * is absent — a manually added session, or an imported plan the model left
+ * unscored — fall back to estimatePlannedLoad(), which infers from duration and
+ * zone or intensity.
+ */
+function plannedLoadOf(workout: unknown, prefs: UserPreferences | null): number {
+  if (!workout || typeof workout !== "object" || Array.isArray(workout)) return 0;
+  const w = workout as Record<string, unknown>;
+
+  if (typeof w.estimated_load === "number" && w.estimated_load > 0) return w.estimated_load;
+
+  return estimatePlannedLoad(
+    typeof w.duration_min === "number" ? w.duration_min : null,
+    typeof w.intensity === "string" ? w.intensity : null,
+    typeof w.hr_zone === "string" ? w.hr_zone : null,
+    prefs?.resting_hr ?? null,
+    prefs?.max_hr ?? null,
+    prefs,
+  );
+}
 
 interface ActivityRow {
   id: number;
@@ -25,10 +52,6 @@ interface ActivityRow {
   avgHeartRate: number | null;
   avgPace: number | null;
   startDate: Date;
-}
-
-function isoDay(d: Date): string {
-  return d.toISOString().slice(0, 10);
 }
 
 function mondayOf(date: Date): string {
@@ -145,33 +168,91 @@ export async function GET(req: NextRequest) {
     trimpByDay.set(day, (trimpByDay.get(day) ?? 0) + t);
   }
 
-  const load: {
-    date: string;
-    trimp: number;
-    ctl: number;
-    atl: number;
-    tsb: number;
-  }[] = [];
-  let ctl = 0;
-  let atl = 0;
-  const ctlDecay = Math.exp(-1 / 42);
-  const atlDecay = Math.exp(-1 / 7);
-  for (let t = fetchStart.getTime(); t <= now.getTime(); t += DAY_MS) {
-    const day = isoDay(new Date(t));
-    const trimp = trimpByDay.get(day) ?? 0;
-    const tsb = ctl - atl; // form: yesterday's fitness minus fatigue
-    ctl = ctl * ctlDecay + trimp * (1 - ctlDecay);
-    atl = atl * atlDecay + trimp * (1 - atlDecay);
-    if (t >= periodStart.getTime()) {
-      load.push({
-        date: day,
-        trimp: round1(trimp),
-        ctl: round1(ctl),
-        atl: round1(atl),
-        tsb: round1(tsb),
-      });
-    }
+  // --- Forecast: fold the next week's planned sessions into the same map ------
+  //
+  // The curve past today is the plan, not a measurement. Folding it into the
+  // same daily-TRIMP map means one decay implementation covers both halves, so
+  // the forecast continues the history rather than restating it slightly
+  // differently.
+  //
+  // "Today" here is the server's UTC day, and `session_date` is a zoneless SQL
+  // date, so the two agree for an athlete on UTC. East of it they diverge for
+  // the last hours of the local evening — an athlete at UTC+2 hovering at 22:30
+  // local is already on tomorrow's date, so their tomorrow gets treated as
+  // today: its planned load is skipped by the guard below and the "today"
+  // marker sits a day left. It corrects itself at midnight UTC. Fixing it
+  // properly means the client sending its own date, which is a wider change
+  // than this window justifies.
+  const forecastStart = new Date(`${isoDay(now)}T00:00:00.000Z`);
+  const forecastEnd = new Date(forecastStart.getTime() + FORECAST_DAYS * DAY_MS);
+
+  const planned = await db
+    .select({
+      sessionDate: trainingSessions.sessionDate,
+      plannedWorkout: trainingSessions.plannedWorkout,
+      recommendationWorkout: trainingSessions.recommendationWorkout,
+      finalWorkout: trainingSessions.finalWorkout,
+    })
+    .from(trainingSessions)
+    .where(
+      and(
+        eq(trainingSessions.userId, session.user.id),
+        gte(trainingSessions.sessionDate, isoDay(forecastStart)),
+        lte(trainingSessions.sessionDate, isoDay(forecastEnd)),
+      ),
+    );
+
+  for (const s of planned) {
+    const day = String(s.sessionDate);
+    // Today is already counted from whatever was actually done, so adding the
+    // plan on top would double it.
+    if (day <= isoDay(now)) continue;
+    // final → recommendation → planned, matching displayedWorkout() in
+    // training-grid.tsx and the load totals in sessions/range and sessions/week.
+    // The order is not cosmetic: saveRecommendations() updates only
+    // recommendationWorkout and leaves plannedWorkout in place, so a session
+    // that has been through "AI Plan" carries both. Reading planned first
+    // projects the un-adapted plan while the calendar shows the adapted one.
+    const workout = s.finalWorkout ?? s.recommendationWorkout ?? s.plannedWorkout;
+    const load = plannedLoadOf(workout, prefs);
+    if (load > 0) trimpByDay.set(day, (trimpByDay.get(day) ?? 0) + load);
   }
+
+  const load = buildLoadSeries({
+    trimpByDay,
+    computeFrom: fetchStart,
+    emitFrom: periodStart,
+    emitTo: forecastEnd,
+    // Tomorrow onward is projection; today is still measurement.
+    projectFrom: new Date(forecastStart.getTime() + DAY_MS),
+  });
+
+  // --- Races in the charted window -------------------------------------------
+  const raceRows = await db
+    .select({
+      id: competitions.id,
+      name: competitions.name,
+      raceDate: competitions.raceDate,
+      raceType: competitions.raceType,
+      priority: competitions.priority,
+    })
+    .from(competitions)
+    .where(
+      and(
+        eq(competitions.userId, session.user.id),
+        gte(competitions.raceDate, isoDay(periodStart)),
+        lte(competitions.raceDate, isoDay(forecastEnd)),
+      ),
+    )
+    .orderBy(asc(competitions.raceDate));
+
+  const races = raceRows.map((r) => ({
+    id: r.id,
+    name: r.name,
+    date: String(r.raceDate),
+    race_type: r.raceType,
+    priority: r.priority,
+  }));
 
   // --- Pace trend (runs in period) -------------------------------------------
   const paceTrend = inPeriod
@@ -223,9 +304,11 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json({
     days,
+    forecast_days: FORECAST_DAYS,
     summary: periodSummary(inPeriod),
     previous: periodSummary(inPrevPeriod),
     load,
+    races,
     zone_distribution: zoneDistribution(inPeriod, prefs),
     pace_trend: paceTrend,
     records: {

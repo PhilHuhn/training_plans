@@ -122,6 +122,17 @@ export interface DashboardLoadPoint {
   ctl: number
   atl: number
   tsb: number
+  /** True for days past today, projected from planned sessions rather than measured. */
+  projected: boolean
+}
+
+/** A race as it appears on a chart or calendar — enough to place and label it. */
+export interface RaceMarker {
+  id: number
+  name: string
+  date: string
+  race_type: string
+  priority: string
 }
 
 export interface DashboardZoneEntry {
@@ -154,6 +165,9 @@ export interface DashboardStats {
   summary: DashboardPeriodSummary
   previous: DashboardPeriodSummary
   load: DashboardLoadPoint[]
+  /** How many days past today `load` projects. */
+  forecast_days: number
+  races: RaceMarker[]
   zone_distribution: DashboardZoneEntry[]
   pace_trend: DashboardPacePoint[]
   records: {

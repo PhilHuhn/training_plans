@@ -1,5 +1,6 @@
 'use client'
 import { Fragment } from 'react'
+import { Trophy } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { cn, isToday, addDays, formatDistanceKm } from '@/lib/utils'
 import type { TrainingSession } from '@/lib/types'
@@ -29,6 +30,8 @@ function weekday(iso: string): string {
  */
 export default function TrainingList({ data, onOpenSession }: TrainingListProps) {
   const weeks = data?.weeks ?? []
+  // Races come from the competitions table rather than from sessions.
+  const raceByDate = new Map((data?.races ?? []).map((r) => [r.date, r]))
   if (weeks.length === 0) return null
 
   // Sticky header note: `overflow-x-auto` creates a scroll container, which
@@ -65,7 +68,12 @@ export default function TrainingList({ data, onOpenSession }: TrainingListProps)
             const rows = Array.from({ length: 7 }, (_, di) => {
               const date = addDays(week.week_start, di)
               const session = sessionByDate.get(date)
-              return { date, session, disp: session ? displayedWorkout(session) : null }
+              return {
+                date,
+                session,
+                race: raceByDate.get(date),
+                disp: session ? displayedWorkout(session) : null,
+              }
             })
 
             return (
@@ -90,10 +98,44 @@ export default function TrainingList({ data, onOpenSession }: TrainingListProps)
                   </td>
                 </tr>
 
-                {rows.map(({ date, session, disp }) => {
+                {rows.map(({ date, session, race, disp }) => {
+                  // A race day, read from the competitions table. Rendered as
+                  // its own row above whatever else is planned, so a race with
+                  // no session does not read as "Rest".
+                  const raceRow = race ? (
+                    <tr
+                      key={`race-${race.id}`}
+                      onClick={() => onOpenSession(date, session)}
+                      className={cn(
+                        'cursor-pointer border-b border-foreground/10 transition-colors hover:bg-foreground/[0.04]',
+                        isToday(date) && 'bg-foreground/[0.04]',
+                      )}
+                    >
+                      <td className="whitespace-nowrap py-1.5 pr-2 tabular-nums text-accent">
+                        {formatDay(date)}
+                      </td>
+                      <td className="py-1.5 pr-2 text-accent">{weekday(date)}</td>
+                      <td className="py-1.5 pr-2" colSpan={6}>
+                        <span className="inline-flex items-baseline gap-1.5">
+                          <Trophy className="h-3 w-3 shrink-0 translate-y-[2px] text-accent" />
+                          <span className="font-bold smallcaps text-accent">{race.name}</span>
+                          <span className="text-[10px] italic text-muted-foreground">
+                            {race.race_type.replace(/_/g, ' ')} · {race.priority}-race
+                          </span>
+                        </span>
+                      </td>
+                    </tr>
+                  ) : null
+
                   // Day without a session (or a session without any workout):
                   // render a muted Rest row; clicking it adds a session.
+                  //
+                  // On a race day the race row stands in for it — but it carries
+                  // the same onClick, so a shakeout can still be added. Dropping
+                  // the row outright would leave the race day the only one in the
+                  // table you cannot click, and the footer says you can.
                   if (!disp) {
+                    if (raceRow) return raceRow
                     return (
                       <tr
                         key={date}
@@ -126,8 +168,9 @@ export default function TrainingList({ data, onOpenSession }: TrainingListProps)
                     type === 'tempo' || type === 'interval' || type === 'threshold' || type === 'long_run'
                   const paceOrIntensity = w.pace_range ?? w.hr_zone ?? w.intensity ?? ''
                   return (
+                    <Fragment key={date}>
+                    {raceRow}
                     <tr
-                      key={date}
                       onClick={() => onOpenSession(date, session)}
                       className={cn(
                         'cursor-pointer border-b border-foreground/10 transition-colors hover:bg-foreground/[0.04]',
@@ -166,6 +209,7 @@ export default function TrainingList({ data, onOpenSession }: TrainingListProps)
                         {SOURCE_PILL[source]}
                       </td>
                     </tr>
+                    </Fragment>
                   )
                 })}
               </Fragment>

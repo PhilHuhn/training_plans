@@ -7,6 +7,17 @@ from git. The version at the top of this file is the app's version: releasing an
 writing the note here are the same act, so the number in the sidebar always has
 something behind it. See `npm run release`.
 
+## [1.2.0] — 2026-08-25
+### Added
+- The training-load chart now carries on for the next seven days, projected from the
+  sessions on your calendar — so you can see what the week you have planned does to your
+  form before you run it. The projected stretch is shaded and drawn with a finer line: it
+  assumes you train the plan as written, so it is a forecast, not a measurement.
+- Races you add on the Competitions page now show up on the training calendar on their
+  date, in both the grid and the list.
+- Races also appear on the dashboard chart as diamonds, filled for an A-race. A-races get
+  a vertical line as well, so your goal races read as landmarks on the curve.
+
 ## [1.1.0] — 2026-08-25
 
 ### Added
