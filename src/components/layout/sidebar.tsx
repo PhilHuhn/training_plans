@@ -83,6 +83,7 @@ export default function Sidebar({ onClose }: SidebarProps) {
                 <Link
                   href={item.href}
                   onClick={onClose}
+                  data-tour={`nav-${item.href.slice(1)}`}
                   className={cn(
                     'grid grid-cols-[20px_1fr_15px] items-center gap-2.5 px-5 py-2 transition-colors',
                     isActive

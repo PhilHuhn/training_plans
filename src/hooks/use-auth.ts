@@ -67,7 +67,9 @@ export function useRegister() {
     onSuccess: ({ token, user }) => {
       setAuth(token, user)
       queryClient.setQueryData(['currentUser'], user)
-      router.push('/training')
+      // New accounts land on setup rather than an empty training week: without
+      // Strava connected there is nothing on /training to look at.
+      router.push('/welcome')
     },
   })
 }

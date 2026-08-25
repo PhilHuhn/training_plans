@@ -31,6 +31,10 @@ services:
         sync: false
       - key: STRAVA_CLIENT_SECRET
         sync: false
+      - key: AI_API_KEY
+        sync: false
+      - key: AI_BASE_URL
+        sync: false
       - key: ANTHROPIC_API_KEY
         sync: false
       - key: BASE_URL

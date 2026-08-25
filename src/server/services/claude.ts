@@ -1,6 +1,7 @@
 import "server-only";
 import AnthropicNamespace from "@anthropic-ai/sdk";
-import { env } from "@/server/env";
+import { aiApiKey, env } from "@/server/env";
+import { aiModel, aiProvider } from "./app-settings";
 
 // Some bundlers (incl. Next webpack server build) resolve the default-export
 // shape of @anthropic-ai/sdk inconsistently — the imported value can end up
@@ -12,14 +13,30 @@ const AnthropicMaybeNamespaced = AnthropicNamespace as unknown as {
 const Anthropic = AnthropicMaybeNamespaced.Anthropic ?? AnthropicNamespace;
 type AnthropicClient = InstanceType<typeof AnthropicNamespace>;
 
-export const CLAUDE_MODEL = "claude-sonnet-5";
+// Re-exported so callers that only need "some model id" (logs, tests) do not
+// have to reach into the settings service. The model actually sent comes from
+// aiModel(), which lets the operator override it from /admin.
+export { aiModel };
 
 // Lazy singleton; recreated per-process. Anthropic uses lazy getters so the
 // instance must be referenced freshly within each request to avoid stale-getter
 // issues under Next.js HMR.
 let _client: AnthropicClient | null = null;
 export function anthropic(): AnthropicClient {
-  if (!_client) _client = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY });
+  if (!_client) {
+    const provider = aiProvider();
+    _client = new Anthropic({
+      apiKey: aiApiKey(),
+      // Undefined for Anthropic direct, so the SDK keeps its own default.
+      baseURL: provider.baseUrl,
+      // OpenRouter attributes traffic by these and shows the app on its
+      // activity page; they are ignored by Anthropic direct.
+      defaultHeaders:
+        provider.provider === "openrouter"
+          ? { "HTTP-Referer": env.BASE_URL, "X-Title": "Club Turbine" }
+          : undefined,
+    });
+  }
   return _client;
 }
 
@@ -190,7 +207,11 @@ async function callJson(
     // budget for thinking + output — a ~20-week plan alone runs >30K output
     // tokens, hence the large headroom.
     const stream = anthropic().messages.stream({
-      model: CLAUDE_MODEL,
+      model: await aiModel(),
+      // Combined thinking + output budget. Must stay within the routed model's
+      // own ceiling — a smaller model reached through OpenRouter will reject a
+      // budget it cannot honour, which surfaces as a 400 the classifier turns
+      // into "the model is unavailable".
       max_tokens: 64000,
       system: systemPrompt,
       messages: [{ role: "user", content: userPrompt }],
@@ -282,7 +303,7 @@ export async function generateText(prompt: string, maxTokens = 1024): Promise<st
   // Thinking disabled: this is used for short snippets (e.g. the 400-token
   // profile summary) where adaptive thinking would eat the whole budget.
   const message = await anthropic().messages.create({
-    model: CLAUDE_MODEL,
+    model: await aiModel(),
     max_tokens: maxTokens,
     thinking: { type: "disabled" },
     messages: [{ role: "user", content: prompt }],

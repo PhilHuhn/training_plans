@@ -6,7 +6,7 @@ import { requireSession } from "@/server/auth/session";
 import { errorJson } from "@/server/http";
 import { generateRecommendations, saveRecommendations } from "@/server/services/training-engine";
 import { requireAiEnabled } from "@/server/services/ai-gate";
-import { classifyEngineError, isUpstreamClaudeError } from "@/server/services/claude-errors";
+import { classifyEngineError, classifyResultError, isUpstreamClaudeError } from "@/server/services/claude-errors";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -110,7 +110,7 @@ export async function POST(req: NextRequest) {
             // Log the upstream detail, send the safe classification. Without
             // this the athlete reads the operator's billing status.
             console.error("[generate-recommendations] claude error:", result.error);
-            send({ type: "error", message: classifyEngineError(result.error).detail });
+            send({ type: "error", message: classifyResultError(result.error).detail });
           } else {
             send({ type: "status", stage: "saving" });
             const saved = await saveRecommendations(user, result);
@@ -141,14 +141,18 @@ export async function POST(req: NextRequest) {
     const result = await generateRecommendations(generateInput);
     if (typeof result.error === "string") {
       console.error("[generate-recommendations] claude error:", result.error);
-      const failure = classifyEngineError(result.error);
+      const failure = classifyResultError(result.error);
       return errorJson(failure.detail, failure.status);
     }
     await saveRecommendations(session.user, result);
     return NextResponse.json(result);
   } catch (err) {
     console.error("[generate-recommendations] error:", err);
-    return errorJson(safeGenerationMessage(err), 500);
+    // Status from the classification, not a blanket 500 — the streaming branch
+    // and convert-session already answer this way.
+    const message = err instanceof Error ? err.message : "";
+    const status = isUpstreamClaudeError(message) ? classifyEngineError(message).status : 500;
+    return errorJson(safeGenerationMessage(err), status);
   }
 }
 

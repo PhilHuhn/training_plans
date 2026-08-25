@@ -4,6 +4,7 @@ import { db } from "@/server/db";
 import { users } from "@/server/db/schema";
 import { env } from "@/server/env";
 import { STRAVA_TOKEN_URL } from "@/server/services/strava";
+import { parseStravaState } from "@/server/services/strava-return";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -12,19 +13,31 @@ export async function GET(req: NextRequest) {
   const code = req.nextUrl.searchParams.get("code");
   const state = req.nextUrl.searchParams.get("state");
 
+  // Resolved first so that every outcome below — including the failures — sends
+  // the user back where they started rather than dumping them in /settings.
+  const { userId, returnPath } = parseStravaState(state);
+
   if (!code || !state) {
-    return NextResponse.redirect(new URL("/settings?strava=error&reason=invalid_query", req.url), 302);
+    return NextResponse.redirect(
+      new URL(`${returnPath}?strava=error&reason=invalid_query`, req.url),
+      302,
+    );
   }
 
-  const userId = Number(state);
-  if (!Number.isInteger(userId)) {
-    return NextResponse.redirect(new URL("/settings?strava=error&reason=invalid_state", req.url), 302);
+  if (userId === null) {
+    return NextResponse.redirect(
+      new URL(`${returnPath}?strava=error&reason=invalid_state`, req.url),
+      302,
+    );
   }
 
   const userRows = await db.select().from(users).where(eq(users.id, userId)).limit(1);
   const user = userRows[0];
   if (!user) {
-    return NextResponse.redirect(new URL("/settings?strava=error&reason=user_not_found", req.url), 302);
+    return NextResponse.redirect(
+      new URL(`${returnPath}?strava=error&reason=user_not_found`, req.url),
+      302,
+    );
   }
 
   const tokenResponse = await fetch(STRAVA_TOKEN_URL, {
@@ -40,7 +53,7 @@ export async function GET(req: NextRequest) {
 
   if (!tokenResponse.ok) {
     return NextResponse.redirect(
-      new URL("/settings?strava=error&reason=token_exchange_failed", req.url),
+      new URL(`${returnPath}?strava=error&reason=token_exchange_failed`, req.url),
       302,
     );
   }
@@ -63,5 +76,5 @@ export async function GET(req: NextRequest) {
     })
     .where(eq(users.id, userId));
 
-  return NextResponse.redirect(new URL("/settings?strava=connected", req.url), 302);
+  return NextResponse.redirect(new URL(`${returnPath}?strava=connected`, req.url), 302);
 }

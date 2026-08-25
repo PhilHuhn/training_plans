@@ -1,6 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server";
 
-const APP_PATHS = ["/dashboard", "/training", "/activities", "/competitions", "/coach", "/club", "/settings", "/changelog", "/admin"];
+// /welcome is token-gated like the rest of the app but deliberately absent
+// from navItems — see the ordering note in components/layout/nav-items.ts.
+const APP_PATHS = ["/dashboard", "/training", "/activities", "/competitions", "/coach", "/club", "/settings", "/changelog", "/admin", "/welcome"];
 const AUTH_PATHS = ["/login", "/register"];
 
 export function middleware(req: NextRequest) {

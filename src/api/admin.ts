@@ -16,7 +16,7 @@ export interface MembershipTarget {
 export const adminApi = {
   getAiSettings: () => apiClient.get<AiSettingsWire>('/admin/settings/ai'),
 
-  updateAiSettings: (body: { enabled?: boolean; notice?: string }) =>
+  updateAiSettings: (body: { enabled?: boolean; notice?: string; model?: string }) =>
     apiClient.patch<AiSettingsWire>('/admin/settings/ai', body),
 
   getUsers: () => apiClient.get<{ users: AdminUserWire[] }>('/admin/users'),

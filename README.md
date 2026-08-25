@@ -15,6 +15,24 @@ AI-powered training plan management for runners — from 5K to ultramarathons.
 - **Zone estimation** — derive HR / pace / cycling power zones from your Strava history
 - **LaTeX-document UI** — Computer Modern serif on cream paper, hyperref blue links, booktabs tables
 - **Landing page** — public `/` page explaining what the app does; signed-in visitors are redirected to `/training`
+- **Guided setup and tour** — new accounts land on `/welcome` to connect Strava and join a club, then get walked through the app
+
+## Getting started as a new user
+
+Registering lands you on `/welcome` rather than an empty training week. Two
+optional steps — **connect Strava** and **join or start a club** — and both can
+be skipped; nothing there blocks you from using the app. From there, **Show me
+around** runs a short guided tour of the sidebar, the training week, the coach
+panel and the feedback button. It runs once, and Settings › Account has
+**Replay the tour** and **Re-run setup** if you want either again.
+
+Steps that no longer apply drop out: if Strava is already connected, the tour
+never mentions connecting it.
+
+### What's new
+
+The release log lives at `/changelog`. It is deliberately not in the sidebar — it is a
+release log, not somewhere to navigate to.
 
 ## Clubs
 
@@ -38,13 +56,32 @@ header, or under Settings › Feedback. Submissions land in the admin dashboard 
 (Open · Planned · In progress · Done · Won't do); the note an admin writes against an item is
 shown back to the person who sent it, so they can see what came of it.
 
-## Turning AI off
+## The AI upstream
 
-The coach, plan generation, plan parsing and the Strava profile summary all call the Claude
-API. Admins can switch them off from the **AI features** card in `/admin` — every
+The coach, plan generation, plan parsing and the Strava profile summary all call the same
+model. Two providers are supported and the app picks between them from configuration alone:
+
+| Set | Result |
+|---|---|
+| `AI_API_KEY=sk-or-…` | **OpenRouter.** The base URL is inferred; no other change needed |
+| `AI_BASE_URL=https://openrouter.ai/api` | OpenRouter, for a key that does not carry the prefix. Note: no `/v1` — the SDK appends it |
+| `ANTHROPIC_API_KEY=sk-ant-…` | Anthropic direct (the legacy setting, still supported) |
+
+OpenRouter is reached through its Anthropic-compatible Messages endpoint, so streaming, the
+tool-use loop and thinking blocks behave identically either way. The practical reason to
+prefer it is spend control: a prepaid balance with per-key limits, rather than an open-ended
+bill.
+
+The **model** is set in `/admin` rather than in the environment, so switching to a cheaper
+one takes effect on the next request with no redeploy. Leave it empty to use the provider's
+default. Note that the ids are not interchangeable — Anthropic takes `claude-sonnet-5`,
+OpenRouter takes `anthropic/claude-sonnet-4.5`.
+
+### Turning AI off
+
+Admins can switch every AI feature off from the **AI features** card in `/admin` — each
 credit-spending route then answers with an operator-authored notice instead, and the rest of
-the app is unaffected. Clearing `ANTHROPIC_API_KEY` has the same effect and overrides the
-toggle.
+the app is unaffected. Clearing the API key has the same effect and overrides the toggle.
 
 ## Pricing
 
@@ -76,7 +113,7 @@ copy that has to change when pricing arrives.
 
 - Node.js 20+
 - Docker (for Postgres)
-- A Strava API app and an Anthropic API key
+- A Strava API app, and an OpenRouter or Anthropic API key
 
 ### One-time setup
 
@@ -86,7 +123,8 @@ cd turbine-turmweg
 
 cp .env.example .env
 # Edit .env: set SECRET_KEY (`openssl rand -hex 32`),
-# STRAVA_CLIENT_ID / STRAVA_CLIENT_SECRET, ANTHROPIC_API_KEY.
+# STRAVA_CLIENT_ID / STRAVA_CLIENT_SECRET, and AI_API_KEY
+# (an OpenRouter sk-or-… key, or ANTHROPIC_API_KEY for Anthropic direct).
 
 npm install
 docker compose up -d db        # Postgres on :5432
