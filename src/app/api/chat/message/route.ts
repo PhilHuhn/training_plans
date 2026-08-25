@@ -12,6 +12,7 @@ import {
   type UserPreferences,
 } from "@/server/db/schema";
 import { requireSession } from "@/server/auth/session";
+import { resolveEffectiveWorkout } from "@/server/services/workout-normalize";
 import { errorJson, parseJson } from "@/server/http";
 import { aiModel, anthropic } from "@/server/services/claude";
 import { classifyClaudeError } from "@/server/services/claude-errors";
@@ -210,7 +211,10 @@ async function executeTool(
       if (rows.length === 0) return `No training sessions found between ${start} and ${end}.`;
       return rows
         .map((s) => {
-          const w = (s.finalWorkout ?? s.plannedWorkout ?? s.recommendationWorkout ?? {}) as WorkoutForChat;
+          // Same helper as the calendar and the exports: the coach must describe
+          // the session the athlete is looking at, and must see an AI
+          // recommendation's expanded keys rather than the raw short-key form.
+          const w = (resolveEffectiveWorkout(s) ?? {}) as WorkoutForChat;
           if (!w.type && !w.description) return `- ${s.sessionDate}: ID=${s.id}, No workout defined`;
           return `- ${s.sessionDate}: ID=${s.id}, ${w.type ?? "unknown"} - ${w.description ?? "No description"}, ${w.distance_km ?? "N/A"} km`;
         })

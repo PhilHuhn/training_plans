@@ -8,6 +8,10 @@ import {
   type UserPreferences,
 } from "@/server/db/schema";
 import { requireSession } from "@/server/auth/session";
+import {
+  expandWorkoutShortKeys,
+  resolveEffectiveWorkout,
+} from "@/server/services/workout-normalize";
 import { trainingSessionResponse } from "@/server/serializers";
 import { calculateTrimp } from "@/server/services/training-load";
 
@@ -149,17 +153,26 @@ export async function GET(req: NextRequest) {
         }
       }
 
-      const workout = (s.finalWorkout ?? s.recommendationWorkout ?? s.plannedWorkout ?? null) as WorkoutShape | null;
+      // Through resolveEffectiveWorkout so the short keys are expanded. The
+      // precedence here was already right, but reading the raw jsonb was not: an
+      // AI recommendation is stored as the model wrote it, with `load` and `ph`
+      // rather than `estimated_load` and `training_phase`, so neither was ever
+      // found and a generated week reported no planned load and no phase.
+      const workout = resolveEffectiveWorkout(s) as WorkoutShape | null;
       if (workout) {
         if (typeof workout.estimated_load === "number") totalLoadPlanned += workout.estimated_load;
         if (typeof workout.training_phase === "string") phases.push(workout.training_phase);
       }
 
-      const planned = s.plannedWorkout as WorkoutShape | null;
+      // Each column separately — these three totals are the point, so they
+      // cannot go through resolveEffectiveWorkout. They still need expanding:
+      // a stored recommendation carries `km`, not `distance_km`, so reading it
+      // raw reported zero recommended kilometres for every generated week.
+      const planned = expandWorkoutShortKeys(s.plannedWorkout) as WorkoutShape | null;
       if (planned?.distance_km) totalDistancePlanned += planned.distance_km;
-      const rec = s.recommendationWorkout as WorkoutShape | null;
+      const rec = expandWorkoutShortKeys(s.recommendationWorkout) as WorkoutShape | null;
       if (rec?.distance_km) totalDistanceRecommended += rec.distance_km;
-      const fin = s.finalWorkout as WorkoutShape | null;
+      const fin = expandWorkoutShortKeys(s.finalWorkout) as WorkoutShape | null;
       if (fin?.distance_km) totalDistanceFinal += fin.distance_km;
 
       return base;
