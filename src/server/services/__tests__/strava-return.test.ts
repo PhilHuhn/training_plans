@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DEFAULT_RETURN_KEY, RETURN_TO, parseStravaState } from "../strava-return";
+import { DEFAULT_RETURN_KEY, RETURN_TO, isReturnKey, parseStravaState } from "../strava-return";
 
 describe("parseStravaState", () => {
   it("reads the id and the return path", () => {
@@ -32,5 +32,32 @@ describe("parseStravaState", () => {
   it("still resolves the return path when the id is unusable", () => {
     // The error redirects need somewhere to send the user.
     expect(parseStravaState("abc:welcome").returnPath).toBe("/welcome");
+  });
+});
+
+describe("parseStravaState — inherited keys", () => {
+  // A plain object literal lets these through: `"constructor" in RETURN_TO` is
+  // true, and the lookup returns a function that stringifies into the redirect.
+  const INHERITED = ["constructor", "__proto__", "toString", "hasOwnProperty", "valueOf"];
+
+  it.each(INHERITED)("does not accept %s as a return key", (key) => {
+    expect(parseStravaState(`42:${key}`).returnPath).toBe("/settings");
+  });
+
+  it.each(INHERITED)("does not accept %s at the whitelist check either", (key) => {
+    expect(isReturnKey(key)).toBe(false);
+  });
+
+  it("still accepts the real keys", () => {
+    expect(isReturnKey("welcome")).toBe(true);
+    expect(isReturnKey("settings")).toBe(true);
+  });
+
+  it("only ever yields a same-origin in-app path", () => {
+    for (const key of [...INHERITED, "evil", "//evil.example.com", ""]) {
+      const { returnPath } = parseStravaState(`42:${key}`);
+      expect(returnPath.startsWith("/")).toBe(true);
+      expect(returnPath.startsWith("//")).toBe(false);
+    }
   });
 });

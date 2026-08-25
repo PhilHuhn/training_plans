@@ -107,3 +107,32 @@ describe("classifyEngineError — status recovery", () => {
     expect(f.detail).not.toContain("out of credit");
   });
 });
+
+describe("classifyClaudeError — status beats the 'model' substring", () => {
+  it("treats an OpenRouter throttle as retryable even though it says 'models'", () => {
+    // "Rate limit exceeded: free-models-per-day" contains "model". Matching that
+    // first told the user a retry was pointless when it was the only thing that
+    // would have worked.
+    const f = classifyClaudeError(
+      Object.assign(new Error("Rate limit exceeded: free-models-per-day"), { status: 429 }),
+    );
+    expect(f.status).toBe(429);
+    expect(f.retryable).toBe(true);
+  });
+
+  it("does the same through the engine path", () => {
+    const f = classifyEngineError("Claude error: 429 Rate limit exceeded: free-models-per-day");
+    expect(f.retryable).toBe(true);
+  });
+
+  it("treats an overloaded upstream that names the model as retryable", () => {
+    const f = classifyClaudeError(Object.assign(new Error("model overloaded"), { status: 529 }));
+    expect(f.retryable).toBe(true);
+  });
+
+  it("still reports a genuinely unavailable model as hopeless", () => {
+    const f = classifyClaudeError(Object.assign(new Error("model not found"), { status: 404 }));
+    expect(f.retryable).toBe(false);
+    expect(f.detail).toContain("model is unavailable");
+  });
+});

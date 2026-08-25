@@ -3,7 +3,7 @@ import { requireSession } from "@/server/auth/session";
 import { env } from "@/server/env";
 import { STRAVA_AUTH_URL, STRAVA_REDIRECT_URI } from "@/server/services/strava";
 
-import { DEFAULT_RETURN_KEY, RETURN_TO } from "@/server/services/strava-return";
+import { DEFAULT_RETURN_KEY, isReturnKey } from "@/server/services/strava-return";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -16,7 +16,7 @@ export async function GET(req: NextRequest) {
   // supplied path: `state` travels through Strava and back, so accepting a raw
   // path here would make this an open redirect.
   const requested = req.nextUrl.searchParams.get("return_to") ?? "";
-  const returnKey = requested in RETURN_TO ? requested : DEFAULT_RETURN_KEY;
+  const returnKey = isReturnKey(requested) ? requested : DEFAULT_RETURN_KEY;
 
   const params = new URLSearchParams({
     client_id: env.STRAVA_CLIENT_ID,

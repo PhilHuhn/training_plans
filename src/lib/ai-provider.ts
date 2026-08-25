@@ -12,7 +12,15 @@
  * this is a configuration module rather than a second client implementation.
  */
 
-export const OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1";
+/**
+ * Note the missing `/v1`. The Anthropic SDK appends a hardcoded `/v1/messages`
+ * by *string concatenation* (`core.js` `buildURL`: `this.baseURL + path`), so
+ * the version segment must not be in the base or every request goes to
+ * `/api/v1/v1/messages` and 404s. A 404 classifies as "model unavailable",
+ * which sends the operator hunting through the model field for a fault that
+ * isn't there — so this constant is worth more care than it looks.
+ */
+export const OPENROUTER_BASE_URL = "https://openrouter.ai/api";
 
 /** Anthropic's own API takes bare model ids. */
 export const DEFAULT_ANTHROPIC_MODEL = "claude-sonnet-5";

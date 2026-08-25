@@ -187,7 +187,6 @@ export default function TrainingPage() {
             variant="outline"
             size="sm"
             onClick={() => setGenerateOpen(true)}
-            data-tour="ai-plan"
             disabled={aiDisabled}
             title={aiDisabled ? (user?.ai_disabled_notice ?? undefined) : undefined}
           >

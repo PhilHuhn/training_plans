@@ -29,6 +29,11 @@ panel and the feedback button. It runs once, and Settings › Account has
 Steps that no longer apply drop out: if Strava is already connected, the tour
 never mentions connecting it.
 
+### What's new
+
+The release log lives at `/changelog`. It is deliberately not in the sidebar — it is a
+release log, not somewhere to navigate to.
+
 ## Clubs
 
 Anyone can start a club from `/club` and becomes its coach. Coaches see a short
@@ -59,7 +64,7 @@ model. Two providers are supported and the app picks between them from configura
 | Set | Result |
 |---|---|
 | `AI_API_KEY=sk-or-…` | **OpenRouter.** The base URL is inferred; no other change needed |
-| `AI_BASE_URL=https://openrouter.ai/api/v1` | OpenRouter, for a key that does not carry the prefix |
+| `AI_BASE_URL=https://openrouter.ai/api` | OpenRouter, for a key that does not carry the prefix. Note: no `/v1` — the SDK appends it |
 | `ANTHROPIC_API_KEY=sk-ant-…` | Anthropic direct (the legacy setting, still supported) |
 
 OpenRouter is reached through its Anthropic-compatible Messages endpoint, so streaming, the

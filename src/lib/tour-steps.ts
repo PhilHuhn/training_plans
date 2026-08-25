@@ -5,10 +5,12 @@
  * added or reworded without touching the machinery, and so the registry can be
  * unit-tested (every anchor unique, every route real).
  *
- * A step points at an element carrying `data-tour="<anchor>"`. Anchors that
- * aren't on the page are skipped rather than treated as an error: below the
- * `lg` breakpoint the sidebar lives in a Sheet and its anchors genuinely do not
- * exist, and a spotlight over nothing is worse than a missing step.
+ * A step points at an element carrying `data-tour="<anchor>"`. An anchor that
+ * never resolves is skipped rather than treated as an error, and the common
+ * case is subtler than "not rendered": the desktop sidebar is `hidden lg:block`,
+ * so on a phone it is still in the DOM and only its layout is gone. `findAnchor`
+ * therefore rejects zero-area elements, not just absent ones — a spotlight over
+ * nothing is worse than a missing step.
  */
 
 export type TourPlacement = "top" | "bottom" | "left" | "right";

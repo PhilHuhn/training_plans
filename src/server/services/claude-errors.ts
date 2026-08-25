@@ -53,6 +53,26 @@ export function classifyEngineError(message: string): ClaudeFailure {
 }
 
 /**
+ * Classify the `error` string on a `{ data, error }` result.
+ *
+ * Only an upstream failure is rewritten. `callJson` also produces its own
+ * diagnostics — "returned unparseable JSON (stop_reason: max_tokens)", "no text
+ * block" — which carry no operator information but are equally useless to an
+ * athlete. Collapsing those into the generic transport message loses the one
+ * thing they were good for: a truncation at max_tokens is actionable (raise the
+ * budget) and must stay distinguishable from a network blip in both the log and
+ * the status code.
+ */
+export function classifyResultError(message: string): ClaudeFailure {
+  if (isUpstreamClaudeError(message)) return classifyEngineError(message);
+  return {
+    status: 502,
+    detail: "The AI coach's reply couldn't be read. Please try again.",
+    retryable: true,
+  };
+}
+
+/**
  * Turn an upstream provider failure into something the UI can act on.
  *
  * Two things this deliberately does NOT do:
@@ -94,14 +114,6 @@ export function classifyClaudeError(err: unknown): ClaudeFailure {
     };
   }
 
-  if (status === 404 || text.includes("model")) {
-    return {
-      status: 503,
-      detail: "The AI coach's model is unavailable. Retrying won't help.",
-      retryable: false,
-    };
-  }
-
   if (status === 429) {
     return {
       status: 429,
@@ -115,6 +127,19 @@ export function classifyClaudeError(err: unknown): ClaudeFailure {
       status: 503,
       detail: "The AI coach is busy. Please try again in a moment.",
       retryable: true,
+    };
+  }
+
+  // Last of the specific rules on purpose: "model" is a substring match, and it
+  // is a very common word in provider error text. OpenRouter's rate-limit body
+  // reads "Rate limit exceeded: free-models-per-day", which contains it — if
+  // this ran first, a throttle would be reported as permanently unavailable and
+  // the client would never back off and retry.
+  if (status === 404 || text.includes("model")) {
+    return {
+      status: 503,
+      detail: "The AI coach's model is unavailable. Retrying won't help.",
+      retryable: false,
     };
   }
 

@@ -7,10 +7,21 @@
  * "server-only", no env) so it can be unit-tested on its own.
  */
 
-export const RETURN_TO: Record<string, string> = {
+/**
+ * Null-prototype on purpose. With a plain object literal, `"constructor" in
+ * RETURN_TO` and `RETURN_TO["__proto__"]` both resolve through Object.prototype,
+ * so about a dozen inherited keys pass the whitelist and yield a garbage
+ * "path" — the user finishes the OAuth round trip and lands on a 404.
+ */
+export const RETURN_TO: Record<string, string> = Object.assign(Object.create(null), {
   settings: "/settings",
   welcome: "/welcome",
-};
+});
+
+/** Own-property check; `in` would traverse the prototype chain. */
+export function isReturnKey(key: string): boolean {
+  return Object.prototype.hasOwnProperty.call(RETURN_TO, key);
+}
 
 export const DEFAULT_RETURN_KEY = "settings";
 
@@ -34,6 +45,6 @@ export function parseStravaState(state: string | null): StravaState {
   const parsedId = Number(idPart);
   const userId = Number.isInteger(parsedId) && parsedId > 0 ? parsedId : null;
 
-  const returnPath = RETURN_TO[keyPart] ?? RETURN_TO[DEFAULT_RETURN_KEY];
+  const returnPath = isReturnKey(keyPart) ? RETURN_TO[keyPart] : RETURN_TO[DEFAULT_RETURN_KEY];
   return { userId, returnPath };
 }

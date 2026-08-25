@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/server/db";
 import { users, type OnboardingState, type UserPreferences } from "@/server/db/schema";
@@ -18,9 +18,13 @@ const Body = z.object({
 /**
  * PATCH /api/settings/onboarding — record that setup happened.
  *
- * Read-modify-write rather than a jsonb path update: preferences also carries
- * zones, FTP and thresholds, and a whole-column write built from a partial
- * object would silently drop them.
+ * The write is a SQL-level jsonb merge, not a read-modify-write of the whole
+ * column. Two of these race routinely: /welcome records the visit on mount
+ * while the user is already clicking into the tour, and the tour's completion
+ * write can overlap a zones save from the settings page the tour walks through.
+ * Reading the column and writing it back whole would let the loser's changes
+ * vanish — including `welcomed_at`, whose absence permanently stops the tour
+ * from ever auto-starting for that account.
  */
 export async function PATCH(req: NextRequest) {
   const session = await requireSession(req);
@@ -34,24 +38,33 @@ export async function PATCH(req: NextRequest) {
   }
 
   const prefs = (session.user.preferences ?? {}) as UserPreferences;
-  const onboarding: OnboardingState = { ...(prefs.onboarding ?? {}) };
+  const existing: OnboardingState = prefs.onboarding ?? {};
 
+  const patch: OnboardingState = {};
   // First write wins: welcomed_at is when setup was first seen, and re-running
-  // it later must not rewrite that.
-  if (welcomed && !onboarding.welcomed_at) onboarding.welcomed_at = new Date().toISOString();
+  // setup later must not rewrite it.
+  if (welcomed && !existing.welcomed_at) patch.welcomed_at = new Date().toISOString();
+  if (tour_done) patch.tours_done = [...new Set([...(existing.tours_done ?? []), tour_done])];
 
-  if (tour_done) {
-    const done = new Set(onboarding.tours_done ?? []);
-    done.add(tour_done);
-    onboarding.tours_done = [...done];
+  if (Object.keys(patch).length === 0) {
+    // Nothing new to record (already welcomed, tour already logged). Answering
+    // with the current state keeps the call idempotent without a pointless write.
+    return NextResponse.json({ onboarding: existing });
   }
 
-  const next: UserPreferences = { ...prefs, onboarding };
-
-  await db
+  // `||` merges at the top level only, so the nested onboarding object is
+  // rebuilt from the snapshot and merged as a unit; sibling keys (zones,
+  // thresholds, FTP) are never named and therefore never at risk.
+  const merged: OnboardingState = { ...existing, ...patch };
+  const [updated] = await db
     .update(users)
-    .set({ preferences: next, updatedAt: new Date() })
-    .where(eq(users.id, session.user.id));
+    .set({
+      preferences: sql`${users.preferences} || ${JSON.stringify({ onboarding: merged })}::jsonb`,
+      updatedAt: new Date(),
+    })
+    .where(eq(users.id, session.user.id))
+    .returning({ preferences: users.preferences });
 
-  return NextResponse.json({ onboarding });
+  const saved = (updated?.preferences as UserPreferences | undefined)?.onboarding ?? merged;
+  return NextResponse.json({ onboarding: saved });
 }

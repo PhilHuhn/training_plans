@@ -26,7 +26,7 @@ describe("resolveAiProvider", () => {
 
   it("detects OpenRouter from the base URL even with an unrecognised key", () => {
     const c = resolveAiProvider({
-      baseUrl: "https://openrouter.ai/api/v1",
+      baseUrl: "https://openrouter.ai/api",
       apiKey: "some-proxied-key",
     });
     expect(c.provider).toBe("openrouter");
@@ -41,8 +41,16 @@ describe("resolveAiProvider", () => {
   });
 
   it("trims whitespace and a trailing slash off the base URL", () => {
-    const c = resolveAiProvider({ baseUrl: "  https://openrouter.ai/api/v1/  ", apiKey: "" });
-    expect(c.baseUrl).toBe("https://openrouter.ai/api/v1");
+    const c = resolveAiProvider({ baseUrl: "  https://openrouter.ai/api/  ", apiKey: "" });
+    expect(c.baseUrl).toBe("https://openrouter.ai/api");
+  });
+
+  it("produces a base the SDK's concatenation turns into a real endpoint", () => {
+    // The SDK does `baseURL + "/v1/messages"` literally. A base ending in /v1
+    // yields /api/v1/v1/messages, which 404s — and a 404 reads as "model
+    // unavailable", pointing the operator at the wrong thing entirely.
+    const { baseUrl } = resolveAiProvider({ baseUrl: "", apiKey: "sk-or-v1-abc" });
+    expect(`${baseUrl}/v1/messages`).toBe("https://openrouter.ai/api/v1/messages");
   });
 
   it("falls back to Anthropic when nothing is configured", () => {

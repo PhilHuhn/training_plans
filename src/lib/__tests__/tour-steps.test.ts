@@ -1,3 +1,4 @@
+import { execSync } from "node:child_process";
 import { describe, expect, it } from "vitest";
 import { CLUB_TOUR_ID, GETTING_STARTED_TOUR_ID, TOURS, tourById } from "../tour-steps";
 
@@ -40,6 +41,42 @@ describe("TOURS", () => {
       for (const step of tour.steps) {
         if (step.route) expect(REAL_ROUTES.has(step.route), `${tour.id}/${step.id}`).toBe(true);
       }
+    }
+  });
+
+  it("keeps anchors unique within a tour, so a step cannot shadow another", () => {
+    for (const tour of TOURS) {
+      const anchors = tour.steps.map((s) => s.anchor);
+      expect(new Set(anchors).size, `duplicate anchor in ${tour.id}`).toBe(anchors.length);
+    }
+  });
+
+  it("only uses anchors that some component actually renders", () => {
+    // Catches both halves of the drift: a step pointing at an anchor nobody
+    // renders (the step silently self-skips), and a data-tour attribute left
+    // behind after the step referencing it was removed.
+    const rendered = new Set(
+      execSync(
+        'grep -rho \'data-tour="[^"$]*"\' src --include=*.tsx --exclude-dir=__tests__ || true',
+      )
+        .toString()
+        .split("\n")
+        .map((line) => line.replace(/^data-tour="|"$/g, "").trim())
+        .filter(Boolean),
+    );
+    // Template-literal anchors (the sidebar builds `nav-${href}`) cannot be
+    // grepped, so they are declared here instead.
+    for (const href of ["dashboard", "training", "activities", "competitions", "coach", "club", "settings", "changelog", "admin"]) {
+      rendered.add(`nav-${href}`);
+    }
+
+    const used = new Set(TOURS.flatMap((t) => t.steps.map((s) => s.anchor)));
+    for (const anchor of used) {
+      expect(rendered.has(anchor), `no component renders data-tour="${anchor}"`).toBe(true);
+    }
+    for (const anchor of rendered) {
+      if (anchor.startsWith("nav-")) continue; // the sidebar renders all of them
+      expect(used.has(anchor), `data-tour="${anchor}" is rendered but no step uses it`).toBe(true);
     }
   });
 
