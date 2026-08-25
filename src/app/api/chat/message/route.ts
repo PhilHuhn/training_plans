@@ -16,6 +16,13 @@ import { errorJson, parseJson } from "@/server/http";
 import { aiModel, anthropic } from "@/server/services/claude";
 import { classifyClaudeError } from "@/server/services/claude-errors";
 import { requireAiEnabled } from "@/server/services/ai-gate";
+import {
+  isUnexpectedContentShape,
+  normalizeContentBlocks,
+  textFromBlocks,
+  toolUsesFromBlocks,
+  type ContentBlock,
+} from "@/lib/message-content";
 import { formatPace } from "@/server/services/pace";
 import { buildCoachSystemPrompt } from "@/server/prompts/coach";
 
@@ -440,19 +447,21 @@ async function executeTool(
 // Tool-use loop driver
 // ---------------------------------------------------------------------------
 
-interface ToolUseBlock {
-  type: "tool_use";
-  id: string;
-  name: string;
-  input: Record<string, unknown>;
+/**
+ * Read a response's content, loudly when it wasn't the documented shape.
+ *
+ * The warning is the point: a model reached through OpenRouter that answers in
+ * a shape we have to repair is one worth knowing about by name, and without
+ * this the only symptom was a generic "something went wrong" in the browser.
+ */
+function readBlocks(content: unknown, model: string): ContentBlock[] {
+  if (isUnexpectedContentShape(content)) {
+    console.warn(
+      `[chat] ${model} returned content as ${typeof content}, not an array — normalizing`,
+    );
+  }
+  return normalizeContentBlocks(content);
 }
-
-interface TextBlock {
-  type: "text";
-  text: string;
-}
-
-type ContentBlock = ToolUseBlock | TextBlock;
 
 async function runToolLoop(
   user: User,
@@ -477,18 +486,32 @@ async function runToolLoop(
     messages,
   });
 
+  let blocks = readBlocks(response.content, model);
+
   while (response.stop_reason === "tool_use") {
-    const toolUses = (response.content as ContentBlock[]).filter(
-      (b): b is ToolUseBlock => b.type === "tool_use",
-    );
+    const toolUses = toolUsesFromBlocks(blocks);
+
+    // stop_reason says the model wants a tool but nothing usable came back —
+    // a translated model emitting a malformed or id-less block. Replying with
+    // an empty tool_result array would ask the same question again and loop
+    // forever, spending on every pass, so take whatever text there is and stop.
+    if (toolUses.length === 0) {
+      console.warn(
+        `[chat] ${model} returned stop_reason=tool_use with no usable tool_use block; ending the loop`,
+      );
+      break;
+    }
+
     const results: Array<{ type: "tool_result"; tool_use_id: string; content: string }> = [];
     for (const tu of toolUses) {
-      const result = await executeTool(user, tu.name, tu.input);
-      toolResults.push({ tool: tu.name, input: tu.input, result });
+      const result = await executeTool(user, tu.name, tu.input ?? {});
+      toolResults.push({ tool: tu.name, input: tu.input ?? {}, result });
       results.push({ type: "tool_result", tool_use_id: tu.id, content: result });
     }
 
-    messages.push({ role: "assistant", content: response.content });
+    // The normalized blocks, not response.content: if that was a bare string,
+    // echoing it back would corrupt the next request.
+    messages.push({ role: "assistant", content: blocks as MessageParam["content"] });
     messages.push({ role: "user", content: results });
 
     response = await client.messages.create({
@@ -498,18 +521,22 @@ async function runToolLoop(
       tools: TOOLS,
       messages,
     });
+    blocks = readBlocks(response.content, model);
   }
 
-  let text = "";
-  for (const block of response.content as ContentBlock[]) {
-    if (block.type === "text") text += block.text;
-  }
-  return { text, toolResults };
+  return { text: textFromBlocks(blocks), toolResults };
 }
 
 // ---------------------------------------------------------------------------
 // Route handler
 // ---------------------------------------------------------------------------
+
+/**
+ * Shown when the upstream answered successfully but with nothing readable.
+ * Retryable: a model that can't drive the tool loop may still answer a simpler
+ * follow-up, and the operator sees the model name in the log either way.
+ */
+const EMPTY_REPLY_DETAIL = "The coach didn't return an answer. Please try again.";
 
 export async function POST(req: NextRequest) {
   const session = await requireSession(req);
@@ -530,9 +557,14 @@ export async function POST(req: NextRequest) {
         const encoder = new TextEncoder();
         try {
           const { text } = await runToolLoop(session.user, systemPrompt, parsed.data.messages);
-          controller.enqueue(
-            encoder.encode(`data: ${JSON.stringify({ content: text, done: true })}\n\n`),
-          );
+          const payload = text.trim()
+            ? { content: text, done: true }
+            : // An empty reply renders as a blank bubble, which reads as the app
+              // being broken. Say so instead; the log names the model, which is
+              // usually the real story (a routed model that cannot do tools).
+              { error: EMPTY_REPLY_DETAIL, retryable: true, done: true };
+          if (!text.trim()) console.error("[chat] model returned no text (stream)");
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify(payload)}\n\n`));
           controller.close();
         } catch (err) {
           // Log the upstream detail here: the client only ever sees the safe
@@ -564,6 +596,10 @@ export async function POST(req: NextRequest) {
 
   try {
     const { text, toolResults } = await runToolLoop(session.user, systemPrompt, parsed.data.messages);
+    if (!text.trim()) {
+      console.error("[chat] model returned no text");
+      return errorJson(EMPTY_REPLY_DETAIL, 502, { headers: { "X-Retryable": "true" } });
+    }
     return Response.json({
       message: { role: "assistant", content: text },
       tool_results: toolResults.length > 0 ? toolResults : undefined,
