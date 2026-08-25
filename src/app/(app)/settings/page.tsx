@@ -1,7 +1,7 @@
 'use client'
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { Link2, Unlink, RefreshCw, Upload, Save, History, RotateCcw, Zap, Compass } from 'lucide-react'
+import { Link2, Unlink, RefreshCw, Save, History, RotateCcw, Zap, Compass } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -21,7 +21,6 @@ import { useCurrentUser, useLogout } from '@/hooks/use-auth'
 import { useZoneHistory, useRevertZones } from '@/hooks/use-settings'
 import { stravaApi } from '@/api/strava'
 import { settingsApi } from '@/api/settings'
-import { trainingApi } from '@/api/training'
 import { toast } from 'sonner'
 import { useQueryClient } from '@tanstack/react-query'
 import {
@@ -101,7 +100,6 @@ function updateIntZoneMax(
 export default function SettingsPage() {
   const { data: user } = useCurrentUser()
   // Plan parsing and the coach both run on Claude, so both follow the switch.
-  const aiDisabled = user?.ai_enabled === false
   const { data: memberships } = useMyClubs()
   const hasClub = (memberships?.length ?? 0) > 0
   const [tab, setTab] = useState('account')
@@ -463,25 +461,6 @@ export default function SettingsPage() {
       toast.success('Password changed')
     } catch {
       toast.error('Failed to change password')
-    }
-  }
-
-  // Upload plan
-  const fileRef = useRef<HTMLInputElement>(null)
-  const [uploading, setUploading] = useState(false)
-
-  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-    setUploading(true)
-    try {
-      const res = await trainingApi.uploadPlan(file)
-      toast.success(`Parsed ${(res.data as { parsed_sessions_count: number }).parsed_sessions_count} sessions from ${file.name}`)
-    } catch {
-      toast.error('Failed to upload plan')
-    } finally {
-      setUploading(false)
-      if (fileRef.current) fileRef.current.value = ''
     }
   }
 
@@ -1018,35 +997,6 @@ export default function SettingsPage() {
           </CardContent>
         </Card>
 
-        {/* Upload Plan */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Upload Training Plan</CardTitle>
-            <CardDescription>Upload a PDF, Word, or text file with your training plan</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {aiDisabled && (
-              <p className="mb-3 border-l-2 border-foreground/25 py-1 pl-3 text-sm italic text-muted-foreground">
-                {user?.ai_disabled_notice}
-              </p>
-            )}
-            <div className="flex items-center gap-3">
-              <Input
-                ref={fileRef}
-                type="file"
-                accept=".pdf,.docx,.txt,.md"
-                onChange={handleUpload}
-                disabled={uploading || aiDisabled}
-              />
-              {uploading && (
-                <Badge variant="secondary">
-                  <Upload className="mr-1 h-3 w-3 animate-pulse" />
-                  Parsing...
-                </Badge>
-              )}
-            </div>
-          </CardContent>
-        </Card>
         </TabsContent>
 
         <TabsContent value="coach" className="space-y-6 pt-6">

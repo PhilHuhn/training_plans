@@ -3,13 +3,13 @@ export const dynamic = 'force-dynamic'
 
 import { useState, useEffect } from 'react'
 import { useRouter, useSearchParams, usePathname } from 'next/navigation'
-import { ChevronLeft, ChevronRight, Sparkles } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Sparkles, Upload } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import TrainingGrid from '@/components/training/training-grid'
 import TrainingList from '@/components/training/training-list'
 import SessionModal from '@/components/training/session-modal'
 import GenerateModal from '@/components/training/generate-modal'
-import IcsToolbar from '@/components/training/ics-toolbar'
+import ImportPlanModal from '@/components/training/import-plan-modal'
 import { useTrainingRange } from '@/hooks/use-training'
 import { useCurrentUser } from '@/hooks/use-auth'
 import { getWeekStart, addDays, formatDateShort } from '@/lib/utils'
@@ -50,6 +50,7 @@ export default function TrainingPage() {
   }>({ open: false, date: '' })
 
   const [generateOpen, setGenerateOpen] = useState(false)
+  const [importOpen, setImportOpen] = useState(false)
 
   // View mode: calendar grid vs spreadsheet-like list. Persisted per browser.
   const [view, setView] = useState<ViewMode>('grid')
@@ -181,7 +182,16 @@ export default function TrainingPage() {
             ))}
           </div>
 
-          <IcsToolbar start={rangeStart} end={rangeEnd} />
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setImportOpen(true)}
+            disabled={aiDisabled}
+            title={aiDisabled ? (user?.ai_disabled_notice ?? undefined) : undefined}
+          >
+            <Upload className="mr-1.5 h-3.5 w-3.5" />
+            Import Plan
+          </Button>
 
           <Button
             variant="outline"
@@ -256,6 +266,12 @@ export default function TrainingPage() {
         open={generateOpen}
         onClose={() => setGenerateOpen(false)}
         weekStart={rangeStart}
+      />
+
+      <ImportPlanModal
+        open={importOpen}
+        onClose={() => setImportOpen(false)}
+        startDate={rangeStart}
       />
       </div>
     </>

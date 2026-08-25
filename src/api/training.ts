@@ -1,10 +1,26 @@
 import apiClient from './client'
+import { readSseStream } from '@/lib/sse'
+import type { ImportProgress } from '@/lib/import-progress'
 import type {
   TrainingSession,
   TrainingWeekResponse,
   WorkoutDetails,
   UploadedPlan,
 } from '@/lib/types'
+
+/**
+ * The bearer token, read straight from storage.
+ *
+ * These two calls use `fetch` rather than the axios client so they can read a
+ * streaming response body, which means they also miss the client's refresh
+ * interceptor. An expired token surfaces as a failed request the caller
+ * reports; it does not silently sign anyone out.
+ */
+function authHeaders(): Record<string, string> | undefined {
+  const token =
+    typeof window !== 'undefined' ? window.localStorage.getItem('access_token') : null
+  return token ? { Authorization: `Bearer ${token}` } : undefined
+}
 
 export interface GenerateProgressEvent {
   type: 'status' | 'done' | 'error'
@@ -35,48 +51,90 @@ async function generateRecommendationsStream(
   for (const [key, value] of Object.entries(params)) {
     if (value !== undefined) qs.set(key, String(value))
   }
-  const token =
-    typeof window !== 'undefined' ? window.localStorage.getItem('access_token') : null
 
   const res = await fetch(`/api/training/generate-recommendations?${qs.toString()}`, {
     method: 'POST',
-    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    headers: authHeaders(),
   })
   if (!res.ok || !res.body) {
     throw new Error(`Generation request failed (${res.status})`)
   }
 
-  const reader = res.body.getReader()
-  const decoder = new TextDecoder()
-  let buffer = ''
   let result: { saved: number } | null = null
 
-  while (true) {
-    const { value, done } = await reader.read()
-    if (done) break
-    buffer += decoder.decode(value, { stream: true })
-    const frames = buffer.split('\n\n')
-    buffer = frames.pop() ?? ''
-    for (const frame of frames) {
-      const dataLine = frame.split('\n').find((l) => l.startsWith('data: '))
-      if (!dataLine) continue
-      let event: GenerateProgressEvent
-      try {
-        event = JSON.parse(dataLine.slice(6)) as GenerateProgressEvent
-      } catch {
-        continue
-      }
-      onEvent(event)
-      if (event.type === 'error') {
-        throw new Error(event.message || 'Failed to generate recommendations')
-      }
-      if (event.type === 'done') {
-        result = { saved: event.saved ?? 0 }
-      }
+  await readSseStream<GenerateProgressEvent>(res.body, (event) => {
+    onEvent(event)
+    if (event.type === 'error') {
+      throw new Error(event.message || 'Failed to generate recommendations')
     }
-  }
+    if (event.type === 'done') {
+      result = { saved: event.saved ?? 0 }
+    }
+  })
 
   if (!result) throw new Error('Generation ended unexpectedly — please try again')
+  return result
+}
+
+export type UploadProgressEvent =
+  | ({ type: 'status' } & ImportProgress)
+  | { type: 'done'; result: UploadedPlan }
+  | { type: 'error'; message: string }
+
+/**
+ * Streaming variant of upload-plan: sends the file and consumes the server's
+ * stage feed, so the reader sees the document being read, parsed and saved
+ * rather than a spinner for the whole of a multi-minute model call.
+ *
+ * There is no byte-level upload percentage here on purpose. `fetch` cannot
+ * report request-body progress and axios cannot read a streaming response, so
+ * it is stages or a percentage — and on a file capped at 10MB the transfer is
+ * seconds while the parse is minutes.
+ */
+async function uploadPlanStream(
+  file: File,
+  startDate: string | undefined,
+  onEvent: (event: UploadProgressEvent) => void,
+): Promise<UploadedPlan> {
+  const qs = new URLSearchParams({ stream: 'true' })
+  if (startDate) qs.set('start_date', startDate)
+
+  const formData = new FormData()
+  formData.append('file', file)
+
+  // Content-Type is left unset deliberately: the browser must add the
+  // multipart boundary itself.
+  const res = await fetch(`/api/training/upload-plan?${qs.toString()}`, {
+    method: 'POST',
+    headers: authHeaders(),
+    body: formData,
+  })
+
+  if (!res.ok || !res.body) {
+    // A rejection before the stream opens (auth, file type, size cap) still
+    // arrives as a normal JSON error response.
+    let detail = ''
+    try {
+      detail = ((await res.json()) as { detail?: string }).detail ?? ''
+    } catch {
+      // non-JSON body — fall back to the status
+    }
+    throw new Error(detail || `Upload failed (${res.status})`)
+  }
+
+  let result: UploadedPlan | null = null
+
+  await readSseStream<UploadProgressEvent>(res.body, (event) => {
+    onEvent(event)
+    if (event.type === 'error') {
+      throw new Error(event.message || 'Failed to import the plan')
+    }
+    if (event.type === 'done') {
+      result = event.result
+    }
+  })
+
+  if (!result) throw new Error('The import ended unexpectedly — please try again')
   return result
 }
 
@@ -132,6 +190,8 @@ export const trainingApi = {
     apiClient.post('/training/generate-recommendations', null, { params }),
 
   generateRecommendationsStream,
+
+  uploadPlanStream,
 
   uploadPlan: (file: File, start_date?: string) => {
     const formData = new FormData()

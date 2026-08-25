@@ -19,6 +19,19 @@ const ALLOWED_MIME = new Set([
 
 const ALLOWED_EXT = [".pdf", ".docx", ".doc", ".txt", ".md"];
 
+/**
+ * The message the browser is allowed to see.
+ *
+ * "Unsupported file type" and the like are the athlete's problem to fix and
+ * must survive intact; only an upstream provider failure gets rewritten, so the
+ * operator's billing state never reaches a user's screen.
+ */
+function safeUploadMessage(err: unknown): string {
+  const message = err instanceof Error ? err.message : "";
+  if (isUpstreamClaudeError(message)) return classifyEngineError(message).detail;
+  return message || "Failed to process plan";
+}
+
 export async function POST(req: NextRequest) {
   const session = await requireSession(req);
   if ("response" in session) return session.response;
@@ -49,13 +62,64 @@ export async function POST(req: NextRequest) {
 
   const startDate = req.nextUrl.searchParams.get("start_date") || undefined;
   const buffer = Buffer.from(await file.arrayBuffer());
+  const user = session.user;
+  const contentType = file.type || "";
+  const originalName = file.name || "unknown";
+
+  // SSE mode: report the real stages while the plan is read and parsed. Both
+  // gates above have already run, so an auth or AI-disabled failure is still a
+  // real status code — never an error frame inside a 200, and never a 401 from
+  // an AI fault (the axios interceptor signs the user out on any 401).
+  if (req.nextUrl.searchParams.get("stream") === "true") {
+    const encoder = new TextEncoder();
+    const stream = new ReadableStream<Uint8Array>({
+      async start(controller) {
+        const send = (event: Record<string, unknown>) => {
+          try {
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify(event)}\n\n`));
+          } catch {
+            // client disconnected — the import continues, nothing to notify
+          }
+        };
+        try {
+          const result = await processUploadedPlan(
+            user,
+            buffer,
+            contentType,
+            originalName,
+            startDate,
+            (p) => send({ type: "status", ...p }),
+          );
+          send({ type: "done", result });
+        } catch (err) {
+          console.error("[upload-plan] error:", err);
+          send({ type: "error", message: safeUploadMessage(err) });
+        } finally {
+          try {
+            controller.close();
+          } catch {
+            // already closed
+          }
+        }
+      },
+    });
+    return new Response(stream, {
+      headers: {
+        "Content-Type": "text/event-stream",
+        // no-transform keeps proxies from buffering the frames into one chunk,
+        // which would defeat the whole point.
+        "Cache-Control": "no-cache, no-transform",
+        Connection: "keep-alive",
+      },
+    });
+  }
 
   try {
     const result = await processUploadedPlan(
-      session.user,
+      user,
       buffer,
-      file.type || "",
-      file.name || "unknown",
+      contentType,
+      originalName,
       startDate,
     );
     return NextResponse.json(result, { status: 201 });

@@ -11,7 +11,8 @@ import {
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Sparkles, CalendarClock, Check, Loader2 } from 'lucide-react'
+import { Sparkles, CalendarClock } from 'lucide-react'
+import StageProgress from '@/components/training/stage-progress'
 import { useGenerateRecommendations } from '@/hooks/use-training'
 import { useCompetitions } from '@/hooks/use-competitions'
 import { addDays, daysBetween, cn } from '@/lib/utils'
@@ -51,51 +52,15 @@ const STAGE_LABELS: Record<GenerationStage, (sessions: number) => string> = {
   saving: () => 'Saving plan to your calendar',
 }
 
-function fmtElapsed(seconds: number): string {
-  const m = Math.floor(seconds / 60)
-  const s = seconds % 60
-  return `${m}:${String(s).padStart(2, '0')}`
-}
-
 function GenerationProgress({ state, elapsed }: { state: GenerationState; elapsed: number }) {
-  const activeIndex = STAGE_ORDER.indexOf(state.stage)
   return (
-    <div className="space-y-4 py-2">
-      <div className="space-y-2.5">
-        {STAGE_ORDER.map((stage, i) => {
-          const done = i < activeIndex
-          const active = i === activeIndex
-          return (
-            <div
-              key={stage}
-              className={cn(
-                'flex items-center gap-2.5 text-sm transition-colors',
-                done && 'text-muted-foreground',
-                active && 'text-foreground',
-                !done && !active && 'text-muted-foreground/40',
-              )}
-            >
-              <span className="flex h-4 w-4 shrink-0 items-center justify-center">
-                {done ? (
-                  <Check className="h-3.5 w-3.5" />
-                ) : active ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                ) : (
-                  <span className="h-1 w-1 rounded-full bg-current" />
-                )}
-              </span>
-              <span className={cn(active && 'italic')}>
-                {STAGE_LABELS[stage](stage === 'writing' ? state.sessions : 0)}
-              </span>
-            </div>
-          )
-        })}
-      </div>
-      <p className="text-xs text-muted-foreground">
-        {fmtElapsed(elapsed)} elapsed · long plans can take a few minutes — please keep this
-        window open.
-      </p>
-    </div>
+    <StageProgress
+      order={STAGE_ORDER}
+      active={state.stage}
+      label={(stage) => STAGE_LABELS[stage](stage === 'writing' ? state.sessions : 0)}
+      elapsed={elapsed}
+      note="long plans can take a few minutes — please keep this window open."
+    />
   )
 }
 
