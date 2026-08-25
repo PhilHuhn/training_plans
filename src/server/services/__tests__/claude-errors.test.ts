@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { classifyClaudeError } from "../claude-errors";
+import { classifyClaudeError, classifyEngineError } from "../claude-errors";
 
 /** Mimics an Anthropic SDK APIError closely enough for classification. */
 function apiError(status: number, message: string): Error & { status: number } {
@@ -48,5 +48,62 @@ describe("classifyClaudeError", () => {
   it("never returns the raw upstream text as the user-facing detail", () => {
     const raw = "Your credit balance is too low to access the Anthropic API.";
     expect(classifyClaudeError(apiError(400, raw)).detail).not.toBe(raw);
+  });
+});
+
+describe("classifyClaudeError — OpenRouter", () => {
+  it("treats a 402 as out of credit, not as a generic failure", () => {
+    // OpenRouter's code for an empty balance; Anthropic sends a 400 whose
+    // message mentions the credit balance instead.
+    const f = classifyClaudeError(Object.assign(new Error("Payment Required"), { status: 402 }));
+    expect(f.status).toBe(503);
+    expect(f.retryable).toBe(false);
+    expect(f.detail).toContain("out of credit");
+  });
+
+  it("matches OpenRouter's insufficient-credits wording", () => {
+    const f = classifyClaudeError(new Error("Insufficient credits for this request"));
+    expect(f.retryable).toBe(false);
+    expect(f.detail).toContain("out of credit");
+  });
+
+  it("still never answers 401 for an OpenRouter auth failure", () => {
+    // The axios interceptor signs the user out on any 401 — an operator's bad
+    // key must not log every athlete out.
+    const f = classifyClaudeError(Object.assign(new Error("No auth credentials found"), { status: 401 }));
+    expect(f.status).not.toBe(401);
+    expect(f.status).toBe(503);
+  });
+});
+
+describe("classifyEngineError — status recovery", () => {
+  it("recovers the status the SDK put at the front of the message", () => {
+    // The thrown error (and its .status) is gone by the time the engine
+    // reports a string, so the code has to come back out of the text.
+    const f = classifyEngineError("Claude error: 402 Insufficient credits");
+    expect(f.retryable).toBe(false);
+    expect(f.detail).toContain("out of credit");
+  });
+
+  it("classifies a 429 from the engine path as retryable", () => {
+    const f = classifyEngineError("Claude error: 429 Rate limit exceeded");
+    expect(f.status).toBe(429);
+    expect(f.retryable).toBe(true);
+  });
+
+  it("does not answer 401 even when the message starts with one", () => {
+    expect(classifyEngineError("Claude error: 401 Unauthorized").status).toBe(503);
+  });
+
+  it("leaves a message with no leading status to the text rules", () => {
+    const f = classifyEngineError("Claude error: connection reset");
+    expect(f.status).toBe(500);
+    expect(f.retryable).toBe(true);
+  });
+
+  it("does not mistake a number inside the text for a status", () => {
+    // "returned 404 sessions" is a count, not an HTTP code.
+    const f = classifyEngineError("Claude error: request failed after 402 seconds");
+    expect(f.detail).not.toContain("out of credit");
   });
 });

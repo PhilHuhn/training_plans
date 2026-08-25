@@ -23,7 +23,7 @@ export function useAiSettings() {
 export function useUpdateAiSettings() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (body: { enabled?: boolean; notice?: string }) =>
+    mutationFn: (body: { enabled?: boolean; notice?: string; model?: string }) =>
       adminApi.updateAiSettings(body).then((r) => r.data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin', 'ai-settings'] })

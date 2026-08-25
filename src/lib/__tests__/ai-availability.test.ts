@@ -42,6 +42,9 @@ describe("parseAiSettings", () => {
     expect(parseAiSettings({ enabled: false, notice: "Paused." })).toEqual({
       enabled: false,
       notice: "Paused.",
+      // Rows written before the provider switch have no model — they keep
+      // using whatever the provider default is, which is what they had.
+      model: "",
     });
   });
 
@@ -53,5 +56,21 @@ describe("parseAiSettings", () => {
 
   it("substitutes the default notice for an empty one", () => {
     expect(parseAiSettings({ enabled: false, notice: "" }).notice).toBe(DEFAULT_AI_DISABLED_NOTICE);
+  });
+});
+
+describe("parseAiSettings — model", () => {
+  it("round-trips an operator-chosen model", () => {
+    expect(parseAiSettings({ model: "anthropic/claude-sonnet-4.5" }).model).toBe(
+      "anthropic/claude-sonnet-4.5",
+    );
+  });
+
+  it("trims it, so a stray space cannot become an unroutable model id", () => {
+    expect(parseAiSettings({ model: "  openai/gpt-4o-mini  " }).model).toBe("openai/gpt-4o-mini");
+  });
+
+  it("ignores a non-string model", () => {
+    expect(parseAiSettings({ model: 42 }).model).toBe("");
   });
 });

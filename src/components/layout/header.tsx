@@ -42,12 +42,15 @@ export default function Header({ title, section, onMenuClick }: HeaderProps) {
           </Badge>
         )}
 
-        <FeedbackDialog />
+        <span data-tour="feedback">
+          <FeedbackDialog />
+        </span>
 
         <Button
           variant="outline"
           size="icon-sm"
           onClick={toggleChat}
+          data-tour="chat-toggle"
           disabled={aiDisabled}
           aria-label="Toggle coach panel"
           title={aiDisabled ? (user?.ai_disabled_notice ?? undefined) : 'Toggle coach panel'}

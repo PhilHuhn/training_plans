@@ -125,7 +125,7 @@ Migrations live in `drizzle/`. JSON column shape changes do **not** need a new m
 
 **A new `notNull` column MUST carry a SQL-level `.default(...)`.** On Render, `db:push` runs with `--force` (no TTY to answer prompts); a `notNull` column with only a `$defaultFn` — which is applied client-side, on insert — leaves push unable to satisfy the constraint, and it resolves that by **TRUNCATE**-ing the table and everything referencing it. `clubs.joinCode` carries `.default(sql\`upper(substr(md5(random()::text), 1, 8))\`)` for exactly this reason. Verify any such change by dropping the column on a populated local DB and re-pushing before you ship it.
 
-## Claude integration patterns
+## AI integration patterns
 
 - **Short-key system** (`src/server/services/claude.ts`): `_TOP_KEYS` (a/wf/ss/w), `_SESSION_KEYS` (16 mappings), `_INTERVAL_KEYS` (r/dm/tp/rec). `expandShortKeys` is idempotent and recursive (handles `intervals` arrays + nested `alternative_workout`).
 - **JSON extractor** has three fallbacks: brace-matching (handles surrounding text), repair pass (trailing commas + unquoted keys), truncation recovery (closes unclosed brackets/braces).
@@ -135,6 +135,7 @@ Migrations live in `drizzle/`. JSON column shape changes do **not** need a new m
 
 ### HTML pages
 - `/login`, `/register` — public, redirect to `/training` if cookie present
+- `/welcome` — post-registration setup (Strava, club, tour). Token-gated but deliberately **not** in `navItems`: that array numbers both the sidebar TOC and the header's "Section N" eyebrow, so inserting into it renumbers everything below
 - `/training`, `/activities`, `/competitions`, `/settings`, `/changelog` — gated by middleware
 
 ### API endpoints (all prefixed with `/api`)
@@ -146,7 +147,7 @@ Same surface as the original FastAPI backend (37 endpoints) — see `src/app/api
 - Activities + competitions + training sessions: standard CRUD plus `accept`, `week` (with TRIMP enrichment), `generate-recommendations`, `convert-session`, `upload-plan`, `uploaded-plans`, `sessions/[id]/export/garmin`, `export/ics`, `import/ics`
 - `GET /club`, `GET /club/[slug]`, `GET /club/[slug]/overlay?week=`, `PATCH /club/[slug]/membership` — club overlay (see `src/app/(app)/club/CLAUDE.md`)
 - `POST /chat/message` — streaming SSE by default; pass `{stream: false}` for JSON
-- Settings: `account`, `password`, zones (`PUT`, `history`, `revert/[historyId]`, `estimate*`)
+- Settings: `account`, `password`, `onboarding` (setup + tour progress), zones (`PUT`, `history`, `revert/[historyId]`, `estimate*`)
 
 ## Environment variables
 
@@ -157,10 +158,11 @@ Defined and validated in `src/server/env.ts` (zod). The loader falls back to `.e
 | `DATABASE_URL` | Postgres connection string |
 | `SECRET_KEY` | JWT signing (HS256, ≥16 chars) |
 | `STRAVA_CLIENT_ID` / `STRAVA_CLIENT_SECRET` | Strava OAuth |
-| `ANTHROPIC_API_KEY` | Claude API |
+| `AI_API_KEY` | Key for the AI upstream. An `sk-or-…` key selects OpenRouter on its own |
+| `AI_BASE_URL` | Override the upstream host. Optional — inferred from an OpenRouter key |
+| `ANTHROPIC_API_KEY` | Legacy fallback for `AI_API_KEY`. **All of them empty disables every AI feature**, whatever the admin toggle says |
 | `BASE_URL` | Public origin used for the Strava redirect URI |
 | `ADMIN_EMAILS` | Comma-separated platform-operator emails; grants `/admin` without a DB flag |
-| `ANTHROPIC_API_KEY` | Claude API. **Empty disables every AI feature**, whatever the admin toggle says |
 
 ## Development workflow
 
@@ -176,8 +178,12 @@ Defined and validated in `src/server/env.ts` (zod). The loader falls back to `.e
 - Server-only modules: import `"server-only"` at the top to enforce.
 - Route handlers: `export const runtime = "nodejs"; export const dynamic = "force-dynamic";` to opt out of static prerender.
 - Auth: every gated route uses `requireSession(req)` which returns `{user}` or `{response}` (a 401 NextResponse) — pattern is `if ("response" in session) return session.response`. Club-scoped routes use `requireClubMember` / `requireClubRole` (`@/server/auth/club`); `/api/admin/**` uses `requireAdmin` (`@/server/auth/admin`), which is the real gate — `middleware.ts` only checks that a cookie is present.
-- **AI features are gated, not assumed.** Five routes spend Anthropic credit: `chat/message`, `training/generate-recommendations`, `training/convert-session`, `training/upload-plan`, and `strava/sync` (the profile summary). Each of the first four starts with `requireAiEnabled()` (`@/server/services/ai-gate`), which answers **503 + the operator's notice** — the same contract `classifyClaudeError` uses, so `use-chat.ts` renders it unchanged. `strava/sync` degrades instead: it skips the summary and keeps the deterministic `fallbackProfileLine`. Never answer 401 from an AI failure — the axios interceptor would sign every athlete out. Any new Claude call site needs the same gate.
-- **Never forward an upstream Claude message to the browser.** `claude.ts` stamps `Claude error: ` onto failures it catches; `isUpstreamClaudeError` / `classifyEngineError` (`@/server/services/claude-errors`) turn those into a safe `detail` while leaving the app's own messages ("Unsupported file type") intact. The raw text goes to the server log.
+- **AI features are gated, not assumed.** Five routes spend upstream credit: `chat/message`, `training/generate-recommendations`, `training/convert-session`, `training/upload-plan`, and `strava/sync` (the profile summary). Each of the first four starts with `requireAiEnabled()` (`@/server/services/ai-gate`), which answers **503 + the operator's notice** — the same contract `classifyClaudeError` uses, so `use-chat.ts` renders it unchanged. `strava/sync` degrades instead: it skips the summary and keeps the deterministic `fallbackProfileLine`. Never answer 401 from an AI failure — the axios interceptor would sign every athlete out. Any new Claude call site needs the same gate.
+- **Never forward an upstream provider message to the browser.** `claude.ts` stamps `Claude error: ` onto failures it catches; `isUpstreamClaudeError` / `classifyEngineError` (`@/server/services/claude-errors`) turn those into a safe `detail` while leaving the app's own messages ("Unsupported file type") intact. The raw text goes to the server log.
+- **One AI upstream, resolved from config.** `@/lib/ai-provider` maps `AI_BASE_URL` + `AI_API_KEY` onto a provider, a `baseURL` and a default model; `anthropic()` in `claude.ts` is the only place that constructs a client. OpenRouter is reached through its Anthropic-compatible Messages endpoint, so streaming, the tool loop and thinking blocks are untouched by the switch — a provider that needed a different protocol would be a rewrite, not a config change. The model is *not* a constant: `aiModel()` reads the operator's choice from `app_settings` and falls back to the provider default, because a bare Anthropic id and an OpenRouter slug are not interchangeable. Resolve it once per request, never per hop.
+- **Guided tours are data, not components.** Steps live in `@/lib/tour-steps` (pure — no React, no DOM), point at elements by `data-tour="…"`, and are driven by `TourProvider` (mounted in `app/providers.tsx`, above the app shell, so `/welcome` can start one). A step whose anchor never appears is **skipped after a timeout, not waited on**: below `lg` the sidebar is a `Sheet` and its anchors genuinely do not exist. Preconditions are tags (`when: 'strava-disconnected'`) resolved by the provider, which keeps the step list free of app types — and a filtered-out step leaves the count honest ("Step 3 of 5", not "of 6"). Adding a step means adding an object and a `data-tour` attribute; nothing else.
+- **Onboarding state lives in `users.preferences`,** not new columns — `preferences` is an existing notNull jsonb with a default, so there is no DDL and none of the truncation hazard above. `PATCH /api/settings/onboarding` read-modify-writes it; writing a partial object would drop zones and thresholds.
+- **A Strava return path is a whitelist key, never a path.** `state` round-trips through Strava and comes back from outside our control, so `@/server/services/strava-return` resolves it against a fixed map. Passing a raw path would make the callback an open redirect.
 - Sport colours and icons: one map, `@/lib/sport-theme`. Charts, badges, filter tabs and session cards all read `sportTheme(stravaType)` / `planningSportTheme(sport)`; the `--chart-*` tokens in `globals.css` mirror `SPORT_COLORS`. Don't re-derive a per-sport colour or icon anywhere else.
 - Wire format: TypeScript types in `src/lib/types.ts` are the canonical client contract. Server response builders in `src/server/serializers.ts` produce that exact shape from Drizzle rows.
 - Style: LaTeX-document tokens in `globals.css`. Hairline borders, italic small-caps for status, justified body text via `.prose-paper`. Avoid bringing back the old neo-brutalist `border-2 border-[#092B37]` / `shadow-brutal` classes.

@@ -16,8 +16,15 @@ export interface User {
   created_at: string
 }
 
+/** Setup and guided-tour progress. Mirrors OnboardingState on the server. */
+export interface OnboardingState {
+  welcomed_at?: string
+  tours_done?: string[]
+}
+
 export interface UserPreferences {
   units?: string
+  onboarding?: OnboardingState
   hr_zones?: Record<string, ZoneRange>
   pace_zones?: Record<string, ZoneRange>
   cycling_power_zones?: Record<string, ZoneRange>
@@ -407,6 +414,12 @@ export interface AdminUserWire {
 export interface AiSettingsWire {
   enabled: boolean
   notice: string
+  /** Operator override, or '' to follow the provider default. */
+  model: string
+  /** What an empty `model` actually resolves to. */
+  effective_model: string
+  provider: 'anthropic' | 'openrouter'
+  provider_label: string
   api_key_configured: boolean
   /** enabled AND a key is present — what users actually experience. */
   effective: boolean

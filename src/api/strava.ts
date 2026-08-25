@@ -1,7 +1,14 @@
 import apiClient from './client'
 
 export const stravaApi = {
-  getAuthUrl: () => apiClient.get<{ auth_url: string }>('/strava/auth-url'),
+  /**
+   * `returnTo` is a key, not a path — the server resolves it against a
+   * whitelist because it round-trips through Strava.
+   */
+  getAuthUrl: (returnTo?: 'settings' | 'welcome') =>
+    apiClient.get<{ auth_url: string }>('/strava/auth-url', {
+      params: returnTo ? { return_to: returnTo } : undefined,
+    }),
 
   disconnect: () => apiClient.post('/strava/disconnect'),
 

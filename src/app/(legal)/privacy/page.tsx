@@ -106,9 +106,11 @@ export default function PrivacyPage() {
       <Section title="KI-Coach und Trainingsempfehlungen">
         <p className="prose-paper">
           Für Chat-Antworten, Trainingsempfehlungen und die Auswertung hochgeladener Pläne
-          werden die dafür nötigen Daten an die Claude-API der Anthropic PBC übermittelt:
-          dein Trainingsprofil, aktuelle Belastungswerte, Zonen, anstehende Wettkämpfe sowie
-          der Inhalt deiner Chat-Nachrichten. Darin können Gesundheitsdaten enthalten sein.
+          werden die dafür nötigen Daten an ein Sprachmodell übermittelt: dein Trainingsprofil,
+          aktuelle Belastungswerte, Zonen, anstehende Wettkämpfe sowie der Inhalt deiner
+          Chat-Nachrichten. Darin können Gesundheitsdaten enthalten sein. Die Übermittlung
+          erfolgt über OpenRouter, Inc., die die Anfrage an den jeweiligen Modellanbieter
+          (derzeit Anthropic PBC) weiterleitet.
         </p>
         <p className="prose-paper">
           Die Empfehlungen sind Vorschläge. Sie ersetzen keine medizinische oder
@@ -133,6 +135,15 @@ export default function PrivacyPage() {
             <dd className="prose-paper text-sm">
               Betrieb der Anwendung und der PostgreSQL-Datenbank. Die Server stehen in
               Frankfurt am Main; das Unternehmen hat seinen Sitz in den USA.
+            </dd>
+          </div>
+          <div>
+            <dt className="smallcaps text-sm italic text-muted-foreground">
+              OpenRouter, Inc. — Vermittlung der Modellanfragen
+            </dt>
+            <dd className="prose-paper text-sm">
+              Leitet die unter Ziffer 5 genannten Daten an den jeweils eingestellten
+              Modellanbieter weiter. Sitz in den USA.
             </dd>
           </div>
           <div>

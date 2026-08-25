@@ -99,8 +99,21 @@ export const DEFAULT_USER_PREFERENCES = {
   threshold_pace: 300,
 } as const;
 
+/**
+ * Setup and guided-tour progress. Lives inside the existing preferences jsonb
+ * rather than in new columns: no migration, and therefore none of the
+ * `drizzle-kit push --force` truncation hazard documented on clubs.joinCode.
+ */
+export type OnboardingState = {
+  /** ISO timestamp of the first visit to /welcome. */
+  welcomed_at?: string;
+  /** Tour ids the user has finished or skipped. */
+  tours_done?: string[];
+};
+
 export type UserPreferences = {
   units: "metric" | "imperial";
+  onboarding?: OnboardingState;
   hr_zones?: Record<string, { min: number; max: number; name?: string }>;
   pace_zones?: Record<string, { min: number; max: number; name?: string }>;
   max_hr?: number;

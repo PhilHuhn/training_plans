@@ -5,6 +5,7 @@ import Sidebar from './sidebar'
 import Header from './header'
 import ChatPanel from './chat-panel'
 import { Sheet, SheetContent } from '@/components/ui/sheet'
+import TourAutostart from '@/components/tour/tour-autostart'
 import { sectionFor } from './nav-items'
 
 // Dashboard and Training open with a full-bleed band that has to touch the
@@ -51,6 +52,9 @@ export default function AppLayout({ children }: { children: ReactNode }) {
 
       {/* Chat panel */}
       <ChatPanel />
+
+      {/* Renders nothing; opens the getting-started tour on first arrival. */}
+      <TourAutostart />
     </div>
   )
 }

@@ -48,7 +48,13 @@ const envSchema = z.object({
   SECRET_KEY: z.string().min(16, "SECRET_KEY must be at least 16 chars"),
   STRAVA_CLIENT_ID: z.string().default(""),
   STRAVA_CLIENT_SECRET: z.string().default(""),
+  // AI upstream. ANTHROPIC_API_KEY stays the fallback so an existing
+  // deployment keeps working untouched; AI_API_KEY + AI_BASE_URL are what point
+  // the same SDK at OpenRouter's Anthropic-compatible endpoint instead. With an
+  // OpenRouter key (sk-or-...) the base URL is inferred and can be left empty.
   ANTHROPIC_API_KEY: z.string().default(""),
+  AI_API_KEY: z.string().default(""),
+  AI_BASE_URL: z.string().default(""),
   BASE_URL: z.string().url().default("http://localhost:3000"),
   // Contact form delivery. All optional: without them the app still boots and
   // /api/contact answers with a clear "not configured" error instead of
@@ -69,6 +75,8 @@ const parsed = envSchema.safeParse({
   STRAVA_CLIENT_ID: readEnv("STRAVA_CLIENT_ID"),
   STRAVA_CLIENT_SECRET: readEnv("STRAVA_CLIENT_SECRET"),
   ANTHROPIC_API_KEY: readEnv("ANTHROPIC_API_KEY"),
+  AI_API_KEY: readEnv("AI_API_KEY"),
+  AI_BASE_URL: readEnv("AI_BASE_URL"),
   BASE_URL: readEnv("BASE_URL"),
   SMTP_HOST: readEnv("SMTP_HOST"),
   SMTP_PORT: readEnv("SMTP_PORT"),
@@ -84,3 +92,12 @@ if (!parsed.success) {
 }
 
 export const env = parsed.data;
+
+/**
+ * The key actually used to reach the AI upstream. AI_API_KEY wins;
+ * ANTHROPIC_API_KEY is the legacy name and remains supported so switching
+ * providers is a dashboard edit rather than a coordinated redeploy.
+ */
+export function aiApiKey(): string {
+  return env.AI_API_KEY.trim() || env.ANTHROPIC_API_KEY.trim();
+}

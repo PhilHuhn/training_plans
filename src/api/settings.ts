@@ -1,5 +1,5 @@
 import apiClient from './client'
-import type { ZoneEstimate, ZoneHistoryEntry, ZoneRange } from '@/lib/types'
+import type { OnboardingState, ZoneEstimate, ZoneHistoryEntry, ZoneRange } from '@/lib/types'
 
 export interface HrEstimateResponse {
   max_hr: number
@@ -33,6 +33,10 @@ export interface PowerEstimateResponse {
 }
 
 export const settingsApi = {
+  /** Record that setup was seen, or that a guided tour finished. */
+  patchOnboarding: (body: { welcomed?: boolean; tour_done?: string }) =>
+    apiClient.patch<{ onboarding: OnboardingState }>('/settings/onboarding', body),
+
   estimateZones: (days_back = 90) =>
     apiClient.get<ZoneEstimate>('/settings/zones/estimate', { params: { days_back } }),
 

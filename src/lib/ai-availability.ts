@@ -17,11 +17,18 @@ export interface AiSettings {
   enabled: boolean;
   /** Operator-authored line shown wherever an AI feature would have been. */
   notice: string;
+  /**
+   * Upstream model id, or "" for the provider's default. Stored rather than
+   * env-held so switching to a cheaper model is a text field in /admin instead
+   * of a redeploy — the same argument as the enabled flag itself.
+   */
+  model: string;
 }
 
 export const DEFAULT_AI_SETTINGS: AiSettings = {
   enabled: true,
   notice: DEFAULT_AI_DISABLED_NOTICE,
+  model: "",
 };
 
 export interface AiAvailability {
@@ -53,12 +60,15 @@ export function resolveAiAvailability(input: {
 /** Coerce a stored jsonb blob into settings, tolerating anything unexpected. */
 export function parseAiSettings(value: unknown): AiSettings {
   if (!value || typeof value !== "object") return DEFAULT_AI_SETTINGS;
-  const raw = value as { enabled?: unknown; notice?: unknown };
+  const raw = value as { enabled?: unknown; notice?: unknown; model?: unknown };
   return {
     enabled: typeof raw.enabled === "boolean" ? raw.enabled : DEFAULT_AI_SETTINGS.enabled,
     notice:
       typeof raw.notice === "string" && raw.notice.trim() !== ""
         ? raw.notice
         : DEFAULT_AI_DISABLED_NOTICE,
+    // Absent on rows written before the provider switch — they fall back to the
+    // provider default, which is what they were already using.
+    model: typeof raw.model === "string" ? raw.model.trim() : "",
   };
 }

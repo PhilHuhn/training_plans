@@ -187,6 +187,7 @@ export default function TrainingPage() {
             variant="outline"
             size="sm"
             onClick={() => setGenerateOpen(true)}
+            data-tour="ai-plan"
             disabled={aiDisabled}
             title={aiDisabled ? (user?.ai_disabled_notice ?? undefined) : undefined}
           >
@@ -197,7 +198,7 @@ export default function TrainingPage() {
         </div>
       </div>
 
-      <div className="mx-auto w-full max-w-6xl space-y-5 px-4 py-6 lg:px-7">
+      <div data-tour="training-week" className="mx-auto w-full max-w-6xl space-y-5 px-4 py-6 lg:px-7">
       {/* Range totals */}
       <div className="rule-top rule-bottom grid grid-cols-2 gap-4 py-3.5 sm:grid-cols-4">
         <div>

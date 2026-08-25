@@ -13,7 +13,7 @@ import {
 } from "@/server/db/schema";
 import { requireSession } from "@/server/auth/session";
 import { errorJson, parseJson } from "@/server/http";
-import { anthropic, CLAUDE_MODEL } from "@/server/services/claude";
+import { aiModel, anthropic } from "@/server/services/claude";
 import { classifyClaudeError } from "@/server/services/claude-errors";
 import { requireAiEnabled } from "@/server/services/ai-gate";
 import { formatPace } from "@/server/services/pace";
@@ -460,6 +460,9 @@ async function runToolLoop(
   initialMessages: Array<{ role: "user" | "assistant"; content: string }>,
 ): Promise<{ text: string; toolResults: Array<{ tool: string; input: Record<string, unknown>; result: string }> }> {
   const client = anthropic();
+  // Resolved once per request rather than per hop: a model change mid-loop
+  // would break prompt caching and could switch tool dialects underneath us.
+  const model = await aiModel();
   const messages: MessageParam[] = initialMessages.map((m) => ({
     role: m.role,
     content: m.content,
@@ -467,7 +470,7 @@ async function runToolLoop(
   const toolResults: Array<{ tool: string; input: Record<string, unknown>; result: string }> = [];
 
   let response = await client.messages.create({
-    model: CLAUDE_MODEL,
+    model,
     max_tokens: 8192,
     system: systemPrompt,
     tools: TOOLS,
@@ -489,7 +492,7 @@ async function runToolLoop(
     messages.push({ role: "user", content: results });
 
     response = await client.messages.create({
-      model: CLAUDE_MODEL,
+      model,
       max_tokens: 8192,
       system: systemPrompt,
       tools: TOOLS,

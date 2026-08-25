@@ -133,8 +133,8 @@ export default function AdminPage() {
           </CardTitle>
           <CardDescription>
             The coach, plan generation, plan parsing and the Strava profile summary all run on
-            Claude. Switching this off stops every one of them from spending credit — the rest
-            of the app is unaffected.
+            the same upstream model. Switching this off stops every one of them from spending
+            credit — the rest of the app is unaffected.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -171,9 +171,41 @@ export default function AdminPage() {
 
           {aiSettings.data && !aiSettings.data.api_key_configured && (
             <p className="border-l-2 border-destructive py-1 pl-3 text-sm text-destructive">
-              No ANTHROPIC_API_KEY is set, so AI is off regardless of this switch.
+              No AI_API_KEY (or ANTHROPIC_API_KEY) is set, so AI is off regardless of this
+              switch.
             </p>
           )}
+
+          <div className="booktabs-top border-foreground/15 pt-3 text-xs">
+            <span className="smallcaps italic text-muted-foreground">Provider</span>{' '}
+            <span className="tabular-nums">{aiSettings.data?.provider_label ?? '—'}</span>
+          </div>
+
+          <div className="space-y-1.5">
+            <p className="smallcaps text-xs italic text-muted-foreground">
+              Model — leave empty for the provider default
+              {aiSettings.data ? ` (${aiSettings.data.effective_model})` : ''}
+            </p>
+            <SavedTextField
+              key={aiSettings.data?.model ?? ''}
+              value={aiSettings.data?.model ?? ''}
+              className="w-full max-w-xl font-mono text-xs"
+              placeholder={aiSettings.data?.effective_model ?? ''}
+              onSave={(model) =>
+                mutate(
+                  updateAiSettings.mutate,
+                  { model },
+                  'Model saved',
+                  'Could not save the model',
+                )
+              }
+            />
+            <p className="text-xs italic text-muted-foreground">
+              {aiSettings.data?.provider === 'openrouter'
+                ? 'OpenRouter namespaces its models — e.g. anthropic/claude-sonnet-4.5 or a cheaper slug. Changing this takes effect on the next request; no redeploy.'
+                : 'A bare Anthropic model id, e.g. claude-sonnet-5.'}
+            </p>
+          </div>
 
           <div className="space-y-1.5">
             <p className="smallcaps text-xs italic text-muted-foreground">

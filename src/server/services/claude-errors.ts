@@ -1,5 +1,10 @@
 /**
- * Classification of upstream Anthropic failures.
+ * Classification of upstream AI failures.
+ *
+ * Covers both providers this app can be pointed at: Anthropic direct and
+ * OpenRouter's Anthropic-compatible endpoint. They disagree on how an empty
+ * balance arrives (Anthropic: a 400 whose message mentions the credit balance;
+ * OpenRouter: a 402), which is why the billing branch matches on both.
  *
  * Deliberately free of "server-only", the SDK and the env schema: it is pure
  * string-and-status logic, and keeping it importable on its own is what lets it
@@ -17,7 +22,7 @@ export interface ClaudeFailure {
 
 /**
  * Prefix claude.ts stamps onto an upstream failure it caught and turned into a
- * `{ data, error }` result. Its presence is how a caller tells an Anthropic
+ * `{ data, error }` result. Its presence is how a caller tells an upstream
  * failure apart from its own domain errors ("Unsupported file type", "No
  * sessions found"), which are useful to the user and must survive untouched.
  */
@@ -30,17 +35,29 @@ export function isUpstreamClaudeError(message: string): boolean {
 /**
  * Classify an error string that came back through a `{ data, error }` result
  * rather than being thrown. Same guarantees as classifyClaudeError.
+ *
+ * The SDK's own message begins with the HTTP status ("402 Insufficient
+ * credits"), and by this point the thrown error — and its `status` field — is
+ * long gone. Recovering the code from the text is what keeps the engine routes
+ * classifying as precisely as chat does: without it an exhausted balance during
+ * plan generation reads as "try again", advising a retry that cannot work.
  */
 export function classifyEngineError(message: string): ClaudeFailure {
-  return classifyClaudeError(new Error(message.replace(UPSTREAM_ERROR_PREFIX, "")));
+  const stripped = message.replace(UPSTREAM_ERROR_PREFIX, "");
+  const leadingStatus = /^\s*(\d{3})\b/.exec(stripped);
+  const err = new Error(stripped);
+  if (leadingStatus) {
+    (err as Error & { status?: number }).status = Number(leadingStatus[1]);
+  }
+  return classifyClaudeError(err);
 }
 
 /**
- * Turn an upstream Anthropic failure into something the UI can act on.
+ * Turn an upstream provider failure into something the UI can act on.
  *
  * Two things this deliberately does NOT do:
  *
- * 1. It never answers 401. Anthropic returns 401 for a bad API key, but the
+ * 1. It never answers 401. Both providers return 401 for a bad API key, but the
  *    browser's axios interceptor treats any 401 as "session expired" and signs
  *    the user out. An operator's expired key must not log everyone out.
  * 2. It never forwards the upstream message. "Your credit balance is too low"
@@ -54,9 +71,14 @@ export function classifyClaudeError(err: unknown): ClaudeFailure {
   const raw = err instanceof Error ? err.message : String(err ?? "");
   const text = raw.toLowerCase();
 
-  // Billing arrives as a 400 invalid_request_error, so it has to be matched on
-  // the message rather than the status.
-  if (text.includes("credit balance") || text.includes("billing")) {
+  // Anthropic sends billing failures as a 400 invalid_request_error, so status
+  // alone is not enough; OpenRouter uses 402 for the same condition.
+  if (
+    status === 402 ||
+    text.includes("credit balance") ||
+    text.includes("insufficient credits") ||
+    text.includes("billing")
+  ) {
     return {
       status: 503,
       detail: "The AI coach is out of credit. Retrying won't help — this needs the operator.",

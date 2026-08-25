@@ -14,12 +14,20 @@ function apiMessage(err: unknown, fallback: string): string {
   return typeof detail === 'string' && detail ? detail : fallback
 }
 
+interface ClubOnboardingProps {
+  /**
+   * Drop the page furniture (heading, outer padding). Set when this is one
+   * step inside a larger flow — /welcome — rather than the whole of /club.
+   */
+  compact?: boolean
+}
+
 /**
  * The way into a club for a user who isn't in one yet. Until this existed,
  * memberships could only be created by the seed script, so a registered user
  * was permanently solo.
  */
-export default function ClubOnboarding() {
+export default function ClubOnboarding({ compact = false }: ClubOnboardingProps) {
   const [name, setName] = useState('')
   const [code, setCode] = useState('')
   const createClub = useCreateClub()
@@ -52,8 +60,8 @@ export default function ClubOnboarding() {
   }
 
   return (
-    <div className="mx-auto max-w-3xl px-6 py-12">
-      <div className="mb-8 text-center">
+    <div className={compact ? '' : 'mx-auto max-w-3xl px-6 py-12'}>
+      <div className={compact ? 'hidden' : 'mb-8 text-center'}>
         <Users className="mx-auto mb-4 h-8 w-8 text-muted-foreground/50" />
         <h2 className="mb-2 font-serif text-lg">You&rsquo;re not in a club yet</h2>
         <p className="prose-paper mx-auto max-w-prose text-sm italic text-muted-foreground">

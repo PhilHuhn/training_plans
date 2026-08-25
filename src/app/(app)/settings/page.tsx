@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { Link2, Unlink, RefreshCw, Upload, Save, History, RotateCcw, Zap } from 'lucide-react'
+import { Link2, Unlink, RefreshCw, Upload, Save, History, RotateCcw, Zap, Compass } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -15,6 +15,8 @@ import FeedbackForm from '@/components/feedback/feedback-form'
 import FeedbackList from '@/components/feedback/feedback-list'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useMyClubs } from '@/hooks/use-club'
+import { useTour } from '@/components/tour/tour-provider'
+import { GETTING_STARTED_TOUR_ID } from '@/lib/tour-steps'
 import { useCurrentUser, useLogout } from '@/hooks/use-auth'
 import { useZoneHistory, useRevertZones } from '@/hooks/use-settings'
 import { stravaApi } from '@/api/strava'
@@ -105,6 +107,7 @@ export default function SettingsPage() {
   const [tab, setTab] = useState('account')
   const logout = useLogout()
   const queryClient = useQueryClient()
+  const tour = useTour()
   const searchParams = useSearchParams()
   const { data: zoneHistory, isLoading: historyLoading } = useZoneHistory(20)
   const revertZones = useRevertZones()
@@ -516,7 +519,7 @@ export default function SettingsPage() {
 
         <TabsContent value="account" className="space-y-6 pt-6">
         {/* Strava */}
-        <Card>
+        <Card data-tour="strava-connect">
           <CardHeader>
             <CardTitle className="text-base">Strava Connection</CardTitle>
             <CardDescription>Sync your activities from Strava</CardDescription>
@@ -568,6 +571,28 @@ export default function SettingsPage() {
         </Card>
 
         {/* Password */}
+        {/* Getting started */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Finding your way around</CardTitle>
+            <CardDescription>
+              Re-run the setup steps, or walk through the app again.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-wrap items-center gap-3">
+            <Button size="sm" variant="outline" onClick={() => tour.start(GETTING_STARTED_TOUR_ID)}>
+              <Compass className="mr-1.5 h-3.5 w-3.5" />
+              Replay the tour
+            </Button>
+            <Link
+              href="/welcome"
+              className="text-sm italic text-muted-foreground hover:text-foreground"
+            >
+              Re-run setup
+            </Link>
+          </CardContent>
+        </Card>
+
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Change Password</CardTitle>
