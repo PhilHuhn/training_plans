@@ -308,18 +308,9 @@ export interface ChatResponse {
   tool_results?: { tool: string; input: Record<string, unknown>; result: string }[]
 }
 
-// Changelog types
-export interface ChangelogEntry {
-  date: string
-  commits: ChangelogCommit[]
-}
-
-export interface ChangelogCommit {
-  hash: string
-  message: string
-  author: string
-  date: string
-}
+// Changelog types. The shapes themselves live in @/lib/changelog, which is the
+// parser both the app and the release script read the file through.
+export type { Release, ReleaseChange, ChangeKind } from './changelog'
 
 // Zone history
 export interface ZoneHistoryEntry {

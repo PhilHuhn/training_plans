@@ -1,74 +1,108 @@
 'use client'
 import { useQuery } from '@tanstack/react-query'
-import { GitCommit, Calendar } from 'lucide-react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
+import { ScrollText } from 'lucide-react'
+import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { changelogApi } from '@/api/changelog'
+import { compareKinds, splitEmphasis, type ChangeKind, type Release } from '@/lib/changelog'
+import { APP_VERSION } from '@/lib/version'
+
+/** Groups a release's notes under their heading, in a stable reading order. */
+function byKind(release: Release): [ChangeKind, string[]][] {
+  const groups = new Map<ChangeKind, string[]>()
+  for (const change of release.changes) {
+    const list = groups.get(change.kind) ?? []
+    list.push(change.text)
+    groups.set(change.kind, list)
+  }
+  return [...groups.entries()].sort((a, b) => compareKinds(a[0], b[0]))
+}
+
+function formatDate(iso: string): string {
+  if (!iso) return ''
+  return new Date(iso + 'T00:00:00').toLocaleDateString('en-GB', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  })
+}
 
 export default function ChangelogPage() {
-  const { data, isLoading, error } = useQuery({
+  const { data, isLoading } = useQuery({
     queryKey: ['changelog'],
     queryFn: changelogApi.get,
   })
 
+  const releases = data?.releases ?? []
+
   return (
-    <div className="mx-auto max-w-3xl space-y-6">
+    <div className="mx-auto w-full max-w-3xl px-4 py-6 lg:px-7">
       {isLoading ? (
-        <div className="space-y-4">
+        <div className="space-y-6">
           {Array.from({ length: 3 }).map((_, i) => (
-            <Skeleton key={i} className="h-32 rounded-xl" />
+            <Skeleton key={i} className="h-32" />
           ))}
         </div>
-      ) : error ? (
-        <Card>
-          <CardContent className="py-12 text-center text-sm text-muted-foreground">
-            Failed to load changelog.
-          </CardContent>
-        </Card>
-      ) : !data?.entries?.length ? (
+      ) : releases.length === 0 ? (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12 text-center">
-            <GitCommit className="mb-3 h-10 w-10 text-muted-foreground/40" />
-            <p className="text-sm text-muted-foreground">No changelog entries yet.</p>
+            <ScrollText className="mb-3 h-9 w-9 text-muted-foreground/40" />
+            <p className="text-sm italic text-muted-foreground">Nothing here yet.</p>
           </CardContent>
         </Card>
       ) : (
-        <div className="space-y-4">
-          {data.entries.map((entry) => (
-            <Card key={entry.date}>
-              <CardHeader className="pb-3">
-                <CardTitle className="flex items-center gap-2 text-sm font-medium">
-                  <Calendar className="h-4 w-4 text-muted-foreground" />
-                  {new Date(entry.date + 'T00:00:00').toLocaleDateString('en-US', {
-                    weekday: 'long',
-                    month: 'long',
-                    day: 'numeric',
-                    year: 'numeric',
-                  })}
-                  <Badge variant="secondary" className="ml-auto text-xs">
-                    {entry.commits.length} commit{entry.commits.length !== 1 ? 's' : ''}
-                  </Badge>
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="pt-0">
-                <div className="space-y-2">
-                  {entry.commits.map((commit) => (
-                    <div key={commit.hash} className="flex items-start gap-3 text-sm">
-                      <Badge variant="outline" className="mt-0.5 font-mono text-[10px]">
-                        {commit.hash}
-                      </Badge>
-                      <div className="flex-1">
-                        <p>{commit.message}</p>
-                        <p className="text-xs text-muted-foreground">{commit.author}</p>
+        <ol className="space-y-9">
+          {releases.map((release) => {
+            // APP_VERSION is inlined at build time, so this marks the release
+            // you are actually looking at rather than merely the newest one.
+            const running = release.version === APP_VERSION
+            return (
+              <li key={release.version}>
+                <div className="rule-bottom flex flex-wrap items-baseline gap-x-3 gap-y-1 pb-2">
+                  <h2 className="tt-display tabular-nums text-[22px]">v{release.version}</h2>
+                  {release.date && (
+                    <span className="text-[13px] italic text-muted-foreground">
+                      {formatDate(release.date)}
+                    </span>
+                  )}
+                  {running && (
+                    <span className="smallcaps ml-auto border border-primary/40 px-2 py-0.5 text-[11px] italic text-primary">
+                      You are here
+                    </span>
+                  )}
+                </div>
+
+                <div className="mt-3.5 space-y-3.5">
+                  {byKind(release).map(([kind, texts]) => (
+                    <div key={kind}>
+                      <div className="smallcaps text-[11.5px] italic text-muted-foreground">
+                        {kind}
                       </div>
+                      <ul className="mt-1 space-y-1.5">
+                        {texts.map((text) => (
+                          <li
+                            key={text}
+                            className="border-l-2 border-foreground/15 pl-3 text-[15px] leading-relaxed"
+                          >
+                            {splitEmphasis(text).map((seg, i) =>
+                              seg.bold ? (
+                                <strong key={i} className="font-semibold">
+                                  {seg.text}
+                                </strong>
+                              ) : (
+                                <span key={i}>{seg.text}</span>
+                              ),
+                            )}
+                          </li>
+                        ))}
+                      </ul>
                     </div>
                   ))}
                 </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+              </li>
+            )
+          })}
+        </ol>
       )}
     </div>
   )
