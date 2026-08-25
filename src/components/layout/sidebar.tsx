@@ -8,6 +8,7 @@ import { useCompetitions } from '@/hooks/use-competitions'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { navItemsFor } from './nav-items'
+import { buildLabel } from '@/lib/version'
 
 
 // The countdown bar fills as the race approaches. Twelve weeks is the usual
@@ -25,6 +26,8 @@ export default function Sidebar({ onClose }: SidebarProps) {
   const logout = useLogout()
 
   const items = navItemsFor(user?.is_admin)
+  // Constant per build, so it is read once rather than held in state.
+  const build = buildLabel()
 
   const initials = user?.name
     ?.split(' ')
@@ -145,6 +148,19 @@ export default function Sidebar({ onClose }: SidebarProps) {
             <LogOut className="h-[15px] w-[15px]" />
           </Button>
         </div>
+
+        {/* Build identity. Doubles as the way back to the changelog, which is
+            deliberately absent from the contents — see unlistedItems. */}
+        {build && (
+          <Link
+            href="/changelog"
+            onClick={onClose}
+            title="What changed"
+            className="mt-2.5 block font-mono text-[10.5px] tracking-tight text-muted-foreground/70 no-underline transition-colors hover:text-foreground"
+          >
+            {build}
+          </Link>
+        )}
       </div>
     </div>
   )
