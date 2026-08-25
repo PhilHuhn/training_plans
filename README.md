@@ -31,8 +31,12 @@ never mentions connecting it.
 
 ### What's new
 
-The release log lives at `/changelog`. It is deliberately not in the sidebar — it is a
-release log, not somewhere to navigate to.
+The running version sits in the bottom-left of the sidebar as `v1.0.0 · 8b7be0a` — the
+release plus the deployed commit, so you can always tell which build you are looking at.
+Clicking it opens `/changelog`, which is otherwise deliberately absent from the sidebar.
+`GET /api/health` reports the same pair, so a deploy can be confirmed with a curl.
+
+Bump the version in `package.json`; nothing else needs changing.
 
 ## Clubs
 
