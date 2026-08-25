@@ -5,6 +5,7 @@ import { trainingSessions, type UserPreferences } from "@/server/db/schema";
 import { requireSession } from "@/server/auth/session";
 import { errorJson } from "@/server/http";
 import { buildFitWorkout, type WorkoutDetailsLike } from "@/server/services/fit-export";
+import { resolveEffectiveWorkout } from "@/server/services/workout-normalize";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -30,7 +31,13 @@ export async function GET(
   const ts = rows[0];
   if (!ts) return errorJson("Training session not found", 404);
 
-  const workoutData = (ts.finalWorkout ?? ts.plannedWorkout ?? ts.recommendationWorkout) as WorkoutDetailsLike | null;
+  // resolveEffectiveWorkout, not a hand-rolled ternary. It does two things this
+  // route was getting wrong: the precedence is final → recommendation → planned,
+  // matching displayedWorkout() on the calendar, so the .fit you download is the
+  // workout you were looking at; and it expands the AI's short keys, without
+  // which an exported recommendation loses its intervals (`ivl`), duration
+  // (`min`) and targets entirely.
+  const workoutData = resolveEffectiveWorkout(ts) as WorkoutDetailsLike | null;
   if (!workoutData) return errorJson("No workout data available for export", 400);
 
   const prefs = (session.user.preferences ?? {}) as UserPreferences;
