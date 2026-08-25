@@ -174,6 +174,15 @@ export async function GET(req: NextRequest) {
   // same daily-TRIMP map means one decay implementation covers both halves, so
   // the forecast continues the history rather than restating it slightly
   // differently.
+  //
+  // "Today" here is the server's UTC day, and `session_date` is a zoneless SQL
+  // date, so the two agree for an athlete on UTC. East of it they diverge for
+  // the last hours of the local evening — an athlete at UTC+2 hovering at 22:30
+  // local is already on tomorrow's date, so their tomorrow gets treated as
+  // today: its planned load is skipped by the guard below and the "today"
+  // marker sits a day left. It corrects itself at midnight UTC. Fixing it
+  // properly means the client sending its own date, which is a wider change
+  // than this window justifies.
   const forecastStart = new Date(`${isoDay(now)}T00:00:00.000Z`);
   const forecastEnd = new Date(forecastStart.getTime() + FORECAST_DAYS * DAY_MS);
 
@@ -198,7 +207,13 @@ export async function GET(req: NextRequest) {
     // Today is already counted from whatever was actually done, so adding the
     // plan on top would double it.
     if (day <= isoDay(now)) continue;
-    const workout = s.finalWorkout ?? s.plannedWorkout ?? s.recommendationWorkout;
+    // final → recommendation → planned, matching displayedWorkout() in
+    // training-grid.tsx and the load totals in sessions/range and sessions/week.
+    // The order is not cosmetic: saveRecommendations() updates only
+    // recommendationWorkout and leaves plannedWorkout in place, so a session
+    // that has been through "AI Plan" carries both. Reading planned first
+    // projects the un-adapted plan while the calendar shows the adapted one.
+    const workout = s.finalWorkout ?? s.recommendationWorkout ?? s.plannedWorkout;
     const load = plannedLoadOf(workout, prefs);
     if (load > 0) trimpByDay.set(day, (trimpByDay.get(day) ?? 0) + load);
   }

@@ -344,15 +344,31 @@ export default function DashboardPage() {
                       <Tooltip
                         contentStyle={tooltipStyle}
                         labelFormatter={(l) => formatDay(String(l))}
+                        // The projected series are separate keys, so they need
+                        // their own labels — without them the tooltip prints
+                        // "ctl_projected" on every day of the forecast. They are
+                        // marked "(planned)" rather than sharing a label, so a
+                        // hovered number is never mistaken for a measurement.
                         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                        formatter={((value: any, name: any) => {
+                        formatter={((value: any, name: any, item: any) => {
+                          const key = String(name)
+                          // On the boundary day both halves carry the same value
+                          // so the lines meet; showing both would list every
+                          // metric twice. The measured one wins there.
+                          if (key.endsWith('_projected') && !item?.payload?.projected) return null
                           const labels: Record<string, string> = {
                             ctl: 'Fitness (CTL)',
                             atl: 'Fatigue (ATL)',
                             tsb: 'Form (TSB)',
                             trimp: 'Daily TRIMP',
+                            ctl_projected: 'Fitness (planned)',
+                            atl_projected: 'Fatigue (planned)',
+                            tsb_projected: 'Form (planned)',
                           }
-                          return [Number(value ?? 0).toFixed(1), labels[String(name)] ?? name]
+                          const label = labels[key] ?? key
+                          const suffix =
+                            key === 'trimp' && item?.payload?.projected ? ' (planned)' : ''
+                          return [Number(value ?? 0).toFixed(1), `${label}${suffix}`]
                         }) as never}
                       />
                       <Legend

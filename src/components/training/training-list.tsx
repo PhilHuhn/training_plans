@@ -105,8 +105,9 @@ export default function TrainingList({ data, onOpenSession }: TrainingListProps)
                   const raceRow = race ? (
                     <tr
                       key={`race-${race.id}`}
+                      onClick={() => onOpenSession(date, session)}
                       className={cn(
-                        'border-b border-foreground/10',
+                        'cursor-pointer border-b border-foreground/10 transition-colors hover:bg-foreground/[0.04]',
                         isToday(date) && 'bg-foreground/[0.04]',
                       )}
                     >
@@ -128,6 +129,11 @@ export default function TrainingList({ data, onOpenSession }: TrainingListProps)
 
                   // Day without a session (or a session without any workout):
                   // render a muted Rest row; clicking it adds a session.
+                  //
+                  // On a race day the race row stands in for it — but it carries
+                  // the same onClick, so a shakeout can still be added. Dropping
+                  // the row outright would leave the race day the only one in the
+                  // table you cannot click, and the footer says you can.
                   if (!disp) {
                     if (raceRow) return raceRow
                     return (
