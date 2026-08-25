@@ -1,5 +1,6 @@
 import "server-only";
 import AnthropicNamespace from "@anthropic-ai/sdk";
+import { normalizeContentBlocks, textFromBlocks } from "@/lib/message-content";
 import { aiApiKey, env } from "@/server/env";
 import { aiModel, aiProvider } from "./app-settings";
 
@@ -185,12 +186,13 @@ function countSessionsInPartialJson(text: string): number {
 }
 
 /** Concatenate all text blocks. With adaptive thinking (Sonnet 5+), content
- *  starts with thinking blocks — content[0] is no longer guaranteed text. */
-function textFromContent(content: Array<{ type: string; text?: string }>): string {
-  return content
-    .filter((b) => b.type === "text" && typeof b.text === "string")
-    .map((b) => b.text)
-    .join("");
+ *  starts with thinking blocks — content[0] is no longer guaranteed text.
+ *
+ *  Takes `unknown` rather than a block array on purpose: OpenRouter's
+ *  translation layer does not guarantee the documented shape for a third-party
+ *  model, and a bare string here used to throw "filter is not a function". */
+function textFromContent(content: unknown): string {
+  return textFromBlocks(normalizeContentBlocks(content));
 }
 
 async function callJson(
