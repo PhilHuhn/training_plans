@@ -85,7 +85,7 @@ turbine-turmweg/
 ├── postcss.config.mjs                         # Tailwind v4 plugin
 ├── tsconfig.json                              # Strict + path alias `@/*` → ./src/*
 ├── docker-compose.yml                         # Postgres-only
-├── render.yaml                                # Render web + db deploy spec
+├── render.yaml                                # Intended Render config — NOT applied; see its header
 └── .env                                       # Local-only secrets (gitignored)
 ```
 

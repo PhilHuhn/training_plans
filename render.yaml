@@ -1,21 +1,64 @@
+# Render deployment spec.
+#
+# ── STATUS ────────────────────────────────────────────────────────────────────
+# This file is NOT currently applied. The live service was created by hand in the
+# Render dashboard, and the dashboard is the source of truth for it: the service
+# is named "Club Turbine App", not `turbine-turmweg` as declared below, which is
+# the proof it was never blueprinted.
+#
+# Do NOT attach this as a Blueprint to fix that. Render blueprints create the
+# resources they cannot find; they do not adopt existing ones. Attaching it would
+# stand up a SECOND web service and a SECOND database alongside the live pair,
+# and `generateValue` on SECRET_KEY would mint a new signing key — logging every
+# athlete out and leaving their data behind on the old database.
+#
+# Treat this as the reference for what the settings SHOULD be, and change them in
+# the dashboard. The values below match the live service except where marked
+# "target", which is where the dashboard should be brought into line.
+# ──────────────────────────────────────────────────────────────────────────────
+
 databases:
   - name: turbine-turmweg-db
-    databaseName: turbine_turmweg
-    user: turbine
+    # Render generated these when the database was created by hand; they are not
+    # the names this file originally guessed. Written out so the file stops
+    # describing a database that does not exist.
+    databaseName: turbine_turmweg_db_btae
+    user: turbine_turmweg_db_btae_user
     plan: basic-256mb
+    region: frankfurt
 
 services:
   - type: web
-    name: turbine-turmweg
+    # The live service is "Club Turbine App" (slug club-turbine-app). Renaming it
+    # would change its .onrender.com URL and break BASE_URL and the Strava
+    # redirect URI, so the name here follows reality rather than the reverse.
+    name: Club Turbine App
     runtime: node
     plan: starter
-    # Build stays pure: install + compile. No schema changes here.
+    region: frankfurt
+    branch: master
+
+    # target — live build is `npm install && npm run db:push && npm run build`.
+    #
+    # Two changes wanted. `npm ci` installs exactly what package-lock.json pins;
+    # `npm install` is free to resolve newer versions, so the deployed tree can
+    # differ from the tested one without anything appearing to change.
+    #
+    # And the schema push belongs after the build, not inside it. Chained with
+    # `&&` a failed push does abort the deploy — that part is fine — but a push
+    # that SUCCEEDS while the deploy later fails (a crash on boot, a failed
+    # health check) leaves the old code serving against the new schema. Running
+    # it as a pre-deploy step closes most of that window.
     buildCommand: npm ci && npm run build
-    # Runs after a successful build, before traffic is switched over.
-    # This is the correct lifecycle phase for schema pushes — a failed
-    # push aborts the deploy instead of leaving a half-migrated DB live.
     preDeployCommand: npm run db:push
     startCommand: npm start
+
+    # target — currently empty on the live service, which means Render switches
+    # traffic to a new instance without ever asking whether it came up. With this
+    # set, an instance that cannot serve /api/health never receives traffic and
+    # the previous one keeps running.
+    healthCheckPath: /api/health
+
     envVars:
       - key: NODE_VERSION
         value: "22"
@@ -23,8 +66,10 @@ services:
         fromDatabase:
           name: turbine-turmweg-db
           property: connectionString
+      # Already set on the live service. Never re-generate it: rotating the
+      # signing key invalidates every session at once.
       - key: SECRET_KEY
-        generateValue: true
+        sync: false
       - key: NODE_ENV
         value: production
       - key: STRAVA_CLIENT_ID
@@ -42,4 +87,3 @@ services:
       # Comma-separated operator emails; grants /admin without a DB write.
       - key: ADMIN_EMAILS
         sync: false
-    healthCheckPath: /api/health
