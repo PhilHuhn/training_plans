@@ -166,12 +166,21 @@ The redirect URI is built from `BASE_URL` — make sure that env var matches the
 
 ## Deployment
 
-The repo includes a [`render.yaml`](render.yaml) for one-click deployment to [Render](https://render.com):
+The app runs on [Render](https://render.com): a managed Postgres database and a Node web
+service, auto-deploying from `master`.
 
-- A managed Postgres database
-- A web service running `npm ci && npm run db:push && npm run build` then `npm start`
-- `SECRET_KEY` auto-generated; `DATABASE_URL` wired from the database
-- `STRAVA_CLIENT_ID/SECRET`, `ANTHROPIC_API_KEY`, `BASE_URL` set as sync-disabled secrets
+[`render.yaml`](render.yaml) documents the intended configuration, but **it is not applied** —
+the live service was created in the dashboard, and the dashboard is its source of truth. The
+file's header explains why attaching it as a Blueprint would duplicate the service rather than
+adopt it. Deploy settings are changed in the dashboard; the file records what they should be.
+
+What the service needs, however it is created:
+
+- Node 22, Postgres, and the env vars listed in [`.env.example`](.env.example)
+- Build `npm ci && npm run build`, pre-deploy `npm run db:push`, start `npm start`
+- A health check on `/api/health`, so a failed boot never receives traffic
+- `DATABASE_URL` wired from the database; `SECRET_KEY` set once and never rotated
+  (rotating it invalidates every session)
 
 Other targets (Vercel, Fly.io, Railway) work too — you just need a Node 20+ runtime, Postgres, and the same env vars.
 
@@ -203,7 +212,7 @@ turbine-turmweg/
 │       └── prompts/                # Claude prompts
 ├── drizzle/                        # Generated migrations
 ├── docker-compose.yml              # Postgres only
-└── render.yaml                     # Render deploy spec
+└── render.yaml                     # Intended Render config (not applied — see its header)
 ```
 
 ## License
