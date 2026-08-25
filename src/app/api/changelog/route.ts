@@ -1,60 +1,32 @@
-import { NextResponse } from "next/server";
-import { execFile } from "node:child_process";
+import { readFile } from "node:fs/promises";
 import path from "node:path";
-import { promisify } from "node:util";
+import { NextResponse } from "next/server";
+import { parseChangelog } from "@/lib/changelog";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const execFileAsync = promisify(execFile);
-
-interface ChangelogCommit {
-  hash: string;
-  message: string;
-  author: string;
-  date: string;
-}
-
+/**
+ * The release notes, read from the committed CHANGELOG.md.
+ *
+ * This used to shell out to `git log` and render commit subjects, which put a
+ * diff summary in front of athletes and made a user-facing page depend on
+ * `.git` and a `git` binary surviving into the running container. Reading a
+ * committed file needs neither.
+ *
+ * Note this reads from the repo at runtime, which is right for the current
+ * deploy (a full checkout, `npm start` from the repo root). Moving to
+ * `output: "standalone"` would mean arranging for this file to be copied.
+ */
 export async function GET() {
   try {
-    const repoRoot = path.resolve(process.cwd());
-    const { stdout } = await execFileAsync(
-      "git",
-      ["log", "--pretty=format:%H|%s|%an|%aI", "--max-count=200"],
-      { cwd: repoRoot, timeout: 10_000 },
-    );
-
-    const commits: ChangelogCommit[] = [];
-    for (const line of stdout.trim().split("\n")) {
-      if (!line.includes("|")) continue;
-      const parts = line.split("|");
-      if (parts.length < 4) continue;
-      const [hash, message, author, ...rest] = parts;
-      commits.push({
-        hash: hash.slice(0, 7),
-        message,
-        author,
-        date: rest.join("|"),
-      });
-    }
-
-    const groups = new Map<string, ChangelogCommit[]>();
-    for (const c of commits) {
-      const day = c.date.slice(0, 10);
-      const list = groups.get(day) ?? [];
-      list.push(c);
-      groups.set(day, list);
-    }
-
-    const entries = Array.from(groups.entries())
-      .sort((a, b) => (a[0] < b[0] ? 1 : -1))
-      .map(([day, dayCommits]) => ({ date: day, commits: dayCommits }));
-
-    return NextResponse.json({ entries });
+    const file = path.join(process.cwd(), "CHANGELOG.md");
+    const markdown = await readFile(file, "utf8");
+    return NextResponse.json({ releases: parseChangelog(markdown) });
   } catch (err) {
-    return NextResponse.json({
-      entries: [],
-      error: err instanceof Error ? err.message : "Git log failed",
-    });
+    // An empty list renders the page's own empty state, which is a better
+    // outcome than an error card for something purely informational.
+    console.error("[changelog] could not read CHANGELOG.md:", err);
+    return NextResponse.json({ releases: [] });
   }
 }

@@ -1,12 +1,13 @@
 {
   "name": "turbine-turmweg",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
+    "release": "node scripts/release.mjs",
     "db:generate": "drizzle-kit generate",
     "db:push": "node scripts/db-push.mjs",
     "db:studio": "drizzle-kit studio",

@@ -1,50 +1,76 @@
 # Changelog
 
-Auto-generated from git history.
+What changed in Club Turbine, in plain language.
 
-## 2026-08-23
+Entries are written by hand for the people using the app — they are not generated
+from git. The version at the top of this file is the app's version: releasing and
+writing the note here are the same act, so the number in the sidebar always has
+something behind it. See `npm run release`.
 
-- Rename the app to Club Turbine in user-facing copy (PhilHuhn)
-- Add imprint, privacy policy and contact form (PhilHuhn)
-- Adopt the 2026 design refresh across the shell, dashboard and landing page (PhilHuhn)
-- Add design-sync inputs for the Turbine Turmweg UI design system (PhilHuhn)
+## [1.1.0] — 2026-08-25
 
-## 2026-08-22
+### Added
+- Import a training plan straight from the Training page. The **Import Plan** button sits
+  next to **AI Plan**, takes a PDF, Word, text or Markdown file, and you can drop the file
+  onto it rather than hunting through a file picker.
+- Watch your plan being read. The import now shows what it is doing — reading the document,
+  working out the shape of the plan, listing sessions as it finds them, saving them to your
+  calendar — instead of a spinner that could sit there for minutes with nothing to say.
 
-- Merge pull request #1 from PhilHuhn/claude/german-text-landing-page-v8dsxz (PhilHuhn)
-- Translate remaining German UI copy to English and add a landing page (Claude)
+### Changed
+- Your calendar fills in the moment an import finishes. It used to need a page reload before
+  the new sessions appeared.
+- Importing a plan is noticeably quicker, most visibly on long plans.
+- A plan with no dates of its own now starts from the block you are looking at, and the
+  import window says which date that is before you commit to it.
+- This page. It now lists releases in plain language rather than a running list of code
+  changes.
 
-## 2026-08-21
+### Removed
+- The **Import .ics** and **Export .ics** buttons have gone from the Training toolbar. They
+  were rarely used and crowded out the controls that are.
 
-- Apply schema on deploy by making db:push non-interactive on Render (PhilHuhn)
-- Rebuild package-lock.json on Linux/Node 22 for npm ci parity (PhilHuhn)
-- Regenerate package-lock.json so npm ci can install (PhilHuhn)
-- Add club overlay, coach, ICS import/export; harden Render deploy config (PhilHuhn)
+## [1.0.0] — 2026-08-25
 
-## 2026-07-05
+### Added
+- A welcome page after signing up, which offers to connect Strava there and then — the step
+  people were most likely to miss and then wonder why the app looked empty.
+- A guided tour that points out where things live and what to do first.
+- The running version now shows in the bottom-left corner, linking here.
 
-- Remove all project source files, migrations, configuration, and client code (PhilHuhn)
+### Changed
+- When the AI coach is unavailable, the app now says why — out of credit, rate-limited,
+  temporarily down — instead of failing quietly.
 
-## 2026-07-04
+## [0.5.0] — 2026-08-24
 
-- Remove all project source files, migrations, configuration, and client code (PhilHuhn)
+### Added
+- Join a club with a code.
+- A feedback box, so you can tell us what is wrong without leaving the app.
 
-## 2026-02-22
+### Changed
+- Charts now use one consistent colour per sport across the whole app.
 
-- Add extended training definition: phase labels, terrain, TRIMP, RPE, comparison, alternatives (PhilHuhn)
-- Replace `ScrollArea` with simple `div` for improved layout and remove unused import (PhilHuhn)
-- Add `final_workout` and `accepted_source` fields to `Session` schema (PhilHuhn)
-- Apply neo-brutalist UI design system across entire frontend (PhilHuhn)
+## [0.4.0] — 2026-08-23
 
-## 2026-02-21
+### Added
+- Imprint, privacy policy and a contact form.
 
-- Match Strava zone names/counts, per-section estimation, fix pace input & JSON parsing (PhilHuhn)
-- Add zone history UI, per-sport availability windows, and fix migration bug (PhilHuhn)
-- Replace cross-training toggle with per-sport selection in generate modal (PhilHuhn)
-- Add cross-training support, multi-sport features, and activity stats dashboard (PhilHuhn)
-- Replace Jinja2/HTMX frontend with React SPA and add changelog (PhilHuhn)
+### Changed
+- A new look across the app, modelled on a printed training manual.
+- The app is now called **Club Turbine** throughout.
 
-## 2024-04-20
+## [0.3.0] — 2026-08-22
 
-- simplified class structure added basic json methods (PhilHuhn)
+### Added
+- A landing page explaining what the app is for.
 
+### Changed
+- The interface is now in English throughout. Some screens had German left in them.
+
+## [0.2.0] — 2026-08-21
+
+### Added
+- Club overlay: see how your week lines up with the rest of the club.
+- The AI coach, as a chat panel and its own page.
+- Import and export your plan as a calendar file.
