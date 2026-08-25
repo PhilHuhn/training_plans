@@ -1,6 +1,11 @@
 'use client'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { trainingApi, type GenerateParams, type GenerateProgressEvent } from '@/api/training'
+import {
+  trainingApi,
+  type GenerateParams,
+  type GenerateProgressEvent,
+  type UploadProgressEvent,
+} from '@/api/training'
 import type { WorkoutDetails } from '@/lib/types'
 
 export function useTrainingWeek(weekStart?: string) {
@@ -92,11 +97,25 @@ export function useGenerateRecommendations() {
   })
 }
 
+/**
+ * Imports a plan file, reporting the server's real stages as it goes.
+ *
+ * The invalidations are the point as much as the upload is: before this hook
+ * was wired up, the Settings page called the api layer directly and a
+ * successful import left the training grid showing stale data until a remount.
+ */
 export function useUploadPlan() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: ({ file, start_date }: { file: File; start_date?: string }) =>
-      trainingApi.uploadPlan(file, start_date).then((r) => r.data),
+    mutationFn: ({
+      file,
+      start_date,
+      onProgress,
+    }: {
+      file: File
+      start_date?: string
+      onProgress?: (event: UploadProgressEvent) => void
+    }) => trainingApi.uploadPlanStream(file, start_date, onProgress ?? (() => {})),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['trainingWeek'] })
       queryClient.invalidateQueries({ queryKey: ['trainingRange'] })

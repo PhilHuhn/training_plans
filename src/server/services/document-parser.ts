@@ -1,7 +1,8 @@
 import "server-only";
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { db } from "@/server/db";
 import { trainingSessions, uploadedPlans, type User } from "@/server/db/schema";
+import type { ImportProgress, ServerImportStage } from "@/lib/import-progress";
 import { parseDocument } from "@/server/services/claude";
 import {
   buildDocumentParsingPrompt,
@@ -69,10 +70,14 @@ function nextMondayIso(): string {
 export async function parseTrainingPlan(
   documentText: string,
   startDate?: string | null,
+  onProgress?: ImportProgressCallback,
 ): Promise<Record<string, unknown>> {
   const start = startDate ?? nextMondayIso();
   const prompt = buildDocumentParsingPrompt(documentText, start);
-  const result = await parseDocument(DOCUMENT_PARSING_SYSTEM, prompt);
+  const result = await parseDocument(DOCUMENT_PARSING_SYSTEM, prompt, (p) =>
+    // The Claude helper only knows these two stages; they map straight across.
+    onProgress?.({ stage: p.stage, sessions: p.sessions }),
+  );
   if (result.error) return { error: result.error };
   return result.data ?? {};
 }
@@ -478,15 +483,22 @@ export function createStructuredWorkout(
 // process_uploaded_plan — orchestrates extract → Claude parse → DB write
 // ---------------------------------------------------------------------------
 
+/** Progress reporter for an import. Server stages only — `uploading` is the browser's. */
+export type ImportProgressCallback = (
+  progress: ImportProgress & { stage: ServerImportStage },
+) => void;
+
 export async function processUploadedPlan(
   user: User,
   buffer: Buffer,
   contentType: string,
   filename: string,
   startDate?: string | null,
+  onProgress?: ImportProgressCallback,
 ): Promise<{ id: number; filename: string; is_active: boolean; parsed_sessions_count: number; upload_date: string }> {
+  onProgress?.({ stage: "extracting" });
   const documentText = await extractTextFromFile(buffer, contentType, filename);
-  const parsed = await parseTrainingPlan(documentText, startDate ?? null);
+  const parsed = await parseTrainingPlan(documentText, startDate ?? null, onProgress);
   if (typeof parsed === "object" && parsed !== null && "error" in parsed && typeof parsed.error === "string") {
     throw new Error(parsed.error);
   }
@@ -504,6 +516,38 @@ export async function processUploadedPlan(
       isActive: 1,
     })
     .returning();
+
+  // One lookup for every date in the plan, rather than a SELECT per session.
+  // A 16-week plan is 100+ sessions, and the round-trips were serial — this is
+  // the second-largest chunk of the wait the athlete sits through.
+  const plannedDates = parsedSessions
+    .map((raw) =>
+      raw && typeof raw === "object" && !Array.isArray(raw)
+        ? (raw as Record<string, unknown>).date
+        : undefined,
+    )
+    .filter((d): d is string => typeof d === "string");
+
+  const existingByDate = new Map<string, number>();
+  if (plannedDates.length > 0) {
+    const rows = await db
+      .select({ id: trainingSessions.id, sessionDate: trainingSessions.sessionDate })
+      .from(trainingSessions)
+      .where(
+        and(
+          eq(trainingSessions.userId, user.id),
+          inArray(trainingSessions.sessionDate, plannedDates),
+        ),
+      );
+    // First row wins, matching the old `.limit(1)` when a date somehow has two.
+    for (const row of rows) {
+      if (!existingByDate.has(row.sessionDate)) existingByDate.set(row.sessionDate, row.id);
+    }
+  }
+
+  const total = plannedDates.length;
+  let done = 0;
+  onProgress?.({ stage: "saving", done, total });
 
   for (const raw of parsedSessions) {
     if (!raw || typeof raw !== "object" || Array.isArray(raw)) continue;
@@ -526,18 +570,9 @@ export async function processUploadedPlan(
     const workoutData = normalizeWorkout(rawWorkout);
     workoutData.structured = createStructuredWorkout(workoutData, dateValue);
 
-    const existing = await db
-      .select({ id: trainingSessions.id })
-      .from(trainingSessions)
-      .where(
-        and(
-          eq(trainingSessions.userId, user.id),
-          eq(trainingSessions.sessionDate, dateValue),
-        ),
-      )
-      .limit(1);
+    const existingId = existingByDate.get(dateValue);
 
-    if (existing[0]) {
+    if (existingId !== undefined) {
       await db
         .update(trainingSessions)
         .set({
@@ -546,16 +581,25 @@ export async function processUploadedPlan(
           uploadedPlanId: plan.id,
           updatedAt: new Date(),
         })
-        .where(eq(trainingSessions.id, existing[0].id));
+        .where(eq(trainingSessions.id, existingId));
     } else {
-      await db.insert(trainingSessions).values({
-        userId: user.id,
-        sessionDate: dateValue,
-        source: "uploaded_plan",
-        plannedWorkout: workoutData,
-        uploadedPlanId: plan.id,
-      });
+      const [inserted] = await db
+        .insert(trainingSessions)
+        .values({
+          userId: user.id,
+          sessionDate: dateValue,
+          source: "uploaded_plan",
+          plannedWorkout: workoutData,
+          uploadedPlanId: plan.id,
+        })
+        .returning({ id: trainingSessions.id });
+      // Two entries for the same date in one file would otherwise insert twice;
+      // the old per-row SELECT saw the first insert, so keep that behaviour.
+      if (inserted) existingByDate.set(dateValue, inserted.id);
     }
+
+    done += 1;
+    onProgress?.({ stage: "saving", done, total });
   }
 
   return {

@@ -297,8 +297,13 @@ export function convertSession(
 export function parseDocument(
   systemPrompt: string,
   userPrompt: string,
+  onProgress?: GenerationProgressCallback,
 ): Promise<ClaudeJsonResult> {
-  return callJson(systemPrompt, userPrompt, false);
+  // The document parse has always streamed — it just had nowhere to report to.
+  // Its prompt emits the same `"sessions": [{ "date": ... }]` shape, so the
+  // session counter in callJson counts an uploaded plan as accurately as a
+  // generated one.
+  return callJson(systemPrompt, userPrompt, false, onProgress);
 }
 
 export async function generateText(prompt: string, maxTokens = 1024): Promise<string> {
