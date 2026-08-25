@@ -1,9 +1,9 @@
 'use client'
 import { Fragment, useMemo } from 'react'
-import { Trash2 } from 'lucide-react'
+import { Trash2, Trophy } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { cn, isToday, addDays, formatDistanceKm } from '@/lib/utils'
-import type { TrainingSession, WorkoutDetails } from '@/lib/types'
+import type { RaceMarker, TrainingSession, WorkoutDetails } from '@/lib/types'
 import type { TrainingRangeResponse } from '@/api/training'
 import { useDeleteSession } from '@/hooks/use-training'
 
@@ -79,12 +79,13 @@ export const SOURCE_PILL: Record<'final' | 'ai' | 'planned', string> = {
 interface CellProps {
   date: string
   session: TrainingSession | undefined
+  race: RaceMarker | undefined
   isFirstOfWeek: boolean
   onOpen: () => void
   onDelete?: () => void
 }
 
-function GridCell({ date, session, onOpen, onDelete }: CellProps) {
+function GridCell({ date, session, race, onOpen, onDelete }: CellProps) {
   const today = isToday(date)
   const disp = displayedWorkout(session)
   const workout = disp?.workout ?? null
@@ -118,7 +119,21 @@ function GridCell({ date, session, onOpen, onDelete }: CellProps) {
           today && 'bg-foreground/[0.04]',
         )}
       >
-        {!workout && (
+        {/* The race itself, from the competitions table rather than a session
+            row. Sits above any workout planned for the same day — a race and a
+            shakeout can share a date. */}
+        {race && (
+          <div className="mb-0.5 flex items-baseline gap-1 border-l-2 border-accent pl-1.5 -ml-1.5 leading-tight">
+            <Trophy className="h-2.5 w-2.5 shrink-0 translate-y-[1px] text-accent" />
+            <span className="truncate text-[11px] font-bold smallcaps text-accent" title={race.name}>
+              {race.name}
+            </span>
+            {race.priority === 'A' && (
+              <span className="shrink-0 text-[9px] italic text-accent/70">A</span>
+            )}
+          </div>
+        )}
+        {!workout && !race && (
           <span className="text-xs italic text-muted-foreground/60">+</span>
         )}
         {workout && (
@@ -173,6 +188,14 @@ export default function TrainingGrid({ data, onOpenSession }: TrainingGridProps)
     for (const w of weeks) for (const s of w.sessions) map.set(s.session_date, s)
     return map
   }, [weeks])
+
+  // Races come from the competitions table, not from sessions, so they get
+  // their own lookup rather than being merged into the one above.
+  const raceByDate = useMemo(() => {
+    const map = new Map<string, RaceMarker>()
+    for (const r of data?.races ?? []) map.set(r.date, r)
+    return map
+  }, [data?.races])
 
   if (weeks.length === 0) return null
 
@@ -232,6 +255,7 @@ export default function TrainingGrid({ data, onOpenSession }: TrainingGridProps)
                     <GridCell
                       date={date}
                       session={session}
+                      race={raceByDate.get(date)}
                       isFirstOfWeek={di === 0}
                       onOpen={() => onOpenSession(date, session)}
                       onDelete={

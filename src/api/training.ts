@@ -2,6 +2,7 @@ import apiClient from './client'
 import { readSseStream } from '@/lib/sse'
 import type { ImportProgress } from '@/lib/import-progress'
 import type {
+  RaceMarker,
   TrainingSession,
   TrainingWeekResponse,
   WorkoutDetails,
@@ -146,6 +147,8 @@ export interface TrainingRangeResponse {
       total_distance_final?: number
     }
   >
+  /** Races falling inside the range, read from the competitions table. */
+  races: RaceMarker[]
 }
 
 export const trainingApi = {

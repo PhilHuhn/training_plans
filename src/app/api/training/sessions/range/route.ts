@@ -1,7 +1,12 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { and, asc, eq, gte, inArray, lte } from "drizzle-orm";
 import { db } from "@/server/db";
-import { activities, trainingSessions, type UserPreferences } from "@/server/db/schema";
+import {
+  activities,
+  competitions,
+  trainingSessions,
+  type UserPreferences,
+} from "@/server/db/schema";
 import { requireSession } from "@/server/auth/session";
 import { trainingSessionResponse } from "@/server/serializers";
 import { calculateTrimp } from "@/server/services/training-load";
@@ -173,9 +178,37 @@ export async function GET(req: NextRequest) {
     };
   });
 
+  // Races in view, read straight from the competitions table rather than
+  // duplicated into training_sessions. One source of truth: editing a race's
+  // date or deleting it is reflected here with nothing to keep in sync.
+  const raceRows = await db
+    .select({
+      id: competitions.id,
+      name: competitions.name,
+      raceDate: competitions.raceDate,
+      raceType: competitions.raceType,
+      priority: competitions.priority,
+    })
+    .from(competitions)
+    .where(
+      and(
+        eq(competitions.userId, session.user.id),
+        gte(competitions.raceDate, rangeStart),
+        lte(competitions.raceDate, rangeEnd),
+      ),
+    )
+    .orderBy(asc(competitions.raceDate));
+
   return NextResponse.json({
     range_start: rangeStart,
     range_end: rangeEnd,
     weeks: weeksOut,
+    races: raceRows.map((r) => ({
+      id: r.id,
+      name: r.name,
+      date: String(r.raceDate),
+      race_type: r.raceType,
+      priority: r.priority,
+    })),
   });
 }
