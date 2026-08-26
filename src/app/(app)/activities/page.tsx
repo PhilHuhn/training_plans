@@ -1,5 +1,5 @@
 'use client'
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { RefreshCw, Zap, Heart, Link as LinkIcon, Timer } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -29,10 +29,38 @@ import {
   Legend,
 } from 'recharts'
 
+/** Which measure the weekly stacked bars show. Both ship in the same payload. */
+type WeeklyMetric = 'distance' | 'time'
+
+const METRIC_STORAGE_KEY = 'activities-weekly-metric'
+
+const METRIC_LABEL: Record<WeeklyMetric, string> = {
+  distance: 'Distance (km)',
+  time: 'Time (h)',
+}
+
+const METRIC_UNIT: Record<WeeklyMetric, string> = {
+  distance: 'km',
+  time: 'h',
+}
+
+
 export default function ActivitiesPage() {
   const { data: user } = useCurrentUser()
   const [page, setPage] = useState(1)
   const [sportFilter, setSportFilter] = useState<string | null>(null)
+  // Which measure the weekly bars show. Persisted per browser, the same way the
+  // training page remembers grid vs list.
+  const [metric, setMetric] = useState<WeeklyMetric>('distance')
+  useEffect(() => {
+    const stored = window.localStorage.getItem(METRIC_STORAGE_KEY)
+    if (stored === 'distance' || stored === 'time') setMetric(stored)
+  }, [])
+  const changeMetric = (m: WeeklyMetric) => {
+    setMetric(m)
+    window.localStorage.setItem(METRIC_STORAGE_KEY, m)
+  }
+
   const { data: sportStats, isLoading: sportStatsLoading } = useStatsBySport()
   const { data: weeklyData } = useWeeklyBySport(12)
   const { data, isLoading } = useActivities({
@@ -60,7 +88,8 @@ export default function ActivitiesPage() {
     return sportStats.sports.map((s) => s.sport)
   }, [sportStats])
 
-  // Build stacked bar chart data from weekly stats
+  // Build stacked bar chart data from weekly stats. Both metrics already come
+  // down in the same payload, so switching is a client concern — no refetch.
   const barChartData = useMemo(() => {
     if (!weeklyData?.weeks) return []
     return weeklyData.weeks.map((w) => {
@@ -68,11 +97,11 @@ export default function ActivitiesPage() {
         week: w.week.slice(5), // "MM-DD" for compact labels
       }
       for (const [sport, stats] of Object.entries(w.sports)) {
-        row[sport] = stats.distance_km
+        row[sport] = metric === 'distance' ? stats.distance_km : stats.duration_hours
       }
       return row
     })
-  }, [weeklyData])
+  }, [weeklyData, metric])
 
   // Unique sport keys in weekly data for stacked bars
   const weeklySportKeys = useMemo(() => {
@@ -159,7 +188,39 @@ export default function ActivitiesPage() {
           {/* Weekly Volume Stacked Bar Chart */}
           <Card className="md:col-span-2">
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium">Weekly Distance (km) by Sport</CardTitle>
+              <div className="flex flex-wrap items-baseline justify-between gap-2">
+                <CardTitle className="text-sm font-medium">
+                  Weekly {METRIC_LABEL[metric]} by Sport
+                </CardTitle>
+                <fieldset className="flex items-center gap-3 text-xs">
+                  <legend className="sr-only">Weekly chart measure</legend>
+                  {(
+                    [
+                      { value: 'distance', label: 'Distance' },
+                      { value: 'time', label: 'Time' },
+                    ] as { value: WeeklyMetric; label: string }[]
+                  ).map(({ value, label }) => (
+                    <label
+                      key={value}
+                      className={
+                        metric === value
+                          ? 'flex cursor-pointer items-center gap-1.5 text-foreground'
+                          : 'flex cursor-pointer items-center gap-1.5 text-muted-foreground hover:text-foreground'
+                      }
+                    >
+                      <input
+                        type="radio"
+                        name="weekly-metric"
+                        value={value}
+                        checked={metric === value}
+                        onChange={() => changeMetric(value)}
+                        className="h-3 w-3 accent-foreground"
+                      />
+                      <span className="italic smallcaps">{label}</span>
+                    </label>
+                  ))}
+                </fieldset>
+              </div>
             </CardHeader>
             <CardContent>
               <div className="h-[260px]">
@@ -171,7 +232,7 @@ export default function ActivitiesPage() {
                       contentStyle={CHART_TOOLTIP_STYLE}
                       // eslint-disable-next-line @typescript-eslint/no-explicit-any
                       formatter={((value: any, name: any) => [
-                        `${Number(value ?? 0).toFixed(1)} km`,
+                        `${Number(value ?? 0).toFixed(1)} ${METRIC_UNIT[metric]}`,
                         sportTheme(String(name ?? '')).label,
                       ]) as never}
                     />

@@ -178,6 +178,17 @@ export interface DashboardStats {
   }
 }
 
+/** One club chat message, as the API returns it. */
+export interface ClubMessage {
+  id: number
+  body: string
+  created_at: string
+  author_id: number
+  author_name: string
+  /** Resolved server-side from authorship and club role. */
+  can_delete: boolean
+}
+
 // Competition types
 export type RaceType = '5K' | '10K' | 'HM' | 'M' | '50K' | '100K' | '50M' | '100M' | 'OTHER'
 export type RacePriority = 'A' | 'B' | 'C'

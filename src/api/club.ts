@@ -1,6 +1,7 @@
 import apiClient from './client'
 import type {
   ClubCreatedResponse,
+  ClubMessage,
   ClubDetailResponse,
   ClubOverlayResponse,
   ClubRole,
@@ -23,6 +24,17 @@ export const clubApi = {
     apiClient.get<ClubOverlayResponse>(`/club/${slug}/overlay`, {
       params: weekStart ? { week: weekStart } : undefined,
     }),
+
+  getMessages: (slug: string, after?: number) =>
+    apiClient.get<{ messages: ClubMessage[] }>(`/club/${slug}/messages`, {
+      params: after ? { after } : undefined,
+    }),
+
+  postMessage: (slug: string, body: string) =>
+    apiClient.post<ClubMessage>(`/club/${slug}/messages`, { body }),
+
+  deleteMessage: (slug: string, id: number) =>
+    apiClient.delete<void>(`/club/${slug}/messages/${id}`),
 
   patchMembership: (
     slug: string,

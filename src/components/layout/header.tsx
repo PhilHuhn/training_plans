@@ -5,27 +5,34 @@ import { Badge } from '@/components/ui/badge'
 import FeedbackDialog from '@/components/feedback/feedback-dialog'
 import { useCurrentUser } from '@/hooks/use-auth'
 import { useChatStore } from '@/stores/chat-store'
+import SectionImage from './section-image'
+import type { SectionImage as SectionImageData } from '@/lib/section-imagery'
 
 interface HeaderProps {
   title: string
   /** Position in the sidebar's table of contents; renders as the eyebrow. */
   section?: number
+  /** Optional photograph for this section. Absent for most routes. */
+  image?: SectionImageData | null
   onMenuClick: () => void
 }
 
-export default function Header({ title, section, onMenuClick }: HeaderProps) {
+export default function Header({ title, section, image, onMenuClick }: HeaderProps) {
   const { data: user } = useCurrentUser()
   const toggleChat = useChatStore((s) => s.toggleOpen)
   // The panel stays in place when AI is off; the control just cannot be opened.
   const aiDisabled = user?.ai_enabled === false
 
   return (
-    <header className="frosted sticky top-0 z-30 flex h-16 flex-shrink-0 items-center gap-4 border-b border-foreground/15 px-4 lg:px-7">
-      <Button variant="ghost" size="icon" className="lg:hidden" onClick={onMenuClick}>
+    <header className="frosted sticky top-0 z-30 flex h-16 flex-shrink-0 items-center gap-4 border-b border-foreground/15 px-4 lg:px-7 relative overflow-hidden">
+      {image && <SectionImage image={image} />}
+
+      {/* Everything below sits above the photo layer. */}
+      <Button variant="ghost" size="icon" className="relative z-[1] lg:hidden" onClick={onMenuClick}>
         <Menu className="h-5 w-5" />
       </Button>
 
-      <div className="min-w-0">
+      <div className="relative z-[1] min-w-0">
         {section !== undefined && (
           <div className="smallcaps text-[11.5px] italic text-muted-foreground">
             Section {section}
@@ -34,7 +41,7 @@ export default function Header({ title, section, onMenuClick }: HeaderProps) {
         <h1 className="tt-title truncate text-[23px] leading-[1.1]">{title}</h1>
       </div>
 
-      <div className="ml-auto flex items-center gap-3">
+      <div className="relative z-[1] ml-auto flex items-center gap-3">
         {user?.strava_connected && (
           <Badge variant="outline" className="gap-2">
             <span className="h-1.5 w-1.5 bg-accent" />

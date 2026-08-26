@@ -7,6 +7,7 @@ import SponsorFooter from '@/components/club/sponsor-footer'
 import ThemeScope from '@/components/club/theme-scope'
 import { Button } from '@/components/ui/button'
 import { useClub, useClubOverlay, useMyClubs } from '@/hooks/use-club'
+import ClubChat from '@/components/club/club-chat'
 import { addDays } from '@/lib/utils'
 
 const DAY_MS = 24 * 3600 * 1000
@@ -122,6 +123,11 @@ export default function ClubPage() {
           No members with plans for this week yet.
         </div>
       )}
+
+      {/* Chat, scoped to the active club. Keying on the slug remounts it when
+          the switcher changes club, so no draft or scroll position carries
+          across into a different conversation. */}
+      <ClubChat key={club.slug} slug={club.slug} clubName={club.name} />
 
       <SponsorFooter sponsor={detail?.sponsor ?? null} poweredBy={detail?.powered_by ?? false} />
     </div>

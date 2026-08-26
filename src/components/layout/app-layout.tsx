@@ -7,6 +7,7 @@ import ChatPanel from './chat-panel'
 import { Sheet, SheetContent } from '@/components/ui/sheet'
 import TourAutostart from '@/components/tour/tour-autostart'
 import { sectionFor } from './nav-items'
+import { sectionImageFor } from '@/lib/section-imagery'
 
 // Dashboard and Training open with a full-bleed band that has to touch the
 // scrollport edges, so they take over their own padding. Every other page keeps
@@ -18,6 +19,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false)
   const pathname = usePathname() ?? '/training'
   const section = sectionFor(pathname)
+  const sectionImage = sectionImageFor(pathname)
   const fullBleed = FULL_BLEED_ROUTES.has(pathname)
 
   return (
@@ -39,6 +41,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
         <Header
           title={section?.label ?? 'Training'}
           section={section?.number}
+          image={sectionImage}
           onMenuClick={() => setMobileOpen(true)}
         />
         {/* Padding lives on an inner div, not on the scroll container itself:
