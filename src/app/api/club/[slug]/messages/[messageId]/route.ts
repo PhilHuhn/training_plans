@@ -25,8 +25,13 @@ export async function DELETE(
   const ctx = await requireClubMember(req, slug);
   if ("response" in ctx) return ctx.response;
 
+  // The upper bound is not pedantry: `id` is a Postgres `integer`, and a value
+  // past int4 passes Number.isInteger only to be rejected by the driver — a 500
+  // where the caller deserves a 422.
   const id = Number(messageId);
-  if (!Number.isInteger(id) || id <= 0) return errorJson("Invalid message id", 422);
+  if (!Number.isInteger(id) || id <= 0 || id > 2_147_483_647) {
+    return errorJson("Invalid message id", 422);
+  }
 
   const rows = await db
     .select({ id: clubMessages.id, userId: clubMessages.userId })
@@ -43,7 +48,13 @@ export async function DELETE(
     return errorJson("You can only delete your own messages", 403);
   }
 
-  await db.delete(clubMessages).where(eq(clubMessages.id, id));
+  // Scoped by club as well as id, matching the SELECT above. The lookup
+  // already makes cross-club deletion impossible, so this is belt and braces —
+  // but it is the statement that actually removes the row, and it costs
+  // nothing to make it carry the same guarantee the docblock promises.
+  await db
+    .delete(clubMessages)
+    .where(and(eq(clubMessages.id, id), eq(clubMessages.clubId, ctx.club.id)));
 
   return new NextResponse(null, { status: 204 });
 }

@@ -11,6 +11,13 @@ import { cn } from '@/lib/utils'
 
 const MAX_LENGTH = 2000
 
+/** The server's `detail` where there is one, so errors read like sentences. */
+function detailOf(err: unknown, fallback: string): string {
+  const detail = (err as { response?: { data?: { detail?: unknown } } })?.response?.data?.detail
+  return typeof detail === 'string' && detail.trim() ? detail : fallback
+}
+
+
 /** "14:32" for today, "12 Aug, 14:32" for anything older. */
 function formatWhen(iso: string): string {
   const d = new Date(iso)
@@ -28,7 +35,8 @@ interface ClubChatProps {
 
 export default function ClubChat({ slug, clubName }: ClubChatProps) {
   const { data: user } = useCurrentUser()
-  const { data: messages, isLoading } = useClubMessages(slug)
+  const { data, isLoading } = useClubMessages(slug)
+  const messages = data?.messages
   const post = usePostClubMessage(slug)
   const remove = useDeleteClubMessage(slug)
 
@@ -58,7 +66,10 @@ export default function ClubChat({ slug, clubName }: ClubChatProps) {
     if (!body) return
     post.mutate(body, {
       onSuccess: () => setDraft(''),
-      onError: (err) => toast.error(err instanceof Error ? err.message : 'Failed to send'),
+      // The server's own wording ("Message cannot be empty"), not axios'
+      // "Request failed with status code 422" — the athlete can act on one
+      // of those.
+      onError: (err) => toast.error(detailOf(err, 'Could not send that message')),
     })
   }
 
@@ -79,6 +90,11 @@ export default function ClubChat({ slug, clubName }: ClubChatProps) {
           ref={scrollRef}
           className="max-h-[340px] min-h-[140px] space-y-3 overflow-y-auto pr-1"
         >
+          {data?.truncated && (
+            <p className="pb-1 text-center text-[11px] italic text-muted-foreground">
+              Showing the most recent {data.window_size} messages.
+            </p>
+          )}
           {isLoading ? (
             <div className="space-y-2">
               {Array.from({ length: 3 }).map((_, i) => (
@@ -111,11 +127,15 @@ export default function ClubChat({ slug, clubName }: ClubChatProps) {
                         type="button"
                         onClick={() => {
                           remove.mutate(m.id, {
-                            onError: () => toast.error('Could not delete that message'),
+                            onError: (err) =>
+                              toast.error(detailOf(err, 'Could not delete that message')),
                           })
                         }}
                         aria-label="Delete message"
-                        className="ml-auto hidden text-muted-foreground transition-colors hover:text-destructive group-hover/msg:block"
+                        // Always present, faint until hovered. `hidden` with a
+                        // hover reveal left this unreachable on a touch screen,
+                        // where there is no hover.
+                        className="ml-auto text-muted-foreground/40 transition-colors hover:text-destructive focus-visible:text-destructive group-hover/msg:text-muted-foreground"
                       >
                         <Trash2 className="h-3 w-3" />
                       </button>

@@ -437,9 +437,11 @@ export const clubMessages = pgTable(
     createdAt: timestamp("created_at").notNull().defaultNow(),
   },
   (t) => ({
-    // The listing query is always "this club, newest last", so the index leads
-    // with clubId and carries the sort column.
-    clubCreatedIdx: index("club_messages_club_created_idx").on(t.clubId, t.createdAt),
+    // Matches the listing query exactly: filter on clubId, order by id. An
+    // earlier version indexed (clubId, createdAt) on the assumption that
+    // createdAt was the sort key — it is not; the route sorts by id, so
+    // Postgres could use the leading column and then had to sort anyway.
+    clubIdIdx: index("club_messages_club_id_idx").on(t.clubId, t.id),
   }),
 );
 
