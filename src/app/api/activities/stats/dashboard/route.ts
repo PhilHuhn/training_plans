@@ -6,6 +6,7 @@ import type { UserPreferences } from "@/server/db/schema";
 import { requireSession } from "@/server/auth/session";
 import { buildLoadSeries, isoDay } from "@/lib/load-series";
 import { calculateTrimp, estimatePlannedLoad } from "@/server/services/training-load";
+import { resolveEffectiveWorkout } from "@/server/services/workout-normalize";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -207,13 +208,19 @@ export async function GET(req: NextRequest) {
     // Today is already counted from whatever was actually done, so adding the
     // plan on top would double it.
     if (day <= isoDay(now)) continue;
-    // final → recommendation → planned, matching displayedWorkout() in
-    // training-grid.tsx and the load totals in sessions/range and sessions/week.
-    // The order is not cosmetic: saveRecommendations() updates only
-    // recommendationWorkout and leaves plannedWorkout in place, so a session
-    // that has been through "AI Plan" carries both. Reading planned first
-    // projects the un-adapted plan while the calendar shows the adapted one.
-    const workout = s.finalWorkout ?? s.recommendationWorkout ?? s.plannedWorkout;
+    // resolveEffectiveWorkout rather than a ternary here, for two reasons.
+    //
+    // Precedence: final → recommendation → planned, matching displayedWorkout()
+    // on the calendar. saveRecommendations() updates only recommendationWorkout
+    // and leaves plannedWorkout in place, so a session that has been through
+    // "AI Plan" carries both; reading planned first projects the un-adapted plan
+    // while the calendar shows the adapted one.
+    //
+    // Expansion: saveRecommendations() stores the model's output verbatim, and
+    // the prompt asks for short keys to save tokens. A stored recommendation has
+    // `load` and `min`, not `estimated_load` and `duration_min` — so reading it
+    // raw finds neither, and the session projects as a rest day.
+    const workout = resolveEffectiveWorkout(s);
     const load = plannedLoadOf(workout, prefs);
     if (load > 0) trimpByDay.set(day, (trimpByDay.get(day) ?? 0) + load);
   }

@@ -3,6 +3,10 @@ import { and, asc, eq, gte, inArray, lte } from "drizzle-orm";
 import { db } from "@/server/db";
 import { activities, trainingSessions, type UserPreferences } from "@/server/db/schema";
 import { requireSession } from "@/server/auth/session";
+import {
+  expandWorkoutShortKeys,
+  resolveEffectiveWorkout,
+} from "@/server/services/workout-normalize";
 import { trainingSessionResponse } from "@/server/serializers";
 import { calculateTrimp } from "@/server/services/training-load";
 
@@ -112,15 +116,20 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    const workout = (s.finalWorkout ?? s.recommendationWorkout ?? s.plannedWorkout ?? null) as WorkoutShape | null;
+    // See the identical block in sessions/range: read through
+    // resolveEffectiveWorkout so an AI recommendation's short keys (`load`,
+    // `ph`) are expanded before they are looked for.
+    const workout = resolveEffectiveWorkout(s) as WorkoutShape | null;
     if (workout) {
       if (typeof workout.estimated_load === "number") totalLoadPlanned += workout.estimated_load;
       if (typeof workout.training_phase === "string") phases.push(workout.training_phase);
     }
 
-    const planned = s.plannedWorkout as WorkoutShape | null;
+    // Expanded per column — see the note in sessions/range. A stored
+    // recommendation carries `km`, not `distance_km`.
+    const planned = expandWorkoutShortKeys(s.plannedWorkout) as WorkoutShape | null;
     if (planned?.distance_km) totalDistancePlanned += planned.distance_km;
-    const rec = s.recommendationWorkout as WorkoutShape | null;
+    const rec = expandWorkoutShortKeys(s.recommendationWorkout) as WorkoutShape | null;
     if (rec?.distance_km) totalDistanceRecommended += rec.distance_km;
 
     return base;

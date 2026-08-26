@@ -12,6 +12,7 @@ import {
   type UserPreferences,
 } from "@/server/db/schema";
 import { calculateTrimp } from "@/server/services/training-load";
+import { resolveEffectiveWorkout } from "@/server/services/workout-normalize";
 import {
   convertSession as claudeConvert,
   generateTrainingRecommendations,
@@ -227,8 +228,10 @@ export async function generateRecommendations(
       ? "No RPE feedback yet."
       : rpeRows
           .map((rs: TrainingSession) => {
-            const workout =
-              (rs.finalWorkout ?? rs.recommendationWorkout ?? rs.plannedWorkout ?? {}) as Record<string, unknown>;
+            // Expanded: a stored recommendation carries `rpe`, not
+            // `rpe_target`, so reading it raw told the coach "no target" for
+            // every session it had itself prescribed.
+            const workout = (resolveEffectiveWorkout(rs) ?? {}) as Record<string, unknown>;
             const target = workout.rpe_target;
             const targetStr = typeof target === "number" ? `target=${target}` : "no target";
             return `- ${rs.sessionDate}: actual=${rs.rpeActual} (${targetStr})`;
