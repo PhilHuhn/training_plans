@@ -7,6 +7,18 @@ from git. The version at the top of this file is the app's version: releasing an
 writing the note here are the same act, so the number in the sidebar always has
 something behind it. See `npm run release`.
 
+## [1.3.0] — 2026-08-26
+### Added
+- Club chat. Every club now has its own conversation on the Club page, visible only to
+  its members. If you belong to more than one club, the chat follows the club switcher —
+  each club keeps its own thread. New messages appear within a few seconds. You can
+  delete your own messages, and a coach can delete any message in their club.
+- The weekly chart on Activities can now show **time** instead of **distance** — useful
+  when your week was mostly on the bike, or when distance flatters an easy week. The app
+  remembers which you picked.
+- Section headers can now carry a photograph, which appears behind the title. None ship
+  yet; see `public/sections/README.md` for how to add them.
+
 ## [1.2.0] — 2026-08-25
 ### Added
 - The training-load chart now carries on for the next seven days, projected from the

@@ -178,6 +178,26 @@ export interface DashboardStats {
   }
 }
 
+/** One club chat message, as the API returns it. */
+export interface ClubMessage {
+  id: number
+  body: string
+  created_at: string
+  author_id: number
+  author_name: string
+  /** Resolved server-side from authorship and club role. */
+  can_delete: boolean
+}
+
+/** The chat window the server currently holds for a club. */
+export interface ClubMessagesResponse {
+  messages: ClubMessage[]
+  /** How many messages the window holds at most. */
+  window_size: number
+  /** True when older messages exist beyond the window. */
+  truncated: boolean
+}
+
 // Competition types
 export type RaceType = '5K' | '10K' | 'HM' | 'M' | '50K' | '100K' | '50M' | '100M' | 'OTHER'
 export type RacePriority = 'A' | 'B' | 'C'

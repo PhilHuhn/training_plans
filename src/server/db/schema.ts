@@ -410,6 +410,41 @@ export const clubMemberships = pgTable(
   }),
 );
 
+/**
+ * Club chat. One row per message, scoped to a club.
+ *
+ * A new table rather than new columns, so none of the `db:push --force`
+ * truncation hazard applies — there is nothing here to truncate.
+ *
+ * `userId` cascades: deleting an account takes its messages with it, matching
+ * clubMemberships and meaning "delete my account" does not leave the athlete's
+ * words behind in a club they have left.
+ */
+export const clubMessages = pgTable(
+  "club_messages",
+  {
+    id: serial("id").primaryKey(),
+    clubId: integer("club_id")
+      .notNull()
+      .references(() => clubs.id, { onDelete: "cascade" }),
+    userId: integer("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+
+    // Same ceiling as the other free-text fields in this schema.
+    body: varchar("body", { length: 2000 }).notNull(),
+
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => ({
+    // Matches the listing query exactly: filter on clubId, order by id. An
+    // earlier version indexed (clubId, createdAt) on the assumption that
+    // createdAt was the sort key — it is not; the route sorts by id, so
+    // Postgres could use the leading column and then had to sort anyway.
+    clubIdIdx: index("club_messages_club_id_idx").on(t.clubId, t.id),
+  }),
+);
+
 export const sponsors = pgTable(
   "sponsors",
   {
@@ -561,6 +596,8 @@ export type Club = typeof clubs.$inferSelect;
 export type NewClub = typeof clubs.$inferInsert;
 export type ClubMembership = typeof clubMemberships.$inferSelect;
 export type NewClubMembership = typeof clubMemberships.$inferInsert;
+export type ClubMessage = typeof clubMessages.$inferSelect;
+export type NewClubMessage = typeof clubMessages.$inferInsert;
 export type Sponsor = typeof sponsors.$inferSelect;
 export type NewSponsor = typeof sponsors.$inferInsert;
 export type ClubRole = ClubMembership["role"];
