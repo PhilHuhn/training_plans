@@ -223,13 +223,16 @@ export interface CompetitionCreate {
   name: string
   race_type: RaceType
   race_date: string
-  distance?: number
-  elevation_gain?: number
-  location?: string
-  goal_time?: number
-  goal_pace?: number
+  // null clears the field on an update; undefined leaves it untouched. Both
+  // API schemas accept null, and the difference is the whole reason an emptied
+  // box used to keep its old value.
+  distance?: number | null
+  elevation_gain?: number | null
+  location?: string | null
+  goal_time?: number | null
+  goal_pace?: number | null
   priority?: RacePriority
-  notes?: string
+  notes?: string | null
 }
 
 // Training types
