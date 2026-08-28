@@ -33,6 +33,10 @@ export default function SupportLink({
       href={site.kofi.url}
       target="_blank"
       rel="noopener noreferrer"
+      // The label is often just "Ko-fi" — enough beside Impressum and
+      // Datenschutz, thin on its own next to a version number. The title says
+      // what following it does, including that it opens a new tab.
+      title="Support Club Turbine on Ko-fi — opens in a new tab"
       onClick={onClick}
       className={cn(
         'transition-colors',
