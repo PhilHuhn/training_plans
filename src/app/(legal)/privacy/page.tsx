@@ -169,6 +169,23 @@ export default function PrivacyPage() {
         </dl>
       </Section>
 
+      <Section title="Spendenlink (Ko-fi)">
+        <p className="prose-paper">
+          An mehreren Stellen findest du einen Link auf mein Profil beim Spendendienst
+          Ko-fi (ko-fi.com). Es handelt sich um einen gewöhnlichen Verweis, nicht um ein
+          eingebettetes Widget: Solange du ihn nicht anklickst, wird kein Skript von Ko-fi
+          geladen, es werden keine Cookies gesetzt und es werden keine Daten dorthin
+          übermittelt.
+        </p>
+        <p className="prose-paper">
+          Erst wenn du dem Link folgst, verlässt du diese Seite und rufst Ko-fi auf; dabei
+          wird — wie bei jedem Seitenaufruf — deine IP-Adresse an dessen Server übermittelt.
+          Für die weitere Verarbeitung ist der Betreiber von Ko-fi eigenständig
+          verantwortlich; es gilt dessen Datenschutzerklärung. Eine Spende ist freiwillig
+          und für die Nutzung von Club Turbine zu keinem Zeitpunkt erforderlich.
+        </p>
+      </Section>
+
       <Section title="Server-Logs und Cookies">
         <p className="prose-paper">
           Beim Aufruf der Seiten fallen technische Zugriffsdaten an (IP-Adresse, Zeitpunkt,
