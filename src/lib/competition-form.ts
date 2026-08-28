@@ -21,6 +21,9 @@ export interface CompetitionFormState {
   notes: string;
 }
 
+/** A day. No race goal exceeds this, and it keeps the total inside int4. */
+export const MAX_GOAL_SECONDS = 24 * 60 * 60;
+
 /** Hours/minutes/seconds as separate inputs, which is how the dialog asks. */
 export interface GoalTimeParts {
   h: string;
@@ -43,7 +46,12 @@ export function goalTimeToSeconds(parts: GoalTimeParts): number | null {
     return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
   };
   const total = n(parts.h) * 3600 + n(parts.m) * 60 + n(parts.s);
-  return total > 0 ? total : null;
+  if (total <= 0) return null;
+  // The column is a Postgres `integer`. The hours box has no upper bound, so a
+  // fat-fingered "999999" would otherwise reach the driver and come back as a
+  // 500 rather than anything the athlete could act on. A goal time is bounded
+  // by a day in any case.
+  return Math.min(total, MAX_GOAL_SECONDS);
 }
 
 /** A stored goal time back into the three inputs. Blank when there is none. */

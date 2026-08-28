@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Plus, MapPin, Calendar, Target, Trash2, Pencil, Trophy } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -30,9 +30,11 @@ import {
   useDeleteCompetition,
 } from '@/hooks/use-competitions'
 import { formatGoalTime, priorityColor } from '@/lib/utils'
+import { detailOf } from '@/lib/api-error'
 import {
   competitionPayload,
   goalTimeToParts,
+  isCompetitionFormValid,
   type CompetitionFormState,
 } from '@/lib/competition-form'
 import { toast } from 'sonner'
@@ -54,20 +56,38 @@ function CompetitionModal({
   const update = useUpdateCompetition()
   const isEdit = !!competition
 
-  // These initialisers only run on mount, which is exactly why the dialog used
-  // to open empty: it was rendered once, unkeyed, and clicking Edit merely
-  // changed its props. The caller now keys it per competition so each open is
-  // a fresh mount — see the render site at the bottom of this file.
-  const initialGoal = goalTimeToParts(competition?.goal_time)
-  const [name, setName] = useState(competition?.name || '')
-  const [raceType, setRaceType] = useState<RaceType>(competition?.race_type || '10K')
-  const [raceDate, setRaceDate] = useState(competition?.race_date || '')
-  const [priority, setPriority] = useState<RacePriority>(competition?.priority || 'B')
-  const [location, setLocation] = useState(competition?.location || '')
-  const [goalTimeH, setGoalTimeH] = useState(initialGoal.h)
-  const [goalTimeM, setGoalTimeM] = useState(initialGoal.m)
-  const [goalTimeS, setGoalTimeS] = useState(initialGoal.s)
-  const [notes, setNotes] = useState(competition?.notes || '')
+  const [name, setName] = useState('')
+  const [raceType, setRaceType] = useState<RaceType>('10K')
+  const [raceDate, setRaceDate] = useState('')
+  const [priority, setPriority] = useState<RacePriority>('B')
+  const [location, setLocation] = useState('')
+  const [goalTimeH, setGoalTimeH] = useState('')
+  const [goalTimeM, setGoalTimeM] = useState('')
+  const [goalTimeS, setGoalTimeS] = useState('')
+  const [notes, setNotes] = useState('')
+
+  // Load the fields every time the dialog opens, matching SessionModal and
+  // GenerateModal.
+  //
+  // This is deliberately an effect rather than useState initialisers: those run
+  // only on mount, and the dialog is mounted once for the life of the page, so
+  // initialisers left it showing whatever it was born with — empty. A `key` per
+  // competition fixes opening a *different* race but not reopening the same
+  // one, where the key never changes: an abandoned draft would still be sitting
+  // there, and a second "Add" would still hold the race you had just created.
+  useEffect(() => {
+    if (!open) return
+    const goal = goalTimeToParts(competition?.goal_time)
+    setName(competition?.name || '')
+    setRaceType(competition?.race_type || '10K')
+    setRaceDate(competition?.race_date || '')
+    setPriority(competition?.priority || 'B')
+    setLocation(competition?.location || '')
+    setGoalTimeH(goal.h)
+    setGoalTimeM(goal.m)
+    setGoalTimeS(goal.s)
+    setNotes(competition?.notes || '')
+  }, [open, competition])
 
   const form: CompetitionFormState = {
     name,
@@ -95,6 +115,7 @@ function CompetitionModal({
             toast.success('Competition updated')
             onClose()
           },
+          onError: (err) => toast.error(detailOf(err, 'Could not save that competition')),
         },
       )
     } else {
@@ -103,6 +124,7 @@ function CompetitionModal({
           toast.success('Competition created')
           onClose()
         },
+        onError: (err) => toast.error(detailOf(err, 'Could not save that competition')),
       })
     }
   }
@@ -180,7 +202,7 @@ function CompetitionModal({
 
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Cancel</Button>
-          <Button onClick={handleSave} disabled={!name || !raceDate || isPending}>
+          <Button onClick={handleSave} disabled={!isCompetitionFormValid(form) || isPending}>
             {isPending ? 'Saving...' : 'Save'}
           </Button>
         </DialogFooter>
@@ -296,15 +318,10 @@ export default function CompetitionsPage() {
         </div>
       )}
 
-      {/* Keyed per competition so each open is a fresh mount and the field
-          initialisers re-run. Without this the dialog is created once and only
-          its props change, which is why editing showed an empty form.
-
-          `onClose` keeps the competition in state deliberately: dropping it
-          would change the key and remount mid-animation, blanking the fields
-          as the dialog fades out. */}
+      {/* No key: the dialog reloads its fields from props on every open (see
+          the effect in CompetitionModal). Closing keeps the competition in
+          state so the fields do not blank out behind the fade. */}
       <CompetitionModal
-        key={modal.competition?.id ?? 'new'}
         open={modal.open}
         onClose={() => setModal((m) => ({ ...m, open: false }))}
         competition={modal.competition}

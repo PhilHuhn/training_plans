@@ -8,14 +8,9 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { useClubMessages, useDeleteClubMessage, usePostClubMessage } from '@/hooks/use-club'
 import { useCurrentUser } from '@/hooks/use-auth'
 import { cn } from '@/lib/utils'
+import { detailOf } from '@/lib/api-error'
 
 const MAX_LENGTH = 2000
-
-/** The server's `detail` where there is one, so errors read like sentences. */
-function detailOf(err: unknown, fallback: string): string {
-  const detail = (err as { response?: { data?: { detail?: unknown } } })?.response?.data?.detail
-  return typeof detail === 'string' && detail.trim() ? detail : fallback
-}
 
 
 /** "14:32" for today, "12 Aug, 14:32" for anything older. */

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  MAX_GOAL_SECONDS,
   competitionPayload,
   goalTimeToParts,
   goalTimeToSeconds,
@@ -38,6 +39,14 @@ describe("goalTimeToSeconds", () => {
 
   it("is null when the boxes hold only zeros", () => {
     expect(goalTimeToSeconds({ h: "0", m: "0", s: "0" })).toBeNull();
+  });
+
+  it("clamps an absurd value instead of overflowing the column", () => {
+    // The hours input has no upper bound. Past int4 this used to reach the
+    // driver and surface as a 500 rather than anything actionable.
+    expect(goalTimeToSeconds({ h: "999999", m: "", s: "" })).toBe(MAX_GOAL_SECONDS);
+    expect(goalTimeToSeconds({ h: "24", m: "0", s: "1" })).toBe(MAX_GOAL_SECONDS);
+    expect(MAX_GOAL_SECONDS).toBeLessThan(2_147_483_647);
   });
 
   it("ignores junk rather than producing NaN", () => {
