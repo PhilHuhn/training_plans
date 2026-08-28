@@ -7,6 +7,14 @@ from git. The version at the top of this file is the app's version: releasing an
 writing the note here are the same act, so the number in the sidebar always has
 something behind it. See `npm run release`.
 
+## [1.3.1] — 2026-08-28
+### Fixed
+- Editing a competition opened an empty form. Every field was blank no matter which
+  race you clicked, so there was nothing to edit and nothing to correct — the dialog
+  only ever read your races once, when the page first loaded, and never again.
+- Clearing a field on a competition did not stick. Removing a location, a goal time or
+  your notes left the old value in place; you could add one but never take it away.
+
 ## [1.3.0] — 2026-08-26
 ### Added
 - Club chat. Every club now has its own conversation on the Club page, visible only to

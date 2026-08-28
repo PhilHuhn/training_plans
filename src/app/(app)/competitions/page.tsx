@@ -30,6 +30,11 @@ import {
   useDeleteCompetition,
 } from '@/hooks/use-competitions'
 import { formatGoalTime, priorityColor } from '@/lib/utils'
+import {
+  competitionPayload,
+  goalTimeToParts,
+  type CompetitionFormState,
+} from '@/lib/competition-form'
 import { toast } from 'sonner'
 import type { Competition, CompetitionCreate, RaceType, RacePriority } from '@/lib/types'
 
@@ -49,39 +54,38 @@ function CompetitionModal({
   const update = useUpdateCompetition()
   const isEdit = !!competition
 
+  // These initialisers only run on mount, which is exactly why the dialog used
+  // to open empty: it was rendered once, unkeyed, and clicking Edit merely
+  // changed its props. The caller now keys it per competition so each open is
+  // a fresh mount — see the render site at the bottom of this file.
+  const initialGoal = goalTimeToParts(competition?.goal_time)
   const [name, setName] = useState(competition?.name || '')
   const [raceType, setRaceType] = useState<RaceType>(competition?.race_type || '10K')
   const [raceDate, setRaceDate] = useState(competition?.race_date || '')
   const [priority, setPriority] = useState<RacePriority>(competition?.priority || 'B')
   const [location, setLocation] = useState(competition?.location || '')
-  const [goalTimeH, setGoalTimeH] = useState(
-    competition?.goal_time ? String(Math.floor(competition.goal_time / 3600)) : '',
-  )
-  const [goalTimeM, setGoalTimeM] = useState(
-    competition?.goal_time ? String(Math.floor((competition.goal_time % 3600) / 60)) : '',
-  )
-  const [goalTimeS, setGoalTimeS] = useState(
-    competition?.goal_time ? String(competition.goal_time % 60) : '',
-  )
+  const [goalTimeH, setGoalTimeH] = useState(initialGoal.h)
+  const [goalTimeM, setGoalTimeM] = useState(initialGoal.m)
+  const [goalTimeS, setGoalTimeS] = useState(initialGoal.s)
   const [notes, setNotes] = useState(competition?.notes || '')
 
-  const handleSave = () => {
-    const goalTime =
-      goalTimeH || goalTimeM || goalTimeS
-        ? (parseInt(goalTimeH || '0') * 3600 +
-            parseInt(goalTimeM || '0') * 60 +
-            parseInt(goalTimeS || '0')) || undefined
-        : undefined
+  const form: CompetitionFormState = {
+    name,
+    raceType,
+    raceDate,
+    priority,
+    location,
+    goalTimeH,
+    goalTimeM,
+    goalTimeS,
+    notes,
+  }
 
-    const data: CompetitionCreate = {
-      name,
-      race_type: raceType,
-      race_date: raceDate,
-      priority,
-      location: location || undefined,
-      goal_time: goalTime,
-      notes: notes || undefined,
-    }
+  const handleSave = () => {
+    // Blank optional fields become null, not undefined: the update route skips
+    // undefined, so clearing a location or a goal time used to leave the old
+    // value in place.
+    const data: CompetitionCreate = competitionPayload(form)
 
     if (isEdit) {
       update.mutate(
@@ -292,9 +296,17 @@ export default function CompetitionsPage() {
         </div>
       )}
 
+      {/* Keyed per competition so each open is a fresh mount and the field
+          initialisers re-run. Without this the dialog is created once and only
+          its props change, which is why editing showed an empty form.
+
+          `onClose` keeps the competition in state deliberately: dropping it
+          would change the key and remount mid-animation, blanking the fields
+          as the dialog fades out. */}
       <CompetitionModal
+        key={modal.competition?.id ?? 'new'}
         open={modal.open}
-        onClose={() => setModal({ open: false })}
+        onClose={() => setModal((m) => ({ ...m, open: false }))}
         competition={modal.competition}
       />
     </div>
