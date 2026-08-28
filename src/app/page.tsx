@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import SupportLink from "@/components/support-link";
 import {
   Columns3,
   FileText,
@@ -10,9 +11,9 @@ import {
   Zap,
 } from "lucide-react";
 
-// TODO(monetization): the app is free for everyone right now. Donations and
-// Steady accounts are planned — when they land, replace the "Free to use"
-// section below with the real pricing/supporter copy and wire up the links.
+// TODO(monetization): the app is free for everyone and stays that way. Ko-fi
+// donations are wired up below; Steady accounts are still planned — when they
+// land, extend the "Free to use" section rather than replacing it.
 
 const FEATURES = [
   {
@@ -239,11 +240,21 @@ export default async function LandingPage() {
               no tiers · no per-athlete pricing
             </div>
           </div>
-          <p className="prose-paper m-0 text-[15px] leading-[1.65] text-muted-foreground">
-            Club Turbine is run for the club&rsquo;s own members and anyone else who wants
-            it. There is no subscription and no plan tier. You pay for your own AI usage if
-            you lean on the coach heavily; everything else costs nothing.
-          </p>
+          <div>
+            <p className="prose-paper m-0 text-[15px] leading-[1.65] text-muted-foreground">
+              Club Turbine is run for the club&rsquo;s own members and anyone else who wants
+              it. There is no subscription and no plan tier. You pay for your own AI usage if
+              you lean on the coach heavily; everything else costs nothing.
+            </p>
+            <p className="prose-paper mt-3 text-[15px] leading-[1.65] text-muted-foreground">
+              Hosting and the database are paid for out of pocket. If the app is useful to
+              you, a coffee covers a few days of it — entirely optional, and nothing in the
+              app is held back either way.
+            </p>
+            <SupportLink variant="button" className="mt-5">
+              Buy me a coffee on Ko-fi
+            </SupportLink>
+          </div>
         </div>
       </div>
 
@@ -291,6 +302,7 @@ export default async function LandingPage() {
           <span>Club Turbine — Hamburg, 2026</span>
           <span className="flex flex-wrap gap-4">
             <Link href="/login">Sign in</Link>
+            <SupportLink>Ko-fi</SupportLink>
             <Link href="/imprint">Impressum</Link>
             <Link href="/privacy">Datenschutz</Link>
             <Link href="/contact">Kontakt</Link>
