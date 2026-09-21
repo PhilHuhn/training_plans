@@ -7,6 +7,15 @@ from git. The version at the top of this file is the app's version: releasing an
 writing the note here are the same act, so the number in the sidebar always has
 something behind it. See `npm run release`.
 
+## [1.4.0] — 2026-08-28
+### Added
+- You can now buy me a coffee. There is a Ko-fi link on the front page, in the footer of
+  the legal pages, and tucked next to the version number in the sidebar. Club Turbine
+  stays free and nothing is held back behind it — hosting and the database simply come
+  out of my own pocket, and a coffee covers a few days of them.
+- The privacy policy explains the link: it is an ordinary link, not an embedded widget,
+  so nothing is loaded from Ko-fi and no data reaches them unless you actually click it.
+
 ## [1.3.1] — 2026-08-28
 ### Fixed
 - Editing a competition opened an empty form. Every field was blank no matter which

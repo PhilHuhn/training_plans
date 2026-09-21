@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import type { ReactNode } from 'react'
+import SupportLink from '@/components/support-link'
 import { site } from '@/lib/site'
 
 // The legally required pages have to be reachable without logging in, so they
@@ -31,6 +32,7 @@ export default function LegalLayout({ children }: { children: ReactNode }) {
             {site.name} — {site.operator.city}, 2026
           </span>
           <span className="flex gap-4">
+            <SupportLink>Ko-fi</SupportLink>
             <Link href="/imprint">Impressum</Link>
             <Link href="/privacy">Datenschutz</Link>
             <Link href="/contact">Kontakt</Link>

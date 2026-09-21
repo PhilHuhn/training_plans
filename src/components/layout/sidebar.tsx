@@ -7,6 +7,7 @@ import { useCurrentUser, useLogout } from '@/hooks/use-auth'
 import { useCompetitions } from '@/hooks/use-competitions'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
+import SupportLink from '@/components/support-link'
 import { navItemsFor } from './nav-items'
 import { buildLabel } from '@/lib/version'
 
@@ -149,18 +150,31 @@ export default function Sidebar({ onClose }: SidebarProps) {
           </Button>
         </div>
 
-        {/* Build identity. Doubles as the way back to the changelog, which is
-            deliberately absent from the contents — see unlistedItems. */}
-        {build && (
-          <Link
-            href="/changelog"
+        {/* Build identity, and the donation link. The build doubles as the way
+            back to the changelog, which is deliberately absent from the
+            contents — see unlistedItems. The Ko-fi link sits here rather than
+            floating over the page: the bottom-right corner already belongs to
+            the coach panel's toggle. */}
+        <div className="mt-2.5 flex items-baseline justify-between gap-3 text-[10.5px] text-muted-foreground/70">
+          {build ? (
+            <Link
+              href="/changelog"
+              onClick={onClose}
+              title="What changed"
+              className="truncate font-mono tracking-tight text-inherit no-underline transition-colors hover:text-foreground"
+            >
+              {build}
+            </Link>
+          ) : (
+            <span />
+          )}
+          <SupportLink
             onClick={onClose}
-            title="What changed"
-            className="mt-2.5 block font-mono text-[10.5px] tracking-tight text-muted-foreground/70 no-underline transition-colors hover:text-foreground"
+            className="shrink-0 whitespace-nowrap text-inherit no-underline hover:text-foreground hover:no-underline"
           >
-            {build}
-          </Link>
-        )}
+            Ko-fi
+          </SupportLink>
+        </div>
       </div>
     </div>
   )
