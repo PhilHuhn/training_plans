@@ -1,5 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
+import Link from 'next/link'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { Plus, MapPin, Calendar, Target, Trash2, Pencil, Trophy } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -43,14 +45,24 @@ import type { Competition, CompetitionCreate, RaceType, RacePriority } from '@/l
 const raceTypes: RaceType[] = ['5K', '10K', 'HM', 'M', '50K', '100K', '50M', '100M', 'OTHER']
 const priorities: RacePriority[] = ['A', 'B', 'C']
 
+/** Values to start a *new* competition from, e.g. an event picked on /bsv. */
+interface CompetitionDraft {
+  name?: string
+  race_date?: string
+}
+
 function CompetitionModal({
   open,
   onClose,
   competition,
+  draft,
 }: {
   open: boolean
   onClose: () => void
   competition?: Competition
+  // Separate from `competition` on purpose: passing a draft as the competition
+  // would turn the dialog into an edit of a race that does not exist yet.
+  draft?: CompetitionDraft
 }) {
   const create = useCreateCompetition()
   const update = useUpdateCompetition()
@@ -78,16 +90,17 @@ function CompetitionModal({
   useEffect(() => {
     if (!open) return
     const goal = goalTimeToParts(competition?.goal_time)
-    setName(competition?.name || '')
+    const source = competition ?? draft
+    setName(source?.name || '')
     setRaceType(competition?.race_type || '10K')
-    setRaceDate(competition?.race_date || '')
+    setRaceDate(source?.race_date || '')
     setPriority(competition?.priority || 'B')
     setLocation(competition?.location || '')
     setGoalTimeH(goal.h)
     setGoalTimeM(goal.m)
     setGoalTimeS(goal.s)
     setNotes(competition?.notes || '')
-  }, [open, competition])
+  }, [open, competition, draft])
 
   const form: CompetitionFormState = {
     name,
@@ -214,7 +227,26 @@ function CompetitionModal({
 export default function CompetitionsPage() {
   const { data: competitions, isLoading } = useCompetitions()
   const deleteCompetition = useDeleteCompetition()
-  const [modal, setModal] = useState<{ open: boolean; competition?: Competition }>({ open: false })
+  const [modal, setModal] = useState<{
+    open: boolean
+    competition?: Competition
+    draft?: CompetitionDraft
+  }>({ open: false })
+  const router = useRouter()
+  const searchParams = useSearchParams()
+
+  // "Als Wettkampf übernehmen" on /bsv links here with ?add=<title>&date=<iso>.
+  // Open the dialog prefilled once, then drop the parameters so a reload does
+  // not open it again.
+  useEffect(() => {
+    const add = searchParams?.get('add')
+    if (!add) return
+    setModal({
+      open: true,
+      draft: { name: add, race_date: searchParams?.get('date') || undefined },
+    })
+    router.replace('/competitions')
+  }, [searchParams, router])
 
   const handleDelete = (id: number) => {
     deleteCompetition.mutate(id, {
@@ -224,7 +256,10 @@ export default function CompetitionsPage() {
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">
-      <div className="flex items-center justify-end">
+      <div className="flex items-center justify-between gap-4">
+        <Link href="/bsv" className="smallcaps text-[13px] italic text-muted-foreground">
+          BSV Hamburg race calendar
+        </Link>
         <Button size="sm" onClick={() => setModal({ open: true })}>
           <Plus className="mr-1.5 h-3.5 w-3.5" />
           Add Competition
@@ -325,6 +360,7 @@ export default function CompetitionsPage() {
         open={modal.open}
         onClose={() => setModal((m) => ({ ...m, open: false }))}
         competition={modal.competition}
+        draft={modal.draft}
       />
     </div>
   )

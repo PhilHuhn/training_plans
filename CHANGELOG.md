@@ -7,6 +7,19 @@ from git. The version at the top of this file is the app's version: releasing an
 writing the note here are the same act, so the number in the sidebar always has
 something behind it. See `npm run release`.
 
+## [1.5.0] — 2026-10-12
+### Added
+- A race calendar for the BSV Hamburg, at `/bsv`. It shows the athletics events the
+  Betriebssportverband has announced — date, entry deadline, the announcement itself and
+  the guest registration — in a form that is readable on a phone. It is public: you can
+  send the link to a club mate who has no account. The page is in German, like the events.
+- Each announcement opens right here, next to its date and deadline, with a link to the
+  original on the BSV's own portal always in view.
+- "Als Wettkampf übernehmen" puts an event from that calendar into your competitions with
+  its name and date already filled in. You choose the distance, priority and goal time.
+- Only dates and announcements are shown. Entry lists and results stay on the BSV's
+  portal, because they contain other people's names.
+
 ## [1.4.0] — 2026-08-28
 ### Added
 - You can now buy me a coffee. There is a Ko-fi link on the front page, in the footer of
